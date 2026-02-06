@@ -2,10 +2,10 @@
 <odoo>
     <!-- Action subscription contracts -->
     <record id="subscription_contracts_action" model="ir.actions.act_window">
-        <field name="name">Contracts</field>
+        <field name="name">Calendario de vencimientos</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">subscription.contracts</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">calendar,list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create a new record!
@@ -81,7 +81,7 @@
                             <field name="recurring_period_interval"
                                    readonly="lock"/>
                             <field name="recurring_invoice"
-                                   readonly="lock"/>
+                                   readonly="lock" invisible="1"/>
                             <field name="next_invoice_date"
                                    readonly="lock"/>
                             <field name="current_reference" invisible="1"/>
@@ -98,7 +98,7 @@
                             <field name="date_start"
                                    readonly="lock"/>
                             <field name="date_end"
-                                   readonly="lock"/>
+                                   readonly="lock" invisible="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -122,7 +122,7 @@
                         </page>
                     </notebook>
                 </sheet>
-            <chatter/>
+                <chatter/>
 
 
             </form>
@@ -165,4 +165,18 @@
             </list>
         </field>
     </record>
+    <!-- Subscription contract calendar view -->
+    <record id="subscription_contracts_view_calendar" model="ir.ui.view">
+        <field name="name">subscription.contracts.view.calendar</field>
+        <field name="arch" type="xml">
+            <calendar
+                    string="Calendario de vencimientos"
+                    date_start="next_invoice_date"
+                    color="partner_id">
+                <field name="name"/>
+            </calendar>
+        </field>
+    </record>
+
+
 </odoo>

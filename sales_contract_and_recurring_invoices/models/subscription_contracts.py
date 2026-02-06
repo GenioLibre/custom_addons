@@ -3,7 +3,7 @@
 from odoo import api, fields, models
 from odoo.tools import date_utils
 from odoo.tools.safe_eval import datetime
-
+from dateutil.relativedelta import relativedelta
 
 class SubscriptionContracts(models.Model):
     """ Model for subscription contracts """
@@ -62,24 +62,54 @@ class SubscriptionContracts(models.Model):
                    })
 
     def action_generate_invoice(self):
-        """ Generate invoice """
+        """ Generate invoice manually """
+
+        self.ensure_one()
+
+        if not self.next_invoice_date:
+            return
+
+        invoice_date = self.next_invoice_date
+
         self.env['account.move'].create({
             'move_type': 'out_invoice',
             'partner_id': self.partner_id.id,
-            'invoice_date': fields.date.today(),
+            'invoice_date': invoice_date,
+            'invoice_date_due': invoice_date,
             'contract_origin': self.id,
-            'invoice_line_ids': [(0, 0, {
-                'product_id': line.product_id.id,
-                'name': line.description,
-                'quantity': line.qty_ordered,
-                'price_unit': line.price_unit,
-                'tax_ids': line.tax_ids,
-                'discount': line.discount,
-            }) for line in self.contract_line_ids]
+            'invoice_line_ids': [
+                (0, 0, {
+                    'product_id': line.product_id.id,
+                    'name': line.description,
+                    'quantity': line.qty_ordered,
+                    'price_unit': line.price_unit,
+                    'discount': line.discount,
+                    'tax_ids': [(6, 0, line.tax_ids.ids)],
+                })
+                for line in self.contract_line_ids
+            ]
         })
+
+        # 🔢 Actualizar contador
         self.invoice_count = self.env['account.move'].search_count([
             ('contract_origin', '=', self.id)
         ])
+
+        # 📅 Avanzar próxima fecha
+        interval = self.recurring_period or 1
+
+        if self.recurring_period_interval == 'Days':
+            self.next_invoice_date += relativedelta(days=interval)
+        elif self.recurring_period_interval == 'Weeks':
+            self.next_invoice_date += relativedelta(weeks=interval)
+        elif self.recurring_period_interval == 'Months':
+            self.next_invoice_date += relativedelta(months=interval)
+        elif self.recurring_period_interval == 'Years':
+            self.next_invoice_date += relativedelta(years=interval)
+
+        # 🟢 Estado
+        if self.state == 'New':
+            self.state = 'Ongoing'
 
     def action_lock(self):
         """ Lock subscription contract """
@@ -127,71 +157,87 @@ class SubscriptionContracts(models.Model):
         else:
             self.invoices_active = False
 
-    @api.depends('date_start', 'recurring_invoice', 'recurring_period', 'recurring_period_interval')
+    @api.onchange('date_start')
+    def _onchange_date_start_clear_end(self):
+        self.date_end = False
+
+    @api.depends('date_start', 'recurring_period', 'recurring_period_interval')
     def _compute_next_invoice_date(self):
-        """ Compute next invoice date of contract """
-        self.next_invoice_date = fields.Date.today()
-        start_date = self.date_start
-        interval = self.recurring_invoice
-        recurring_period = self.recurring_period
-        recurring_period_interval = self.recurring_period_interval
-        self.next_invoice_date = date_utils.add(start_date, days=int(interval))
-        if recurring_period_interval == 'Days':
-            next_schedule = date_utils.add(start_date, days=int(recurring_period))
-            self.date_end = next_schedule
-        elif recurring_period_interval == 'Weeks':
-            next_schedule = date_utils.add(start_date, weeks=int(recurring_period))
-            self.date_end = next_schedule
-        elif recurring_period_interval == 'Months':
-            next_schedule = date_utils.add(start_date, months=int(recurring_period))
-            self.date_end = next_schedule
-        else:
-            next_schedule = date_utils.add(start_date, years=int(recurring_period))
-            self.date_end = next_schedule
+        for record in self:
+            if not record.date_start or not record.recurring_period or not record.recurring_period_interval:
+                record.next_invoice_date = record.date_start
+                continue
+
+            start = record.date_start
+            interval = record.recurring_period
+
+            if record.recurring_period_interval == 'Days':
+                record.next_invoice_date = start + relativedelta(days=interval)
+            elif record.recurring_period_interval == 'Weeks':
+                record.next_invoice_date = start + relativedelta(weeks=interval)
+            elif record.recurring_period_interval == 'Months':
+                record.next_invoice_date = start + relativedelta(months=interval)
+            elif record.recurring_period_interval == 'Years':
+                record.next_invoice_date = start + relativedelta(years=interval)
+            else:
+                record.next_invoice_date = start
 
     @api.model
     def subscription_contract_state_change(self):
-        """ Automatic state change and create invoice """
-        records = self.env['subscription.contracts'].search([])
-        for rec in records:
-            end_date = rec.date_end
-            expiry_reminder = rec.contract_reminder
-            expiry_warning_date = date_utils.subtract(end_date, days=int(expiry_reminder))
-            current_date = fields.Date.today()
-            next_invoice_date = rec.next_invoice_date
-            if expiry_warning_date <= current_date <= end_date:
-                rec.write({
-                              'state': 'Expire Soon'
-                          })
-            if end_date < current_date:
-                rec.write({
-                              'state': 'Expired'
-                          })
-            if next_invoice_date == current_date and rec.state != 'Cancelled':
-                data = rec.env['account.move'].create([
-                    {
-                        'move_type': 'out_invoice',
-                        'partner_id': rec.partner_id.id,
-                        'invoice_date': fields.date.today(),
-                        'contract_origin': rec.id,
-                    }
-                ])
-                for line in rec.contract_line_ids:
-                    data.write({
-                        'invoice_line_ids': [
-                            (0, 0, {
-                                'product_id': line.product_id.id,
-                                'name': line.description,
-                                'quantity': line.qty_ordered,
-                                'price_unit': line.price_unit,
-                                'tax_ids': line.tax_ids,
-                                'discount': line.discount,
-                            })
-                        ],
+        """ Automatic invoice generation for subscription contracts """
+
+        today = fields.Date.today()
+        contracts = self.search([
+            ('state', '!=', 'Cancelled')
+        ])
+
+        for rec in contracts:
+            if not rec.next_invoice_date:
+                continue
+
+            # 🔁 Generar factura solo el día exacto
+            if rec.next_invoice_date != today:
+                continue
+
+            # 🧾 Crear factura con líneas
+            invoice = self.env['account.move'].create({
+                'move_type': 'out_invoice',
+                'partner_id': rec.partner_id.id,
+                'invoice_date': rec.next_invoice_date,
+                'contract_origin': rec.id,
+                'invoice_line_ids': [
+                    (0, 0, {
+                        'product_id': line.product_id.id,
+                        'name': line.description,
+                        'quantity': line.qty_ordered,
+                        'price_unit': line.price_unit,
+                        'discount': line.discount,
+                        'tax_ids': line.tax_ids,
                     })
-                rec.invoice_count = rec.env['account.move'].search_count([
-                    ('contract_origin', '=', rec.id)
-                ])
+                    for line in rec.contract_line_ids
+                ]
+            })
+
+            # 🔢 Actualizar contador
+            rec.invoice_count = self.env['account.move'].search_count([
+                ('contract_origin', '=', rec.id)
+            ])
+
+            # 📅 Avanzar próxima fecha de factura
+            interval = rec.recurring_period or 1
+
+            if rec.recurring_period_interval == 'Days':
+                rec.next_invoice_date += relativedelta(days=interval)
+            elif rec.recurring_period_interval == 'Weeks':
+                rec.next_invoice_date += relativedelta(weeks=interval)
+            elif rec.recurring_period_interval == 'Months':
+                rec.next_invoice_date += relativedelta(months=interval)
+            elif rec.recurring_period_interval == 'Years':
+                rec.next_invoice_date += relativedelta(years=interval)
+
+            # 🟢 Estado
+            if rec.state == 'New':
+                rec.state = 'Ongoing'
 
     @api.depends('current_reference')
     def _compute_sale_order_lines(self):
