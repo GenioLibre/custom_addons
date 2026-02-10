@@ -54,9 +54,8 @@
             'gl_geniolibre/static/src/scss/custom_css.css',
         ],
         'web.assets_frontend': [
-            # Usar la versión que expone FullCalendar globalmente
             'https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css',
-            'https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js',  # ✅ Esta versión sí expone FullCalendar global
+            'https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js',  
             'gl_geniolibre/static/src/js/calendar_init.js',
         ],
 

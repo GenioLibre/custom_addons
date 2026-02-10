@@ -117,7 +117,8 @@ class project_project(models.Model):
     partner_id_google_ads_account = fields.Char(related="partner_id.id_google_ads_account")
     google_ad_campaigns_ids = fields.One2many('google.ad.campaigns', 'project_id', string='Campañas de Google Ads')
 
-    @api.depends('task_ids.post_estado', 'task_ids.tipo', 'partner_plan_post', 'partner_plan_historia', 'partner_plan_reel')
+    @api.depends('task_ids.post_estado', 'task_ids.tipo', 'partner_plan_post', 'partner_plan_historia',
+                 'partner_plan_reel')
     def _compute_publication_counts(self):  # optimizado
         for project in self:
             # Usar el ORM de Odoo para calcular cantidades directamente en la búsqueda
@@ -171,7 +172,8 @@ class project_project(models.Model):
                     partner_name = self.env['res.partner'].browse(partner_id).name
                     project_type_label = dict(
                         self.fields_get()['project_type']['selection']).get(project_type, project_type)
-                    raise ValidationError(f"Ya existe un proyecto para el cliente '{partner_name}' con el tipo '{project_type_label}'.")
+                    raise ValidationError(
+                        f"Ya existe un proyecto para el cliente '{partner_name}' con el tipo '{project_type_label}'.")
 
         # Creamos los registros utilizando la lógica estándar
         return super(project_project, self).create(vals_list)
@@ -209,7 +211,8 @@ class project_project(models.Model):
                 partner_name = self.env['res.partner'].browse(updated_partner_id).name
                 project_type_label = dict(
                     self.fields_get()['project_type']['selection']).get(updated_project_type, updated_project_type)
-                raise ValidationError(f"Otro proyecto del cliente '{partner_name}' con el tipo '{project_type_label}' ya existe.")
+                raise ValidationError(
+                    f"Otro proyecto del cliente '{partner_name}' con el tipo '{project_type_label}' ya existe.")
 
         # Aplicar la escritura de los valores
         return super(project_project, self).write(vals)
@@ -513,10 +516,11 @@ class project_project(models.Model):
         import requests
 
         # 1️⃣ Métricas de cuenta
-        account_metrics = requests.get(f"https://graph.facebook.com/{API_VERSION}/{self.partner_instagram_page_id}", params={
-            'access_token': self.partner_page_access_token,
-            'fields': 'followers_count,media_count'
-        }, timeout=15).json()
+        account_metrics = requests.get(f"https://graph.facebook.com/{API_VERSION}/{self.partner_instagram_page_id}",
+                                       params={
+                                           'access_token': self.partner_page_access_token,
+                                           'fields': 'followers_count,media_count'
+                                       }, timeout=15).json()
 
         # 2️⃣ Métricas por día
         metrics_keys = [
@@ -842,9 +846,11 @@ class project_project(models.Model):
                             'cost': round(float(row.metrics.cost_micros or 0) / 1_000_000, 2),
                             'ctr': round(float(row.metrics.ctr or 0), 2),
                             'average_cpc': round(float(row.metrics.average_cpc or 0) / 1_000_000, 2),
-                            'conversion_rate': round(100 * float(row.metrics.conversions_from_interactions_rate or 0), 2),
+                            'conversion_rate': round(100 * float(row.metrics.conversions_from_interactions_rate or 0),
+                                                     2),
                             'all_conversions': float(row.metrics.all_conversions or 0),
-                            'cost_per_all_conversions': round(float(row.metrics.cost_per_all_conversions or 0) / 1_000_000, 2),
+                            'cost_per_all_conversions': round(
+                                float(row.metrics.cost_per_all_conversions or 0) / 1_000_000, 2),
                             'interaction_rate': round(float(row.metrics.interaction_rate or 0), 2),
                         }
 
@@ -1044,54 +1050,53 @@ class project_project(models.Model):
         # ================================================
         print("ORG RAW:", repr(org_id_raw))
 
-        url_shares = f"https://api.linkedin.com/rest/shares?q=owners&owners=List(urn:li:organization:{org_id_raw})&count=100"
-        url = f"https://api.linkedin.com/rest/organizations/{org_urn}/posts?count=100"
-        print(url)
-        try:
-            r = requests.get(url, headers=headers, timeout=20)
-            print(r.json())
-            # Ignorar 404 (no hay posts)
-            if r.status_code == 404:
-                return []
-
-            r.raise_for_status()
-            data = r.json()
-
-        except Exception as e:
-            print("SHARES error:", e)
-            return []
-
-        from datetime import datetime
-
-        posts = []
-
-        for el in data.get("elements", []):
-            created = el.get("created", {}).get("time", 0)
-
-            # Rango de fechas
-            if not (since_ms <= created <= until_ms):
-                continue
-
-            # Fecha legible
-            created_dt = datetime.utcfromtimestamp(created / 1000)
-
-            # Texto del post
-            text = el.get("text", {}).get("text", "")
-
-            # Media (imágenes, videos, links)
-            media = el.get("content", {}).get("contentEntities", [])
-
-            posts.append({
-                "type": "SHARE",
-                "urn": el.get("id", ""),
-                "created_timestamp": created,
-                "created_date": str(created_dt),
-                "text": text,
-                "media": media,
-            })
-
-        print(posts)
-        exit()
+        # url_shares = f"https://api.linkedin.com/rest/shares?q=owners&owners=List(urn:li:organization:{org_id_raw})&count=100"
+        # url = f"https://api.linkedin.com/rest/organizations/{org_urn}"
+        # print(url)
+        # try:
+        #     r = requests.get(url, headers=headers, timeout=20)
+        #     print(r.json())
+        #     # Ignorar 404 (no hay posts)
+        #     if r.status_code == 404:
+        #         return []
+        #
+        #     r.raise_for_status()
+        #     data = r.json()
+        #
+        # except Exception as e:
+        #     print("SHARES error:", e)
+        #     return []
+        #
+        # from datetime import datetime
+        #
+        # posts = []
+        #
+        # for el in data.get("elements", []):
+        #     created = el.get("created", {}).get("time", 0)
+        #
+        #     # Rango de fechas
+        #     if not (since_ms <= created <= until_ms):
+        #         continue
+        #
+        #     # Fecha legible
+        #     created_dt = datetime.utcfromtimestamp(created / 1000)
+        #
+        #     # Texto del post
+        #     text = el.get("text", {}).get("text", "")
+        #
+        #     # Media (imágenes, videos, links)
+        #     media = el.get("content", {}).get("contentEntities", [])
+        #
+        #     posts.append({
+        #         "type": "SHARE",
+        #         "urn": el.get("id", ""),
+        #         "created_timestamp": created,
+        #         "created_date": str(created_dt),
+        #         "text": text,
+        #         "media": media,
+        #     })
+        #
+        # print(posts)
 
         # --- 1. organizationPageStatistics ---
         page_views_total = 0
@@ -1473,7 +1478,8 @@ class project_project(models.Model):
 
         try:
             if not selected_sources:
-                raise ValidationError("Debe seleccionar al menos una Red Social en el campo 'Redes a incluir en el reporte'")
+                raise ValidationError(
+                    "Debe seleccionar al menos una Red Social en el campo 'Redes a incluir en el reporte'")
 
             # Rango completo en fechas
             since_dt = self.date_start
@@ -1566,7 +1572,7 @@ class project_project(models.Model):
                                 'sticky': True,
                             },
                         }
-
+            print("data",data)
             if self.env.context.get("raw_json"):
                 return {
                     "data": data
@@ -2154,60 +2160,55 @@ def merge_final_instagram_data(chunks):
 
 
 def merge_final_linkedin_data(chunk_results):
-    final = {}
+    """
+    Merge seguro para LinkedIn:
+    - Suma totals numéricos
+    - Deep-merge de post_type_summary (dict de dicts)
+    - Conserva organization_id
+    - Conserva el último time_range
+    """
+    final = {
+        "totals": {},
+        "post_type_summary": {},
+    }
     last_time_range = None
+    organization_id = None
 
-    # --- 1️⃣ Combinar todos los chunks ---
-    for chunk in chunk_results:
+    for chunk in (chunk_results or []):
         if not chunk:
             continue
 
-        for key, value in chunk.items():
+        # meta
+        if chunk.get("time_range"):
+            last_time_range = chunk["time_range"]
+        if chunk.get("organization_id"):
+            organization_id = chunk["organization_id"]
 
-            # --- Guardar el último time_range ---
-            if key == "time_range":
-                last_time_range = value
-                continue
-
-            # --- Sumar métricas numéricas ---
-            if isinstance(value, (int, float)):
-                final[key] = final.get(key, 0) + value
-
-            # --- Diccionarios (ej: totals, post_type_summary) ---
-            elif isinstance(value, dict):
-                if key not in final:
-                    final[key] = {}
-                for k2, v2 in value.items():
-                    if isinstance(v2, (int, float)):
-                        final[key][k2] = final[key].get(k2, 0) + v2
-                    else:
-                        final[key][k2] = v2
-
-            # --- Listas (ya no usamos posts, así que se ignoran) ---
-            elif isinstance(value, list):
-                # pero NO guardamos nada
-                pass
-
-            # --- Otros tipos (ej: organization_id) ---
+        # totals
+        totals = chunk.get("totals") or {}
+        for k, v in totals.items():
+            if isinstance(v, (int, float)):
+                final["totals"][k] = final["totals"].get(k, 0) + v
             else:
-                final[key] = value
+                final["totals"][k] = v
 
-    if not final:
+        # post_type_summary: dict -> dict -> metrics
+        pts = chunk.get("post_type_summary") or {}
+        for type_name, metrics in pts.items():
+            final["post_type_summary"].setdefault(type_name, {})
+            for mk, mv in (metrics or {}).items():
+                if isinstance(mv, (int, float)):
+                    final["post_type_summary"][type_name][mk] = final["post_type_summary"][type_name].get(mk, 0) + mv
+                else:
+                    final["post_type_summary"][type_name][mk] = mv
+
+    # limpiar si no hay nada
+    if not final["totals"] and not final["post_type_summary"]:
         return {}
 
-    # --- 2️⃣ Mantener solo lo necesario ---
-    cleaned = {
-        "totals": final.get("totals", {}),
-        "post_type_summary": final.get("post_type_summary", {}),
-    }
-
-    # --- 3️⃣ Conservar organization_id si existe ---
-    if "organization_id" in final:
-        cleaned["organization_id"] = final["organization_id"]
-
-    # --- 4️⃣ Guardar el último time_range ---
+    if organization_id:
+        final["organization_id"] = organization_id
     if last_time_range:
-        cleaned["time_range"] = last_time_range
+        final["time_range"] = last_time_range
 
-    print("🧩 [LinkedIn] Datos combinados:\n", json.dumps(cleaned, indent=4, ensure_ascii=False))
-    exit()  # return cleaned
+    return final

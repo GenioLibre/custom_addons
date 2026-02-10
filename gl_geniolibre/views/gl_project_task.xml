@@ -138,13 +138,10 @@
                     </div>
                 </xpath>
                 <xpath expr="//field[@name='tag_ids']" position="after">
-                    <field name="fb_post_url" widget="url"/>
-                    <field name="fb_post_id"/>
-                    <field name="fb_video_id"/>
-                    <field name="inst_post_url" widget="url"/>
-                    <field name="inst_post_id"/>
-                    <field name="tiktok_post_url" widget="url"/>
-                    <field name="linkedin_post_url" widget="url"/>
+                    <field name="fb_post_url" widget="url" invisible="not has_facebook"/>
+                    <field name="inst_post_url" widget="url" invisible="not has_instagram"/>
+                    <field name="tiktok_post_url" widget="url" invisible="not has_tiktok"/>
+                    <field name="linkedin_post_url" widget="url" invisible="not has_linkedin"/>
                     <field name="post_estado" invisible="tipo == 'otro'"/>
                     <div class="d-flex justify-content-end o_state_container" invisible="not active">
                         <field name="state" widget="project_task_state_selection" class="o_task_state_widget"
@@ -155,6 +152,31 @@
                         <field name="state" widget="project_task_state_selection" class="o_task_state_widget"
                                string="Estado de la Tarea"/>
                     </div>
+                </xpath>
+                <xpath expr="//page[last()]" position="after">
+                    <page string="Debug" name="debug_page">
+                        <group>
+                            <group string="IDs">
+                                <field name="fb_post_id"/>
+                                <field name="fb_video_id"/>
+                                <field name="inst_post_id"/>
+                                <field name="tiktok_post_id"/>
+                                <field name="linkedin_post_id"/>
+                            </group>
+                            <group string="Estados">
+                                <field name="fb_estado"/>
+                                <field name="ig_estado"/>
+                                <field name="tt_estado"/>
+                                <field name="li_estado"/>
+                            </group>
+                            <group string="Errores">
+                                <field name="fb_error"/>
+                                <field name="ig_error"/>
+                                <field name="tt_error"/>
+                                <field name="li_error"/>
+                            </group>
+                        </group>
+                    </page>
                 </xpath>
             </field>
         </record>

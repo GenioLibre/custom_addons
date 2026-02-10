@@ -14,7 +14,7 @@
     </record>
     <!-- Contracts menu -->
     <menuitem id="subscription_contract_menu_action"
-              name="Contracts"
+              name="Contratos y Vencimientos"
               parent="sale.sale_order_menu"
               action="subscription_contracts_action"/>
     <!-- Subscription contract form view -->

@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="paperformat_a4_no_vertical_margins" model="report.paperformat">
+        <field name="name">A4 sin márgenes verticales</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <!-- márgenes -->
+        <field name="margin_top">0</field>
+        <field name="margin_bottom">15</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+
+        <field name="dpi">96</field>
+    </record>
     <record id="gl_print_marketing_report" model="ir.actions.report">
         <field name="name">Reporte de Marketing</field>
         <field name="model">ir.ui.view</field> <!-- Modelo genérico -->
-        <field name="report_type">qweb-pdf</field>
+        <field name="report_type">qweb-html</field>
         <field name="report_name">gl_geniolibre.gl_print_marketing_report_template</field>
+        <field name="paperformat_id" ref="paperformat_a4_no_vertical_margins"/>
         <field name="binding_model_id" eval="False"/> <!-- Eliminar vinculación a modelo -->
         <field name="binding_type">report</field>
     </record>
@@ -302,15 +316,18 @@
                     .header-tiktok {
                     background-color: black; /* Search Console: verde Google */
                     }
+                    .header-linkedin {
+                    background-color: #007fbe; /* Search Console: verde Google */
+                    }
                 </style>
                 <div class="report-header">
                     <!-- Logo del cliente -->
                     <img t-if="data['partner_id']"
                          t-att-src="'/web/image/res.partner/' + str(data['partner_id']) + '/image_1024'"
                          alt="Partner Logo"
-                         style="max-height: 20mm; width: auto; object-fit: contain;"/>
+                         style="max-height: 40mm; width: auto; object-fit: contain;margin-bottom: 0px;"/>
                     <!-- Título -->
-                    <h2>Reporte de Marketing:</h2>
+                    <h1 style="margin: 0px 0 10px;font-size: 32px;">Reporte de Marketing:</h1>
                     <p>
                         <span t-esc="(datetime.datetime.strptime(data['report_period']['since'], '%Y-%m-%d').strftime('%d de %B del %Y')).capitalize()"/>
                         al
@@ -1316,6 +1333,134 @@
                     <div class="page-break"/>
                 </t>
                 <!-- ############################################################# Sección de LinkedIn -->
+                <t t-if="data['linkedin_data']">
+                    <div class="page">
+
+                        <img src="/gl_geniolibre/static/src/img/banner_linkedin.jpg"
+                             alt="LinkedIn"
+                             style="max-width: 100%; height: auto;"/>
+
+                        <!-- Totales -->
+                        <div>
+                            <h3>Totales</h3>
+                            <table style="width: 100%; border-spacing: 16px; table-layout: fixed;">
+                                <tr>
+                                    <td class="metric-card">
+                                        <div class="metric-value">
+                                            <t t-esc="data['linkedin_data']['totals'].get('page_impressions', 0)"/>
+                                        </div>
+                                        <div class="metric-label">Vistas de contenido</div>
+                                    </td>
+
+                                    <td class="metric-card">
+                                        <div class="metric-value">
+                                            <t t-esc="data['linkedin_data']['totals'].get('page_views_total', 0)"/>
+                                        </div>
+                                        <div class="metric-label">Visitas a la página</div>
+                                    </td>
+
+                                    <td class="metric-card">
+                                        <div class="metric-value">
+                                            <t t-esc="data['linkedin_data']['totals'].get('page_followers', 0)"/>
+                                        </div>
+                                        <div class="metric-label">Seguidores</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="metric-card">
+                                        <div class="metric-value">
+                                            <t t-esc="data['linkedin_data']['totals'].get('page_new_followers', 0)"/>
+                                        </div>
+                                        <div class="metric-label">Variación de seguidores</div>
+                                    </td>
+
+                                    <td class="metric-card">
+                                        <div class="metric-value">
+                                            <t t-esc="data['linkedin_data']['totals'].get('page_clicks_total_from_shares', 0)"/>
+                                        </div>
+                                        <div class="metric-label">Interacciones totales</div>
+                                    </td>
+
+                                    <td class="metric-card">
+                                        <div class="metric-value">
+                                            <t t-esc="round(data['linkedin_data']['totals'].get('page_post_engagements', 0), 2)"/>
+                                        </div>
+                                        <div class="metric-label">Engagement Rate</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Resumen por Tipo de Publicación -->
+                        <div>
+                            <h3>Resumen por Tipo de Publicación</h3>
+                            <table>
+                                <thead>
+                                    <tr class="text-center header-linkedin">
+                                        <th>Tipo</th>
+                                        <th>Posts</th>
+                                        <th>Vistas</th>
+                                        <th>Reacciones</th>
+                                        <th>Comentarios</th>
+                                        <th>Compartidos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="data['linkedin_data']['post_type_summary'].items()" t-as="item">
+                                        <t t-set="tipo_publicacion" t-value="{'Post': '💬 Post'}.get(item[0], item[0])"/>
+
+                                        <tr class="text-center">
+                                            <td>
+                                                <t t-esc="tipo_publicacion"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="item[1].get('posts', 0)"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="item[1].get('reach', 0)"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="item[1].get('reactions', 0)"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="item[1].get('comments', 0)"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="item[1].get('shares', 0)"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Top Posts (estructura conservada, datos no disponibles) -->
+                        <div class="top-posts-container">
+                            <h3>Top Posts</h3>
+                            <table class="top-posts-table" style="table-layout: fixed; width: 100%;">
+                                <thead>
+                                    <tr class="text-center header-linkedin">
+                                        <th class="text-center content-header">Contenido</th>
+                                        <th class="text-center">Copy</th>
+                                        <th style="width: 90px;">Tipo</th>
+                                        <th style="width: 90px;">Vistas</th>
+                                        <th class="interactions-header">Interacciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="text-center">
+                                        <td colspan="5">
+                                            No hay posts destacados disponibles para este período.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                    <div class="page-break"/>
+                </t>
+
                 <!-- #############################################################  Footer -->
                 <t t-if="data.get('google_ads_data') or data.get('meta_ads_data')">
                     <h3>Leyenda</h3>
