@@ -76,6 +76,7 @@ class SaleOrder(models.Model):
 
     is_image_true = fields.Boolean(string="Is Show Image True", help="Mostrar imagen en la línea de pedido de venta", compute="_compute_is_image_true")
     camiseta_registro_ids = fields.One2many('camiseta.registro', 'sale_order_id', string='Detalles de las camisetas')
+    camiseta_foto = fields.Image(string="Foto Camiseta", max_width=1280, max_height=1280)
     archivo_excel = fields.Binary("Archivo Excel", attachment=True)
     archivo_nombre = fields.Char("Nombre del archivo")
 
@@ -230,4 +231,3 @@ class SaleOrder(models.Model):
                     _logger.info(f"Archivo temporal eliminado: {tmp_path}")
                 except Exception as e:
                     _logger.warning(f"No se pudo eliminar el archivo temporal: {tmp_path}. Error: {e}")
-

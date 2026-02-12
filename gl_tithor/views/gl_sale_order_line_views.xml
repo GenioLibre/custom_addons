@@ -24,6 +24,14 @@
                     </group>
 
                 </page>
+                <page string="Mockup Camiseta" name="foto_camiseta">
+                    <group>
+                        <div style="max-width: 512px; max-height: 100%;">
+                            <field name="camiseta_foto" string="Mockup Camiseta" widget="image"
+                                   options="{'crop': False}"/>
+                        </div>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>
