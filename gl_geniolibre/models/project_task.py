@@ -289,21 +289,7 @@ class project_task(models.Model):
 
         except Exception as e:
             _logger.error("Error en mi_funcion_critica: %s", e)
-            # Correo
             error_detalle = str(e)
-            self.env['mail.mail'].create({
-
-                'subject': 'SERVER GL - Error en el Sistema',
-                'body_html': f"""
-                    <p><strong>Ocurrió un error en la automatización</strong></p>
-                    <p><b>Proceso:</b> programar_post</p>
-                    <p><b>Tarea:</b> {self.display_name}</p>
-                    <p><b>ID:</b> {self.id}</p>
-                    <p><b>Error:</b></p>
-                    <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                """,
-                'email_to': self.env.ref('base.user_admin').email,
-            }).send()
             raise ValidationError("Ocurrió un error inesperado. Revisa la notificación.")
 
     def cancelar_post(self):
@@ -454,114 +440,101 @@ class project_task(models.Model):
             if self.tipo == "video_reels":
                 print("Estamos en video reels")
 
-                try:
-                    # PROCESANDO → REVISANDO (sin cortar ejecución)
-                    if self.fb_estado == "Procesando":
-                        self.fb_estado = "Revisando"
+                # PROCESANDO → REVISANDO (sin cortar ejecución)
+                if self.fb_estado == "Procesando":
+                    self.fb_estado = "Revisando"
+                    return True
+
+                print(self.fb_estado)
+
+                # REVISANDO
+                if self.fb_estado == "Revisando" and self.fb_video_id:
+
+                    status_url = f"{base_url}/{self.fb_video_id}"
+                    status_params = {
+                        "access_token": self.partner_page_access_token,
+                        "fields": "status",
+                    }
+
+                    resp = requests.get(status_url, params=status_params, timeout=20)
+                    resp.raise_for_status()
+                    sdata = resp.json()
+
+                    st = sdata.get("status") or {}
+                    video_status = st.get("video_status")  # ej: "processing"
+                    uploading_ok = (st.get("uploading_phase") or {}).get("status") == "complete"
+                    processing_state = (st.get("processing_phase") or {}).get("status")
+                    publishing_state = (st.get("publishing_phase") or {}).get("status")
+
+                    if not uploading_ok:
                         return True
 
-                    print(self.fb_estado)
+                    publish_url = f"{base_url}/me/video_reels"
+                    publish_params = {
+                        "access_token": self.partner_page_access_token,
+                        "video_id": self.fb_video_id,
+                        "upload_phase": "finish",
+                        "video_state": "PUBLISHED",
+                        "description": combined_text or "",
+                    }
 
-                    # REVISANDO
-                    if self.fb_estado == "Revisando" and self.fb_video_id:
+                    resp = requests.post(publish_url, params=publish_params, timeout=20)
+                    resp.raise_for_status()
+                    pdata = resp.json()
 
-                        status_url = f"{base_url}/{self.fb_video_id}"
-                        status_params = {
+                    post_id = pdata.get("post_id")
+                    if not post_id:
+                        raise ValidationError(f"Facebook Reel: no devolvió post_id. Detalle: {pdata}")
+
+                    self.fb_post_id = post_id
+                    self.fb_estado = "Publicado"
+
+                    # Portada
+                    if self.imagen_portada and self.fb_video_id:
+                        # Asegura API_VERSION (si no existe arriba)
+                        if not API_VERSION:
+                            API_VERSION = self.env['ir.config_parameter'].sudo().get_param(
+                                'gl_facebook.api_version')
+
+                        image_data = base64.b64decode(self.imagen_portada)
+                        image_file = BytesIO(image_data)
+                        image_file.name = "miniatura.jpg"
+
+                        thumb_url = f"https://graph.facebook.com/{API_VERSION}/{self.fb_video_id}/thumbnails"
+                        files = {"source": ("miniatura.jpg", image_file, "image/jpeg")}
+                        data = {
                             "access_token": self.partner_page_access_token,
-                            "fields": "status",
+                            "is_preferred": "true",
                         }
 
-                        resp = requests.get(status_url, params=status_params, timeout=20)
-                        resp.raise_for_status()
-                        sdata = resp.json()
+                        resp_thumb = requests.post(thumb_url, files=files, data=data, timeout=20)
+                        if resp_thumb.status_code >= 400:
+                            raise ValidationError(
+                                f"FB thumbnails error: {resp_thumb.status_code} {resp_thumb.text}")
 
-                        st = sdata.get("status") or {}
-                        video_status = st.get("video_status")  # ej: "processing"
-                        uploading_ok = (st.get("uploading_phase") or {}).get("status") == "complete"
-                        processing_state = (st.get("processing_phase") or {}).get("status")
-                        publishing_state = (st.get("publishing_phase") or {}).get("status")
-
-                        if not uploading_ok:
-                            return True
-
-                        publish_url = f"{base_url}/me/video_reels"
-                        publish_params = {
+                # PUBLICADO → URL REEL
+                if self.fb_estado == "Publicado" and self.fb_post_id and not self.fb_post_url:
+                    r = requests.get(
+                        f"{base_url}/{self.fb_post_id}",
+                        params={
+                            "fields": "permalink_url",
                             "access_token": self.partner_page_access_token,
-                            "video_id": self.fb_video_id,
-                            "upload_phase": "finish",
-                            "video_state": "PUBLISHED",
-                            "description": combined_text or "",
-                        }
+                        },
+                        timeout=20,
+                    )
+                    r.raise_for_status()
+                    self.fb_post_url = r.json().get("permalink_url")
 
-                        resp = requests.post(publish_url, params=publish_params, timeout=20)
-                        resp.raise_for_status()
-                        pdata = resp.json()
-
-                        post_id = pdata.get("post_id")
-                        if not post_id:
-                            raise ValidationError(f"Facebook Reel: no devolvió post_id. Detalle: {pdata}")
-
-                        self.fb_post_id = post_id
-                        self.fb_estado = "Publicado"
-
-                        # Portada
-                        if self.imagen_portada and self.fb_video_id:
-                            # Asegura API_VERSION (si no existe arriba)
-                            if not API_VERSION:
-                                API_VERSION = self.env['ir.config_parameter'].sudo().get_param(
-                                    'gl_facebook.api_version')
-
-                            image_data = base64.b64decode(self.imagen_portada)
-                            image_file = BytesIO(image_data)
-                            image_file.name = "miniatura.jpg"
-
-                            thumb_url = f"https://graph.facebook.com/{API_VERSION}/{self.fb_video_id}/thumbnails"
-                            files = {"source": ("miniatura.jpg", image_file, "image/jpeg")}
-                            data = {
-                                "access_token": self.partner_page_access_token,
-                                "is_preferred": "true",
-                            }
-
-                            resp_thumb = requests.post(thumb_url, files=files, data=data, timeout=20)
-                            if resp_thumb.status_code >= 400:
-                                raise ValidationError(
-                                    f"FB thumbnails error: {resp_thumb.status_code} {resp_thumb.text}")
-
-                    # PUBLICADO → URL REEL
-                    if self.fb_estado == "Publicado" and self.fb_post_id and not self.fb_post_url:
-                        r = requests.get(
-                            f"{base_url}/{self.fb_post_id}",
-                            params={
-                                "fields": "permalink_url",
-                                "access_token": self.partner_page_access_token,
-                            },
-                            timeout=20,
-                        )
-                        r.raise_for_status()
-                        self.fb_post_url = r.json().get("permalink_url")
-
-                        return True if from_cron else {
-                            "type": "ir.actions.client",
-                            "tag": "display_notification",
-                            "params": {
-                                "title": "Publicado",
-                                "message": "Reel publicado correctamente.",
-                                "type": "success",
-                                "next": {"type": "ir.actions.client", "tag": "reload"},
-                            },
-                        }
-
-                except Exception as e:
-                    raise
-
-
-        except Exception:
-
-            raise
-
-            
-
-
+                    return True if from_cron else {
+                        "type": "ir.actions.client",
+                        "tag": "display_notification",
+                        "params": {
+                            "title": "Publicado",
+                            "message": "Reel publicado correctamente.",
+                            "type": "success",
+                            "next": {"type": "ir.actions.client", "tag": "reload"},
+                        },
+                    }
 
         except Exception as e:
             _logger.error("Error en revisar_post (%s): %s", self.id, e)
@@ -1331,6 +1304,7 @@ class project_task(models.Model):
     def publicar_post(self):
         API_VERSION = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_version')
         BASE_URL = f'https://graph.facebook.com/{API_VERSION}'
+        from_cron = bool(self.env.context.get("from_cron"))
 
         # Funciones
         def upload_images_to_facebook(attachment):
@@ -1474,18 +1448,19 @@ class project_task(models.Model):
                     error_detalle = "\n".join(errors)
                     _logger.error("Error en publicar_post: %s", error_detalle)
 
-                    self.env['mail.mail'].create({
-                        'subject': 'SERVER GL - Error en el Sistema',
-                        'body_html': f"""
-                            <p><strong>Ocurrió un error en la automatización</strong></p>
-                            <p><b>Proceso:</b> publicar_post</p>
-                            <p><b>Tarea:</b> {self.display_name}</p>
-                            <p><b>ID:</b> {self.id}</p>
-                            <p><b>Error:</b></p>
-                            <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                        """,
-                        'email_to': self.env.ref('base.user_admin').email,
-                    }).send()
+                    if from_cron:
+                        self.env['mail.mail'].create({
+                            'subject': 'SERVER GL - Error en el Sistema',
+                            'body_html': f"""
+                                <p><strong>Ocurrió un error en la automatización</strong></p>
+                                <p><b>Proceso:</b> publicar_post</p>
+                                <p><b>Tarea:</b> {self.display_name}</p>
+                                <p><b>ID:</b> {self.id}</p>
+                                <p><b>Error:</b></p>
+                                <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
+                            """,
+                            'email_to': self.env.ref('base.user_admin').email,
+                        }).send()
 
                     return {
                         "type": "ir.actions.client",
@@ -1540,19 +1515,20 @@ class project_task(models.Model):
                     update_vals.update({"tt_estado": "Error", "tt_error": error_detalle})
                 if update_vals:
                     self.write(update_vals)
-                print("Aqui debe cebir Procesando")
-                self.env['mail.mail'].create({
-                    'subject': 'SERVER GL - Error en el Sistema',
-                    'body_html': f"""
-                        <p><strong>Ocurrió un error en la automatización</strong></p>
-                        <p><b>Proceso:</b> publicar_post</p>
-                        <p><b>Tarea:</b> {self.display_name}</p>
-                        <p><b>ID:</b> {self.id}</p>
-                        <p><b>Error:</b></p>
-                        <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                    """,
-                    'email_to': self.env.ref('base.user_admin').email,
-                }).send()
+
+                if from_cron:
+                    self.env['mail.mail'].create({
+                        'subject': 'SERVER GL - Error en el Sistema',
+                        'body_html': f"""
+                            <p><strong>Ocurrió un error en la automatización</strong></p>
+                            <p><b>Proceso:</b> publicar_post</p>
+                            <p><b>Tarea:</b> {self.display_name}</p>
+                            <p><b>ID:</b> {self.id}</p>
+                            <p><b>Error:</b></p>
+                            <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
+                        """,
+                        'email_to': self.env.ref('base.user_admin').email,
+                    }).send()
 
                 raise ValidationError("No se pudo iniciar el proceso en ninguna red social:\n" + error_detalle)
 
@@ -1569,18 +1545,19 @@ class project_task(models.Model):
                 update_vals.update({"tt_estado": "Error", "tt_error": error_detalle})
             if update_vals:
                 self.write(update_vals)
-            self.env['mail.mail'].create({
-                'subject': 'SERVER GL - Error en el Sistema',
-                'body_html': f"""
-                    <p><strong>Ocurrió un error en la automatización</strong></p>
-                    <p><b>Proceso:</b> publicar_post</p>
-                    <p><b>Tarea:</b> {self.display_name}</p>
-                    <p><b>ID:</b> {self.id}</p>
-                    <p><b>Error:</b></p>
-                        <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                    """,
-                'email_to': self.env.ref('base.user_admin').email,
-            }).send()
+            if from_cron:
+                self.env['mail.mail'].create({
+                    'subject': 'SERVER GL - Error en el Sistema',
+                    'body_html': f"""
+                        <p><strong>Ocurrió un error en la automatización</strong></p>
+                        <p><b>Proceso:</b> publicar_post</p>
+                        <p><b>Tarea:</b> {self.display_name}</p>
+                        <p><b>ID:</b> {self.id}</p>
+                        <p><b>Error:</b></p>
+                            <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
+                        """,
+                    'email_to': self.env.ref('base.user_admin').email,
+                }).send()
             raise ValidationError(f"Error en el proceso de publicación: {str(e)}")
 
 

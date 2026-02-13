@@ -29,7 +29,7 @@ for record in records:
     _logger.info(time.strftime('%Y-%m-%d %H:%M:%S'))
     try:
         _logger.info(f"► Procesando Post ID {record.id}: {record.name or 'Sin nombre'}")
-        record.publicar_post()
+        record.with_context(from_cron=True).publicar_post()
         success_count += 1
         _logger.info(f"✔ Post ID {record.id} publicado exitosamente")
 

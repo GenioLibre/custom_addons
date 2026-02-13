@@ -403,8 +403,9 @@
                             </group>
                         </page>
                     </notebook>
-                </sheet>
-            </form>
+        </sheet>
+        <chatter/>
+    </form>
         </field>
     </record>
     <!-- ====================================================== -->

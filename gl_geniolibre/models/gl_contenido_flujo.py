@@ -132,9 +132,6 @@ class GeneradorContenidoFlujo(models.Model):
             "publicaciones"
         ]
 
-    def convertir_a_instrucciones(selfself):
-        print("Success")
-
     def crear_ideas(self):
 
         for record in self:
@@ -160,7 +157,6 @@ class GeneradorContenidoFlujo(models.Model):
             contadores = {
                 "post": 0,
                 "reel": 0,
-                "carrusel": 0,
             }
 
             for item in data:
@@ -168,15 +164,20 @@ class GeneradorContenidoFlujo(models.Model):
                     raise ValidationError("Cada elemento del JSON debe ser un objeto.")
 
                 tipo = (item.get("tipo") or "post").lower()
-                if tipo not in contadores:
+                if tipo not in ("post", "reel", "carrusel"):
                     tipo = "post"  # fallback seguro
 
-                contadores[tipo] += 1
-                numero = f"{contadores[tipo]:02d}"
+                es_carrusel = tipo == "carrusel"
+                tipo_contador = "post" if es_carrusel else tipo
+
+                contadores[tipo_contador] += 1
+                numero = f"{contadores[tipo_contador]:02d}"
 
                 titulo_base = (item.get("titulo") or "Sin título").strip()
 
-                titulo_final = f"{tipo.capitalize()} {numero} - {titulo_base}"
+                etiqueta_tipo = "Post" if tipo_contador == "post" else "Reel"
+                sufijo_carrusel = " (carrusel)" if es_carrusel else ""
+                titulo_final = f"{etiqueta_tipo} {numero}{sufijo_carrusel} - {titulo_base}"
 
                 fecha_publicacion_str = item.get("fecha_publicacion")
                 fecha_publicacion = False
@@ -197,7 +198,7 @@ class GeneradorContenidoFlujo(models.Model):
                     "flujo_id": record.id,
                     "titulo": titulo_final,
                     "fecha_publicacion": fecha_publicacion,
-                    "tipo": tipo,
+                    "tipo": tipo_contador,
                     "descripcion": item.get("descripcion"),
                     "texto_en_diseno": item.get("texto_en_diseno"),
                     "copy": item.get("copy"),
