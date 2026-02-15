@@ -36,16 +36,6 @@
                             type="object"
                             invisible="state not in ('Ongoing','Expire Soon')"/>
                     help="Generate Invoices for your Contracts"/>
-                    <button name="action_lock" class="oe_highlight"
-                            string="Lock" type="object"
-                            help="Lock your Subscription Contracts"
-                            invisible="lock or state != 'Ongoing'"
-                    />
-                    <button name="action_to_unlock" class="oe_highlight"
-                            string="Unlock" type="object"
-                            help="Unlock your Subscription Contracts"
-                            invisible="not lock or state != 'Ongoing'"
-                    />
                     <button name="action_to_cancel" class="oe_highlight"
                             string="Cancel" type="object"
                             help="Cancel; your Subscription Contracts"
@@ -82,6 +72,8 @@
                                    readonly="lock"/>
                             <field name="recurring_invoice"
                                    readonly="lock" invisible="1"/>
+                            <field name="date_start"
+                                   readonly="lock"/>
                             <field name="next_invoice_date"
                                    readonly="lock"/>
                             <field name="current_reference" invisible="1"/>
@@ -95,8 +87,6 @@
                             <field name="currency_id"
                                    readonly="lock"/>
                             <field name="lock" invisible="1"/>
-                            <field name="date_start"
-                                   readonly="lock"/>
                             <field name="date_end"
                                    readonly="lock" invisible="1"/>
                         </group>
@@ -111,9 +101,16 @@
                                 </group>
                             </h2>
                         </page>
-                        <page string="Sale Order Lines">
-                            <field name="sale_order_line_ids"
-                                   readonly="lock"/>
+                        <page string="Facturas">
+                            <field name="invoice_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="invoice_date"/>
+                                    <field name="amount_total"/>
+                                    <field name="payment_state"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
                         </page>
                         <page string="Terms and Conditions">
                             <field name="note"

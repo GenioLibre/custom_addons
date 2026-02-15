@@ -25,7 +25,11 @@ class SubscriptionContracts(models.Model):
         ('Months', 'Months'),
         ('Years', 'Years'),
     ], help='Recurring interval of subscription contract')
-    contract_reminder = fields.Integer(string='Contract Expiration Reminder (Days)', help='Expiry reminder of subscription contract in days.')
+    contract_reminder = fields.Integer(
+        string='Recordatorio de Vencimiento de Contrato (Días)',
+        default=15,
+        help='Recordatorio de vencimiento del contrato en días.'
+    )
     recurring_invoice = fields.Integer(string='Recurring Invoice Interval (Days)', help='Recurring invoice interval in days')
     next_invoice_date = fields.Date(
         string='Next Invoice Date',
@@ -48,10 +52,13 @@ class SubscriptionContracts(models.Model):
         ('Expire Soon', 'Expire Soon'),
         ('Expired', 'Expired'),
         ('Cancelled', 'Cancelled'),
-    ], string='Stage', default='New', copy=False, tracking=True, readonly=True, help='Status of subscription contract')
+    ], string='Stage', default='New', copy=False, tracking=True, readonly=True,
+       compute='_compute_state', store=True,
+       help='Status based on next invoice date')
     contract_line_ids = fields.One2many('subscription.contracts.line', 'subscription_contract_id', string='Contract lines', help='Products to be added in the contract')
     amount_total = fields.Monetary(string="Total", store=True, compute='_compute_amount_total', tracking=4, help='Total amount')
     sale_order_line_ids = fields.One2many('sale.order.line', 'contract_id', string='Sale Order Lines', help='Order lines of Sale Orders which belongs to this contract')
+    invoice_ids = fields.One2many('account.move', 'contract_origin', string='Invoices', readonly=True)
     note = fields.Html(string="Terms and conditions", help='Add any notes', translate=True)
     invoices_active = fields.Boolean('Invoice active', default=False, compute='_compute_invoice_active', help='Compute invoices are active or not')
 
@@ -162,6 +169,31 @@ class SubscriptionContracts(models.Model):
             self.invoices_active = True
         else:
             self.invoices_active = False
+
+    @api.depends('next_invoice_date', 'contract_reminder', 'state')
+    def _compute_state(self):
+        """State based on next invoice date."""
+        today = fields.Date.today()
+        for record in self:
+            if record.state == 'Cancelled':
+                record.state = 'Cancelled'
+                continue
+
+            if not record.next_invoice_date:
+                record.state = 'New'
+                continue
+
+            if record.next_invoice_date < today:
+                record.state = 'Expired'
+                continue
+
+            if record.contract_reminder:
+                reminder_limit = today + relativedelta(days=record.contract_reminder)
+                if record.next_invoice_date <= reminder_limit:
+                    record.state = 'Expire Soon'
+                    continue
+
+            record.state = 'Ongoing'
 
     @api.onchange('date_start')
     def _onchange_date_start_clear_end(self):
