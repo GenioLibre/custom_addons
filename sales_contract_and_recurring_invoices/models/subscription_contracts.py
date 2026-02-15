@@ -27,7 +27,13 @@ class SubscriptionContracts(models.Model):
     ], help='Recurring interval of subscription contract')
     contract_reminder = fields.Integer(string='Contract Expiration Reminder (Days)', help='Expiry reminder of subscription contract in days.')
     recurring_invoice = fields.Integer(string='Recurring Invoice Interval (Days)', help='Recurring invoice interval in days')
-    next_invoice_date = fields.Date(string='Next Invoice Date', store=True, compute='_compute_next_invoice_date', help='Date of next invoice')
+    next_invoice_date = fields.Date(
+        string='Next Invoice Date',
+        store=True,
+        compute='_compute_next_invoice_date',
+        inverse='_inverse_next_invoice_date',
+        help='Date of next invoice'
+    )
     company_id = fields.Many2one('res.company', string='Company', default=lambda self: self.env.company)
     currency_id = fields.Many2one('res.currency', string='Currency', required=True, default=lambda self: self.env.company.currency_id)
     date_start = fields.Date(string='Start Date', default=fields.Date.today(), help='Subscription contract start date')
@@ -182,6 +188,10 @@ class SubscriptionContracts(models.Model):
             else:
                 record.next_invoice_date = start
 
+    def _inverse_next_invoice_date(self):
+        """Allow manual edits for next_invoice_date (e.g., past dates)."""
+        return
+
     @api.model
     def subscription_contract_state_change(self):
         """ Automatic invoice generation for subscription contracts """
@@ -252,6 +262,19 @@ class SubscriptionContracts(models.Model):
         print(sale_order_line)
         print("products", product_id)
         for rec in sale_order_line:
-            if self.date_start <= datetime.datetime.date(rec.create_date) <= self.date_end:
-                if rec.product_id in product_id:
-                    rec.contract_id = self.id
+            if not self.date_start:
+                continue
+
+            rec_date = fields.Date.to_date(rec.create_date)
+            if not rec_date:
+                continue
+
+            if self.date_end:
+                if not (self.date_start <= rec_date <= self.date_end):
+                    continue
+            else:
+                if rec_date < self.date_start:
+                    continue
+
+            if rec.product_id in product_id:
+                rec.contract_id = self.id
