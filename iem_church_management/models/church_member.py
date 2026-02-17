@@ -8,6 +8,7 @@ from odoo.exceptions import ValidationError, UserError
 class ChurchMember(models.Model):
     _name = "church.member"
     _description = "Church Member"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _inherits = {"res.partner": "partner_id"}
 
     partner_id = fields.Many2one(
@@ -46,6 +47,7 @@ class ChurchMember(models.Model):
         default="active",
     )
     membership_date = fields.Date(string="Fecha de ingreso")
+    birth_date = fields.Date(string="Fecha de nacimiento")
     predio_id = fields.Many2one("iem.church.predio", string="Predio")
     red_id = fields.Many2one("iem.church.red", string="Red")
     discipulado_id = fields.Many2one("iem.church.discipulado", string="Discipulado")
@@ -122,6 +124,7 @@ class ChurchMember(models.Model):
         position_group_map = {
             "pastor_gobierno": "iem_church_management.group_iem_pastor_gobierno",
             "pastor": "iem_church_management.group_iem_pastor",
+            "obrero": "iem_church_management.group_iem_pastor",
             "discipulador": "iem_church_management.group_iem_discipulador",
         }
         group_ids = [group_user.id]
@@ -148,6 +151,18 @@ class ChurchMember(models.Model):
             if not (member.first_name or "").strip() or not (member.last_name or "").strip():
                 raise ValidationError(_("Nombre y Apellido son obligatorios."))
 
+    def _scope_error_action(self, errors):
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Proceso con observaciones",
+                "message": "\n".join(["Errores:"] + errors),
+                "type": "danger",
+                "sticky": False,
+            },
+        }
+
     def _check_scope_for_user(self, vals=None):
         user = self.env.user
         if user.has_group("iem_church_management.group_iem_admin") or user.has_group("base.group_system"):
@@ -156,23 +171,40 @@ class ChurchMember(models.Model):
         target_predio = vals.get("predio_id") if vals else self.predio_id.id
         target_red = vals.get("red_id") if vals else self.red_id.id
         target_discipulado = vals.get("discipulado_id") if vals else self.discipulado_id.id
+        message = _("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado).")
 
         if user.has_group("iem_church_management.group_iem_pastor_gobierno"):
+            if not target_predio:
+                raise UserError(message)
             if partner.predio_id and target_predio and partner.predio_id.id != target_predio:
-                raise UserError(_("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado)."))
+                raise UserError(message)
         elif user.has_group("iem_church_management.group_iem_pastor"):
+            if not target_predio or not target_red:
+                raise UserError(message)
             if (
                 (partner.predio_id and target_predio and partner.predio_id.id != target_predio)
                 or (partner.red_id and target_red and partner.red_id.id != target_red)
             ):
-                raise UserError(_("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado)."))
+                raise UserError(message)
         elif user.has_group("iem_church_management.group_iem_discipulador"):
+            if not target_predio or not target_red or not target_discipulado:
+                raise UserError(message)
             if (
                 (partner.predio_id and target_predio and partner.predio_id.id != target_predio)
                 or (partner.red_id and target_red and partner.red_id.id != target_red)
                 or (partner.discipulado_id and target_discipulado and partner.discipulado_id.id != target_discipulado)
             ):
-                raise UserError(_("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado)."))
+                raise UserError(message)
+
+    @api.onchange("predio_id", "red_id", "discipulado_id")
+    def _onchange_scope_notification(self):
+        user = self.env.user
+        if not user.has_group("iem_church_management.group_iem_discipulador"):
+            return
+        if not self.discipulado_id:
+            return self._scope_error_action(
+                [_("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado).")]
+            )
 
     @api.onchange("predio_id")
     def _onchange_predio_id_reset_structure(self):

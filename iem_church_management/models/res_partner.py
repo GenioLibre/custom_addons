@@ -1,3 +1,5 @@
+from urllib.parse import quote_plus
+
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
@@ -38,6 +40,37 @@ class ResPartner(models.Model):
     discipulado_id = fields.Many2one("iem.church.discipulado", string="Discipulado")
     celula_id = fields.Many2one("iem.church.celula", string="Celula")
     membership_date = fields.Date(string="Fecha ingreso")
+    district = fields.Char(string="Distrito")
+    maps_url = fields.Char(
+        string="Mapa",
+        compute="_compute_maps_url",
+        inverse="_inverse_maps_url",
+        store=True,
+    )
+    maps_url_manual = fields.Boolean(default=False)
+
+    def _compute_maps_url(self):
+        for partner in self:
+            if partner.maps_url_manual and partner.maps_url:
+                continue
+            parts = [
+                partner.street,
+                partner.city,
+                partner.district,
+                partner.state_id and partner.state_id.name or None,
+                partner.country_id and partner.country_id.name or None,
+            ]
+            address = ", ".join([part for part in parts if part])
+            partner.maps_url = (
+                f"https://www.google.com/maps/search/?api=1&query={quote_plus(address)}"
+                if address
+                else False
+            )
+
+    def _inverse_maps_url(self):
+        for partner in self:
+            if partner.maps_url:
+                partner.maps_url_manual = True
 
     @api.constrains("predio_id", "red_id", "discipulado_id", "celula_id")
     def _check_membership_chain(self):

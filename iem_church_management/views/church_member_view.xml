@@ -71,15 +71,16 @@
                             <field name="member_code" />
                         </group>
                         <group string="Contacto">
-                            <field name="phone" />
                             <field name="mobile" />
                             <field name="email" />
-                            <field name="street" />
-                            <field name="city" />
-                            <field name="state_id" />
+                            <field name="street" string="Direccion" />
+                            <field name="ref" />
+                            <field name="maps_url" widget="url" />
+                            <field name="state_id" string="Departamento" />
+                            <field name="city" string="Provincia" />
+                            <field name="district" string="Distrito" />
                             <field name="zip" />
                             <field name="country_id" />
-                            <field name="ref" />
                             <field name="has_portal_user" readonly="1" />
                         </group>
                     </group>
@@ -102,6 +103,8 @@
                         <page string="Informacion Personal">
                             <group>
                                 <group>
+                                    <field name="membership_date" />
+                                    <field name="birth_date" />
                                     <field name="baptism_date" />
                                     <field name="spiritual_encounter_date" />
                                     <field name="marital_status" />
@@ -113,10 +116,18 @@
                             </group>
                         </page>
                         <page string="Notas">
+                            <group>
+                                <group>
+                                    <field name="create_date" string="Fecha de ingreso" readonly="1" />
+                                    <field name="registered_by_id" readonly="1" />
+                                    <field name="last_update_date" readonly="1" />
+                                </group>
+                            </group>
                             <field name="comment" />
                         </page>
                     </notebook>
                 </sheet>
+                <chatter />
             </form>
         </field>
     </record>

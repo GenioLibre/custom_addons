@@ -15,6 +15,7 @@
         "views/church_organization_views.xml",
         "views/res_config_settings_view.xml",
         "views/res_partner_view.xml",
+        "views/res_users_view.xml",
     ],
     "assets": {
         "web.assets_backend": [
