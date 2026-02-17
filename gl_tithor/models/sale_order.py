@@ -1,6 +1,6 @@
 import base64, os, openpyxl, tempfile
 
-from odoo import fields, models
+from odoo import fields, models, api
 from odoo.exceptions import ValidationError
 import logging
 
@@ -76,9 +76,21 @@ class SaleOrder(models.Model):
 
     is_image_true = fields.Boolean(string="Is Show Image True", help="Mostrar imagen en la línea de pedido de venta", compute="_compute_is_image_true")
     camiseta_registro_ids = fields.One2many('camiseta.registro', 'sale_order_id', string='Detalles de las camisetas')
-    camiseta_foto = fields.Image(string="Foto Camiseta", max_width=1280, max_height=1280)
+    camiseta_foto_ids = fields.Many2many(
+        'ir.attachment',
+        string="Mockup Camiseta",
+        domain="[('mimetype', 'ilike', 'image/')]",
+    )
     archivo_excel = fields.Binary("Archivo Excel", attachment=True)
     archivo_nombre = fields.Char("Nombre del archivo")
+
+    @api.constrains('camiseta_foto_ids')
+    def _check_camiseta_foto_is_image(self):
+        for rec in self:
+            for attachment in rec.camiseta_foto_ids:
+                mimetype = (attachment.mimetype or '').lower()
+                if not mimetype.startswith('image/'):
+                    raise ValidationError("Los mockups deben ser imágenes (JPG, PNG, etc.).")
 
     def _compute_is_image_true(self):
         """Method _compute_is_image_true returns True if the Show Image option

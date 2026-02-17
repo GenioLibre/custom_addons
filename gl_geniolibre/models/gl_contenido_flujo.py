@@ -132,8 +132,97 @@ class GeneradorContenidoFlujo(models.Model):
             "publicaciones"
         ]
 
-    def convertir_a_instrucciones(selfself):
-        print("Success")
+    def convertir_a_instrucciones(self):
+        for record in self:
+            feedback = (record.feedback_cliente or "").strip()
+            if not feedback:
+                raise ValidationError("No hay feedback del cliente para analizar.")
+
+            partner = record.partner_id
+            idioma = (partner.lang or "es_ES").split("_")[0]
+            pais = partner.country_id.name or "Perú"
+            ciudad = partner.city or "Lima"
+
+            icp = self.env["ir.config_parameter"].sudo()
+            api_key = icp.get_param("chatgpt.api_key")
+            base_url = icp.get_param("chatgpt.base_url", "https://api.openai.com/v1")
+            model = icp.get_param("chatgpt.model", "gpt-4.1-mini")
+
+            if not api_key:
+                raise ValidationError("No se ha configurado la API Key de ChatGPT en Ajustes del sistema.")
+
+            prompt = (
+                "Analiza la transcripción de la reunión del cliente y conviértela en instrucciones claras, "
+                "exhaustivas y accionables para el equipo de contenido. No omitas ningún pedido, cambio, "
+                "restricción, preferencia, tono, formato, fechas o entregables.\n\n"
+                f"Idioma objetivo: {idioma}\n"
+                f"Ubicación: {ciudad}, {pais}\n\n"
+                "Devuelve SOLO texto plano con el siguiente formato exacto:\n"
+                "INSTRUCCIONES\n"
+                "- [tipo] instrucción...\n"
+                "\n"
+                "PENDIENTES\n"
+                "- pendiente...\n"
+                "\n"
+                "DUDAS\n"
+                "- duda...\n\n"
+                "Reglas:\n"
+                "- Cada instrucción debe ser una sola acción clara.\n"
+                "- Usa [tipo] como: cambio, nuevo, mantener, restriccion.\n"
+                "- Si algo no está claro, va en DUDAS.\n"
+                "- Si falta información o se requiere confirmación, va en PENDIENTES.\n"
+                "- No inventes datos.\n\n"
+                f"Transcripción:\n{feedback}"
+            )
+
+            try:
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                }
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "Eres un analista de reuniones experto en extraer requisitos y convertirlos en "
+                                "instrucciones precisas para producción de contenido. Respondes solo texto plano "
+                                "con el formato solicitado."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        },
+                    ],
+                    "temperature": 0.2,
+                }
+
+                response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=60)
+                response.raise_for_status()
+                data = response.json()
+
+                raw = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+                if not raw:
+                    raise ValidationError("ChatGPT no devolvió contenido.")
+
+                record.anotaciones_cliente = raw
+
+            except Exception as e:
+                raise ValidationError(f"Error al convertir a instrucciones: {e}")
+
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Instrucciones generadas",
+                "message": "Se generaron instrucciones desde la transcripción del cliente.",
+                "type": "success",
+                "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
+            },
+        }
 
     def crear_ideas(self):
 
@@ -160,7 +249,6 @@ class GeneradorContenidoFlujo(models.Model):
             contadores = {
                 "post": 0,
                 "reel": 0,
-                "carrusel": 0,
             }
 
             for item in data:
@@ -168,15 +256,19 @@ class GeneradorContenidoFlujo(models.Model):
                     raise ValidationError("Cada elemento del JSON debe ser un objeto.")
 
                 tipo = (item.get("tipo") or "post").lower()
-                if tipo not in contadores:
+                if tipo not in ("post", "reel", "carrusel"):
                     tipo = "post"  # fallback seguro
 
-                contadores[tipo] += 1
-                numero = f"{contadores[tipo]:02d}"
+                contador_key = "post" if tipo == "carrusel" else tipo
+                contadores[contador_key] += 1
+                numero = f"{contadores[contador_key]:02d}"
 
                 titulo_base = (item.get("titulo") or "Sin título").strip()
 
-                titulo_final = f"{tipo.capitalize()} {numero} - {titulo_base}"
+                if tipo == "carrusel":
+                    titulo_final = f"Post {numero} (Carrusel) - {titulo_base}"
+                else:
+                    titulo_final = f"{tipo.capitalize()} {numero} - {titulo_base}"
 
                 fecha_publicacion_str = item.get("fecha_publicacion")
                 fecha_publicacion = False

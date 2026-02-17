@@ -1,0 +1,13 @@
+.o_form_view .oe_avatar {
+  float: left;
+  margin-bottom: 10px;
+}
+
+.o_form_view .oe_avatar .img {
+  width: 150px;
+  height: 150px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  vertical-align: top;
+  border: 1px solid #dee2e6;
+}

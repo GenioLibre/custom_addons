@@ -1,0 +1,22 @@
+<odoo>
+    <record id="res_config_settings_view_inherit_iem_church" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.iem.church</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Church Management"
+                    string="Church Management"
+                    name="church_management"
+                    logo="/iem_church_management/static/description/icon.png">
+                    <block title="API DNI">
+                        <div class="col-xs-12 row o_settings_container">
+                            <label class="col-lg-3" string="Token API DNI" for="dni_api_token"/>
+                            <field name="dni_api_token" password="True"/>
+                        </div>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

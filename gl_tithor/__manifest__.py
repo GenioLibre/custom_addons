@@ -36,7 +36,10 @@
         'report/gl_sale_order_report.xml',
     ],
     'assets': {
-
+        'web.assets_backend': [
+            'gl_tithor/static/src/js/gl_many2many_attachment_preview.js',
+            'gl_tithor/static/src/xml/gl_many2many_attachment_preview_template.xml',
+        ],
     },
     # only loaded in demonstration mode
     'demo': [

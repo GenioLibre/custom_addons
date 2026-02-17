@@ -48,6 +48,7 @@
                         </t>
                     </t>
                     <div class="page">
+                        
                         <div class="oe_structure"/>
 
                         <t t-set="is_proforma" t-value="env.context.get('proforma', False) or is_pro_forma"/>
@@ -213,7 +214,17 @@
                                 </table>
                             </div>
                         </t>
-
+                        <t t-if="doc.camiseta_foto_ids">
+                            <div class="mt32" style="font-size:13px;">
+                                <h3>Mockups</h3>
+                                <div class="row justify-content-center text-center">
+                                    <div class="col-6 mb-3" t-foreach="doc.camiseta_foto_ids" t-as="mock">
+                                        <img t-att-src="image_data_uri(mock.datas)"
+                                             style="max-width: 100%; max-height: 8cm; display: inline-block;"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
                         <div class="oe_structure"/>
 
                         <div t-if="not doc.signature" class="oe_structure"/>

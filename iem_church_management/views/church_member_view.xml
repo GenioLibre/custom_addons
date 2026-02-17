@@ -1,0 +1,161 @@
+<odoo>
+    <record id="view_church_member_list" model="ir.ui.view">
+        <field name="name">church.member.list</field>
+        <field name="model">church.member</field>
+        <field name="arch" type="xml">
+            <list string="Miembros">
+                <field name="name" />
+                <field name="vat" />
+                <field name="member_status" />
+                <field name="predio_id" />
+                <field name="red_id" />
+                <field name="discipulado_id" />
+                <field name="celula_id" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_church_member_form" model="ir.ui.view">
+        <field name="name">church.member.form</field>
+        <field name="model">church.member</field>
+        <field name="arch" type="xml">
+            <form string="Miembro">
+                <header>
+                    <button
+                        name="action_grant_access"
+                        type="object"
+                        string="Otorgar acceso"
+                        class="btn-primary"
+                        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+                        invisible="has_user == True"
+                    />
+                    <button
+                        name="action_sync_access"
+                        type="object"
+                        string="Sincronizar acceso"
+                        class="btn-secondary"
+                        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+                        invisible="has_user == False"
+                    />
+                    <button
+                        name="action_revoke_access"
+                        type="object"
+                        string="Revocar acceso"
+                        class="btn-secondary"
+                        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+                        invisible="has_user == False"
+                    />
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1" />
+                        </h1>
+                    </div>
+                    <field name="active" invisible="1" />
+                    <group>
+                        <group string="Identificacion">
+                            <field
+                                name="image_1920"
+                                widget="church_member_image"
+                                class="oe_avatar iem_church_member_avatar"
+                            />
+                            <field name="l10n_latam_identification_type_id" autofocus="1" />
+                            <label for="vat" string="Numero de Documento" />
+                            <div class="o_row">
+                                <field name="vat" />
+                            </div>
+                            <field name="first_name" required="1" />
+                            <field name="last_name" required="1" />
+                            <field name="gender" />
+                            <field name="member_code" />
+                        </group>
+                        <group string="Contacto">
+                            <field name="phone" />
+                            <field name="mobile" />
+                            <field name="email" />
+                            <field name="street" />
+                            <field name="city" />
+                            <field name="state_id" />
+                            <field name="zip" />
+                            <field name="country_id" />
+                            <field name="ref" />
+                            <field name="has_portal_user" readonly="1" />
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Estructura Organizacional">
+                            <group>
+                                <group>
+                                    <field name="predio_id" options="{'no_create': True}" />
+                                    <field name="red_id" domain="[('predio_id', '=', predio_id)]" options="{'no_create': True}" />
+                                    <field name="discipulado_id" domain="[('red_id', '=', red_id)]" options="{'no_create': True}" />
+                                    <field name="member_code" />
+                                    <field name="member_status" />
+                                </group>
+                                <group>
+                                    <field name="celula_id" domain="[('discipulado_id', '=', discipulado_id)]" options="{'no_create': True}" />
+                                    <field name="current_position" />
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Informacion Personal">
+                            <group>
+                                <group>
+                                    <field name="baptism_date" />
+                                    <field name="spiritual_encounter_date" />
+                                    <field name="marital_status" />
+                                </group>
+                                <group>
+                                    <field name="spouse_id" />
+                                    <field name="child_ids" widget="many2many_tags" />
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Notas">
+                            <field name="comment" />
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_church_member_search" model="ir.ui.view">
+        <field name="name">church.member.search</field>
+        <field name="model">church.member</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Miembros">
+                <field name="name" />
+                <field name="vat" />
+                <field name="member_code" />
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_predio" string="Predio" context="{'group_by': 'predio_id'}" />
+                    <filter name="group_red" string="Red" context="{'group_by': 'red_id'}" />
+                    <filter name="group_discipulado" string="Discipulado" context="{'group_by': 'discipulado_id'}" />
+                    <filter name="group_celula" string="Celula" context="{'group_by': 'celula_id'}" />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_church_member" model="ir.actions.act_window">
+        <field name="name">Miembros</field>
+        <field name="res_model">church.member</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem
+        id="menu_church_membership_root"
+        name="Membresia"
+        sequence="20"
+        web_icon="iem_church_management,static/description/team.png"
+    />
+    <menuitem
+        id="menu_church_member"
+        name="Miembros"
+        parent="menu_church_membership_root"
+        action="action_church_member"
+        sequence="10"
+    />
+</odoo>

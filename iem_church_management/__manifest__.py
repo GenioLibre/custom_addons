@@ -1,0 +1,28 @@
+{
+    "name": "IEM Church Management",
+    "version": "18.0.1.0.0",
+    "category": "Industries",
+    "summary": "Church membership and organizational structure management",
+    "author": "IEM",
+    "license": "LGPL-3",
+    "depends": ["base", "contacts", "privacy_lookup", "base_import", "l10n_latam_base"],
+    "data": [
+        "security/iem_church_management_groups.xml",
+        "security/iem_church_management_rules.xml",
+        "security/ir.model.access.csv",
+        "data/church_member_sequence.xml",
+        "views/church_member_view.xml",
+        "views/church_organization_views.xml",
+        "views/res_config_settings_view.xml",
+        "views/res_partner_view.xml",
+    ],
+    "assets": {
+        "web.assets_backend": [
+            "iem_church_management/static/src/js/church_member_image_field.js",
+            "iem_church_management/static/src/xml/church_member_image_field.xml",
+            "iem_church_management/static/src/scss/church_member.scss",
+        ],
+    },
+    "installable": True,
+    "application": False,
+}
