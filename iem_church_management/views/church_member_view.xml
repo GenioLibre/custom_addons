@@ -91,11 +91,10 @@
                                     <field name="predio_id" options="{'no_create': True}" />
                                     <field name="red_id" domain="[('predio_id', '=', predio_id)]" options="{'no_create': True}" />
                                     <field name="discipulado_id" domain="[('red_id', '=', red_id)]" options="{'no_create': True}" />
-                                    <field name="member_code" />
+                                    <field name="celula_id" domain="[('discipulado_id', '=', discipulado_id)]" options="{'no_create': True}" />
                                     <field name="member_status" />
                                 </group>
                                 <group>
-                                    <field name="celula_id" domain="[('discipulado_id', '=', discipulado_id)]" options="{'no_create': True}" />
                                     <field name="current_position" />
                                 </group>
                             </group>
@@ -103,7 +102,6 @@
                         <page string="Informacion Personal">
                             <group>
                                 <group>
-                                    <field name="membership_date" />
                                     <field name="birth_date" />
                                     <field name="baptism_date" />
                                     <field name="spiritual_encounter_date" />

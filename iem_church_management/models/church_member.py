@@ -164,6 +164,8 @@ class ChurchMember(models.Model):
         }
 
     def _check_scope_for_user(self, vals=None):
+        if self.env.context.get("skip_scope_check"):
+            return
         user = self.env.user
         if user.has_group("iem_church_management.group_iem_admin") or user.has_group("base.group_system"):
             return

@@ -15,6 +15,16 @@
                             <field name="dni_api_token" password="True"/>
                         </div>
                     </block>
+                    <block title="Formulario publico de miembros">
+                        <div class="col-xs-12 row o_settings_container">
+                            <label class="col-lg-3" string="Clave formulario publico" for="public_member_form_password"/>
+                            <field name="public_member_form_password" password="True"/>
+                        </div>
+                        <div class="col-xs-12 row o_settings_container">
+                            <label class="col-lg-3" string="Limite de envios (segundos)" for="public_member_form_rate_limit"/>
+                            <field name="public_member_form_rate_limit"/>
+                        </div>
+                    </block>
                 </app>
             </xpath>
         </field>

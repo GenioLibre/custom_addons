@@ -1,0 +1,508 @@
+<odoo>
+    <template id="church_member_public_form" name="Registro publico de miembros">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <section class="s_title pt32 pb16">
+                    <div class="container">
+                        <h1 class="text-center">Registro de Miembros</h1>
+                        <p class="text-center text-muted">
+                            Completa tus datos para iniciar el registro.
+                        </p>
+                    </div>
+                </section>
+                <section class="s_text pb32">
+                    <div class="container">
+                        <t t-if="success">
+                            <div class="alert alert-success" role="alert">
+                                Gracias. Tu solicitud fue enviada correctamente.
+                            </div>
+                        </t>
+                        <t t-if="error">
+                            <div class="alert alert-danger" role="alert">
+                                <t t-esc="error"/>
+                            </div>
+                        </t>
+                        <form action="/church/registro/submit" method="post" class="o_website_form" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                            <div class="mb-3">
+                                <strong id="iem_form_step_indicator">Paso 0 de 3</strong>
+                            </div>
+                            <div id="iem_form_client_message" class="alert d-none" role="alert"></div>
+
+                            <div class="row js-step" data-step="0">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Clave de acceso</label>
+                                    <input type="password" name="access_password" class="form-control" required="required"/>
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" id="iem_validate_access" class="btn btn-primary">Validar clave</button>
+                                </div>
+                            </div>
+
+                            <div class="row js-step d-none" data-step="1">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Tipo de identificacion</label>
+                                    <select name="l10n_latam_identification_type_id" class="form-select" required="required">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="identification_types" t-as="ident_type">
+                                            <option t-att-value="ident_type.id" t-att-selected="form.get('l10n_latam_identification_type_id') == str(ident_type.id)">
+                                                <t t-esc="ident_type.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Numero de documento</label>
+                                    <div class="input-group">
+                                        <input type="text" name="vat" class="form-control" required="required"
+                                            t-att-value="form.get('vat') or ''"/>
+                                        <button type="button" id="iem_search_dni" class="btn btn-outline-secondary">Buscar</button>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Nombre</label>
+                                    <input type="text" name="first_name" class="form-control" required="required"
+                                        t-att-value="form.get('first_name') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Apellido</label>
+                                    <input type="text" name="last_name" class="form-control" required="required"
+                                        t-att-value="form.get('last_name') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Celular</label>
+                                    <input type="text" name="mobile" class="form-control"
+                                        t-att-value="form.get('mobile') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Correo</label>
+                                    <input type="email" name="email" class="form-control"
+                                        t-att-value="form.get('email') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Sexo</label>
+                                    <select name="gender" class="form-select">
+                                        <option value="" t-att-selected="not form.get('gender')">Selecciona</option>
+                                        <option value="male" t-att-selected="form.get('gender') == 'male'">Masculino</option>
+                                        <option value="female" t-att-selected="form.get('gender') == 'female'">Femenino</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Fecha de nacimiento</label>
+                                    <input type="date" name="birth_date" class="form-control"
+                                        t-att-value="form.get('birth_date') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Imagen</label>
+                                    <div class="mb-2">
+                                        <img id="iem_photo_preview" src="" alt="Vista previa" class="img-thumbnail d-none" style="max-width: 220px;"/>
+                                    </div>
+                                    <label class="form-label d-block mb-1">Subir foto</label>
+                                    <input type="file" id="iem_upload_photo" name="image_1920" class="form-control mb-2" accept="image/*"/>
+                                    <label class="form-label d-block mb-1">Tomar foto</label>
+                                    <input type="file" id="iem_take_photo" name="image_1920" class="form-control" accept="image/*" capture="environment"/>
+                                </div>
+                            </div>
+
+                            <div class="row js-step d-none" data-step="2">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Pais</label>
+                                    <select name="country_id" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="countries" t-as="country">
+                                            <option t-att-value="country.id" t-att-selected="form.get('country_id') == str(country.id) or (not form.get('country_id') and peru_country_id and country.id == peru_country_id)">
+                                                <t t-esc="country.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Departamento</label>
+                                    <select name="state_id" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="states" t-as="state">
+                                            <option t-att-value="state.id" t-att-selected="form.get('state_id') == str(state.id)">
+                                                <t t-esc="state.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Provincia</label>
+                                    <input type="text" name="city" class="form-control" list="province_suggestions"
+                                        t-att-value="form.get('city') or ''"/>
+                                    <datalist id="province_suggestions">
+                                        <t t-foreach="province_suggestions" t-as="province_name">
+                                            <option t-att-value="province_name"/>
+                                        </t>
+                                    </datalist>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Distrito</label>
+                                    <input type="text" name="district" class="form-control" list="district_suggestions"
+                                        t-att-value="form.get('district') or ''"/>
+                                    <datalist id="district_suggestions">
+                                        <t t-foreach="district_suggestions" t-as="district_name">
+                                            <option t-att-value="district_name"/>
+                                        </t>
+                                    </datalist>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Direccion</label>
+                                    <input type="text" name="street" class="form-control"
+                                        t-att-value="form.get('street') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-4 mb-3">
+                                    <label class="form-label">Codigo postal</label>
+                                    <input type="text" name="zip" class="form-control"
+                                        t-att-value="form.get('zip') or ''"/>
+                                </div>
+                            </div>
+
+                            <div class="row js-step d-none" data-step="3">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Predio</label>
+                                    <select name="predio_id" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="predios" t-as="predio">
+                                            <option t-att-value="predio.id" t-att-selected="form.get('predio_id') == str(predio.id)">
+                                                <t t-esc="predio.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Red</label>
+                                    <select name="red_id" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="redes" t-as="red">
+                                            <option t-att-value="red.id" t-att-data-predio-id="red.predio_id.id or ''" t-att-selected="form.get('red_id') == str(red.id)">
+                                                <t t-esc="red.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Discipulado</label>
+                                    <select name="discipulado_id" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="discipulados" t-as="discipulado">
+                                            <option t-att-value="discipulado.id" t-att-data-red-id="discipulado.red_id.id or ''" t-att-selected="form.get('discipulado_id') == str(discipulado.id)">
+                                                <t t-esc="discipulado.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Celula</label>
+                                    <select name="celula_id" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="celulas" t-as="celula">
+                                            <option t-att-value="celula.id" t-att-data-discipulado-id="celula.discipulado_id.id or ''" t-att-selected="form.get('celula_id') == str(celula.id)">
+                                                <t t-esc="celula.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="d-none">
+                                <label>No completar este campo</label>
+                                <input type="text" name="website" tabindex="-1" autocomplete="off"/>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" id="iem_prev_step" class="btn btn-secondary d-none">Anterior</button>
+                                <button type="button" id="iem_next_step" class="btn btn-primary">Siguiente</button>
+                                <button type="submit" id="iem_submit_form" class="btn btn-primary d-none">Enviar</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+            <script type="text/javascript">
+                (function () {
+                    const steps = Array.from(document.querySelectorAll(".js-step"));
+                    const indicator = document.getElementById("iem_form_step_indicator");
+                    const prevBtn = document.getElementById("iem_prev_step");
+                    const nextBtn = document.getElementById("iem_next_step");
+                    const submitBtn = document.getElementById("iem_submit_form");
+                    const validateAccessBtn = document.getElementById("iem_validate_access");
+                    const searchDniBtn = document.getElementById("iem_search_dni");
+                    const clientMessage = document.getElementById("iem_form_client_message");
+                    const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+                    const accessPasswordInput = document.querySelector('input[name="access_password"]');
+                    const identificationTypeInput = document.querySelector('select[name="l10n_latam_identification_type_id"]');
+                    const dniInput = document.querySelector('input[name="vat"]');
+                    const firstNameInput = document.querySelector('input[name="first_name"]');
+                    const lastNameInput = document.querySelector('input[name="last_name"]');
+                    const uploadPhotoInput = document.getElementById("iem_upload_photo");
+                    const takePhotoInput = document.getElementById("iem_take_photo");
+                    const photoPreview = document.getElementById("iem_photo_preview");
+                    const predioSelect = document.querySelector('select[name="predio_id"]');
+                    const redSelect = document.querySelector('select[name="red_id"]');
+                    const discipuladoSelect = document.querySelector('select[name="discipulado_id"]');
+                    const celulaSelect = document.querySelector('select[name="celula_id"]');
+                    if (!steps.length || !indicator || !prevBtn || !nextBtn || !submitBtn) {
+                        return;
+                    }
+                    let currentStep = 0;
+                    const totalSteps = 3;
+                    let accessValidated = false;
+
+                    function showClientMessage(type, text) {
+                        if (!clientMessage) {
+                            return;
+                        }
+                        if (!text) {
+                            clientMessage.classList.add("d-none");
+                            clientMessage.textContent = "";
+                            clientMessage.classList.remove("alert-success", "alert-danger", "alert-warning", "alert-info");
+                            return;
+                        }
+                        clientMessage.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
+                        clientMessage.classList.add(type === "success" ? "alert-success" : "alert-danger");
+                        clientMessage.textContent = text;
+                    }
+
+                    async function postAndReadJson(url, params) {
+                        const body = new URLSearchParams();
+                        Object.keys(params || {}).forEach((key) => {
+                            body.append(key, params[key] || "");
+                        });
+                        if (csrfTokenInput) {
+                            body.append("csrf_token", csrfTokenInput.value || "");
+                        }
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            body: body.toString(),
+                            credentials: "same-origin",
+                        });
+                        return response.json();
+                    }
+
+                    function setStep(step) {
+                        currentStep = step;
+                        steps.forEach((el) => {
+                            const visible = Number(el.dataset.step) === currentStep;
+                            el.classList.toggle("d-none", !visible);
+                        });
+                        indicator.textContent = `Paso ${currentStep} de ${totalSteps}`;
+                        prevBtn.classList.toggle("d-none", currentStep === 1);
+                        if (currentStep === 0) {
+                            prevBtn.classList.add("d-none");
+                        }
+                        nextBtn.classList.toggle("d-none", currentStep === totalSteps || currentStep === 0);
+                        submitBtn.classList.toggle("d-none", currentStep !== totalSteps);
+                        if (validateAccessBtn) {
+                            validateAccessBtn.classList.toggle("d-none", currentStep !== 0);
+                        }
+                    }
+
+                    function filterByParent(selectElement, parentDataAttr, parentValue) {
+                        if (!selectElement) {
+                            return;
+                        }
+                        const options = Array.from(selectElement.options);
+                        options.forEach((opt) => {
+                            if (!opt.value) {
+                                opt.hidden = false;
+                                return;
+                            }
+                            if (!parentValue) {
+                                opt.hidden = true;
+                                return;
+                            }
+                            const optionParentValue = opt.dataset[parentDataAttr] || "";
+                            opt.hidden = optionParentValue !== parentValue;
+                        });
+                        if (selectElement.selectedOptions.length) {
+                            const selected = selectElement.selectedOptions[0];
+                            if (selected &amp;&amp; selected.hidden) {
+                                selectElement.value = "";
+                            }
+                        }
+                    }
+
+                    function applyStep3Filters() {
+                        const predioValue = predioSelect ? predioSelect.value : "";
+                        filterByParent(redSelect, "predioId", predioValue);
+
+                        const redValue = redSelect ? redSelect.value : "";
+                        filterByParent(discipuladoSelect, "redId", redValue);
+
+                        const discipuladoValue = discipuladoSelect ? discipuladoSelect.value : "";
+                        filterByParent(celulaSelect, "discipuladoId", discipuladoValue);
+                    }
+
+                    function syncExclusiveImageInputs() {
+                        if (!uploadPhotoInput || !takePhotoInput) {
+                            return;
+                        }
+                        const hasUpload = uploadPhotoInput.files &amp;&amp; uploadPhotoInput.files.length > 0;
+                        const hasTake = takePhotoInput.files &amp;&amp; takePhotoInput.files.length > 0;
+                        if (hasUpload) {
+                            takePhotoInput.disabled = true;
+                            return;
+                        }
+                        if (hasTake) {
+                            uploadPhotoInput.disabled = true;
+                            return;
+                        }
+                        uploadPhotoInput.disabled = false;
+                        takePhotoInput.disabled = false;
+                    }
+
+                    function renderPhotoPreview(file) {
+                        if (!photoPreview) {
+                            return;
+                        }
+                        if (!file) {
+                            photoPreview.src = "";
+                            photoPreview.classList.add("d-none");
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            photoPreview.src = event.target &amp;&amp; event.target.result ? event.target.result : "";
+                            photoPreview.classList.toggle("d-none", !photoPreview.src);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+
+                    if (predioSelect) {
+                        predioSelect.addEventListener("change", function () {
+                            if (redSelect) {
+                                redSelect.value = "";
+                            }
+                            if (discipuladoSelect) {
+                                discipuladoSelect.value = "";
+                            }
+                            if (celulaSelect) {
+                                celulaSelect.value = "";
+                            }
+                            applyStep3Filters();
+                        });
+                    }
+                    if (redSelect) {
+                        redSelect.addEventListener("change", function () {
+                            if (discipuladoSelect) {
+                                discipuladoSelect.value = "";
+                            }
+                            if (celulaSelect) {
+                                celulaSelect.value = "";
+                            }
+                            applyStep3Filters();
+                        });
+                    }
+                    if (discipuladoSelect) {
+                        discipuladoSelect.addEventListener("change", function () {
+                            if (celulaSelect) {
+                                celulaSelect.value = "";
+                            }
+                            applyStep3Filters();
+                        });
+                    }
+                    if (uploadPhotoInput) {
+                        uploadPhotoInput.addEventListener("change", function () {
+                            syncExclusiveImageInputs();
+                            const file = uploadPhotoInput.files &amp;&amp; uploadPhotoInput.files.length ? uploadPhotoInput.files[0] : null;
+                            renderPhotoPreview(file);
+                        });
+                    }
+                    if (takePhotoInput) {
+                        takePhotoInput.addEventListener("change", function () {
+                            syncExclusiveImageInputs();
+                            const file = takePhotoInput.files &amp;&amp; takePhotoInput.files.length ? takePhotoInput.files[0] : null;
+                            renderPhotoPreview(file);
+                        });
+                    }
+
+                    if (validateAccessBtn) {
+                        validateAccessBtn.addEventListener("click", async function () {
+                            try {
+                                const payload = await postAndReadJson("/church/registro/validate_access", {
+                                    access_password: accessPasswordInput ? accessPasswordInput.value : "",
+                                });
+                                if (!payload.ok) {
+                                    accessValidated = false;
+                                    showClientMessage("error", payload.message || "La clave no es correcta. El formulario no sera guardado.");
+                                    return;
+                                }
+                                accessValidated = true;
+                                showClientMessage("success", "Clave validada correctamente.");
+                                setStep(1);
+                            } catch (err) {
+                                showClientMessage("error", "No se pudo validar la clave en este momento.");
+                            }
+                        });
+                    }
+
+                    if (searchDniBtn) {
+                        searchDniBtn.addEventListener("click", async function () {
+                            try {
+                                const payload = await postAndReadJson("/church/registro/fetch_dni", {
+                                    l10n_latam_identification_type_id: identificationTypeInput ? identificationTypeInput.value : "",
+                                    vat: dniInput ? dniInput.value : "",
+                                });
+                                if (!payload.ok) {
+                                    showClientMessage("error", payload.message || "No se pudo consultar DNI.");
+                                    return;
+                                }
+                                if (firstNameInput &amp;&amp; payload.first_name) {
+                                    firstNameInput.value = payload.first_name;
+                                }
+                                if (lastNameInput &amp;&amp; payload.last_name) {
+                                    lastNameInput.value = payload.last_name;
+                                }
+                                showClientMessage("success", "Datos de DNI encontrados y cargados.");
+                            } catch (err) {
+                                showClientMessage("error", "No se pudo consultar DNI en este momento.");
+                            }
+                        });
+                    }
+
+                    nextBtn.addEventListener("click", async function () {
+                        if (currentStep === 1) {
+                            try {
+                                const payload = await postAndReadJson("/church/registro/check_dni", {
+                                    l10n_latam_identification_type_id: identificationTypeInput ? identificationTypeInput.value : "",
+                                    vat: dniInput ? dniInput.value : "",
+                                });
+                                if (!payload.ok) {
+                                    showClientMessage("error", payload.message || "Ya existe el documento de identidad registrado. El formulario no sera guardado.");
+                                    return;
+                                }
+                            } catch (err) {
+                                showClientMessage("error", "No se pudo validar el documento de identidad en este momento.");
+                                return;
+                            }
+                        }
+                        if (currentStep &lt; totalSteps) {
+                            showClientMessage("", "");
+                            setStep(currentStep + 1);
+                        }
+                    });
+                    prevBtn.addEventListener("click", function () {
+                        if (currentStep &gt; 1) {
+                            setStep(currentStep - 1);
+                        }
+                    });
+                    applyStep3Filters();
+                    syncExclusiveImageInputs();
+                    renderPhotoPreview(null);
+                    if (accessValidated) {
+                        setStep(1);
+                    } else {
+                        setStep(0);
+                    }
+                })();
+            </script>
+        </t>
+    </template>
+</odoo>
