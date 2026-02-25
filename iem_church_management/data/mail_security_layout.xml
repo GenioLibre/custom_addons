@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template
+            id="mail_notification_light_no_brand"
+            inherit_id="mail.mail_notification_light"
+            name="Mail Notification Light (No Odoo Branding)"
+        >
+            <xpath expr="//span[@id='mail_unfollow']/ancestor::tr[1]" position="replace" />
+        </template>
+    </data>
+</odoo>

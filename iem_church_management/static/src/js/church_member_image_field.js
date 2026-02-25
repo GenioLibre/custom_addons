@@ -1,5 +1,7 @@
 import { registry } from "@web/core/registry";
+import { patch } from "@web/core/utils/patch";
 import { ImageField } from "@web/views/fields/image/image_field";
+import { ListRenderer } from "@web/views/list/list_renderer";
 import { FileUploader } from "@web/views/fields/file_handler";
 
 export class ChurchMemberFileUploader extends FileUploader {
@@ -51,3 +53,33 @@ export const churchMemberImageField = {
 };
 
 registry.category("fields").add("church_member_image", churchMemberImageField);
+
+patch(ListRenderer.prototype, {
+    processAllColumn(allColumns, list) {
+        const columns = super.processAllColumn(allColumns, list);
+        if (!list || list.resModel !== "iem.church.member.list.line") {
+            return columns;
+        }
+        const context = list.context || {};
+        const parentRecord = list._parent;
+        const parentValues = {
+            ...(parentRecord?.data || {}),
+            ...(parentRecord?._changes || {}),
+        };
+        const labelMap = {
+            extra_boolean: context.list_boolean_label || parentValues.boolean_extra_label,
+            extra_amount: context.list_amount_label || parentValues.amount_extra_label,
+            extra_text: context.list_text_label || parentValues.text_extra_label,
+        };
+        return columns.map((column) => {
+            const customLabel = column?.name ? labelMap[column.name] : false;
+            if (customLabel) {
+                return {
+                    ...column,
+                    label: customLabel,
+                };
+            }
+            return column;
+        });
+    },
+});

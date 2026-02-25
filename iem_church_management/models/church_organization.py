@@ -6,7 +6,7 @@ class IemChurchPredio(models.Model):
     _description = "IEM Church Predio"
 
     name = fields.Char(required=True, index=True)
-    pastor_id = fields.Many2one("res.partner", string="Pastor")
+    pastor_id = fields.Many2one("res.partner", string="Pastor(a)")
     phone = fields.Char()
     email = fields.Char()
 
@@ -31,7 +31,7 @@ class IemChurchRed(models.Model):
 
     name = fields.Char(required=True, index=True)
     predio_id = fields.Many2one("iem.church.predio", required=True, ondelete="restrict")
-    pastor_id = fields.Many2one("res.partner", string="Pastor / Obrero")
+    pastor_id = fields.Many2one("res.partner", string="Pastor(a) / Obrero(a)")
     active = fields.Boolean(default=True)
 
 
@@ -41,7 +41,7 @@ class IemChurchDiscipulado(models.Model):
 
     name = fields.Char(required=True, index=True)
     red_id = fields.Many2one("iem.church.red", required=True, ondelete="restrict")
-    discipulador_id = fields.Many2one("res.partner", string="Discipulador")
+    discipulador_id = fields.Many2one("res.partner", string="Discipulador(a)")
     active = fields.Boolean(default=True)
 
 

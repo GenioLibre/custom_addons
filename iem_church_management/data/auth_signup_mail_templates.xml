@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <function model="ir.model.data" name="write">
+            <value model="ir.model.data" search="[('module', '=', 'auth_signup'), ('name', '=', 'set_password_email')]"/>
+            <value eval="{'noupdate': False}"/>
+        </function>
+        <function model="ir.model.data" name="write">
+            <value model="ir.model.data" search="[('module', '=', 'auth_signup'), ('name', '=', 'mail_template_user_signup_account_created')]"/>
+            <value eval="{'noupdate': False}"/>
+        </function>
+
+        <record id="auth_signup.set_password_email" model="mail.template">
+            <field name="name">Settings: New User Invite</field>
+            <field name="subject">Activación de acceso</field>
+            <field name="lang">en_US</field>
+            <field name="body_html" type="html">
+<table border="0" cellpadding="0" cellspacing="0" style="padding-top: 16px; background-color: #FFFFFF; font-family:Verdana, Arial, sans-serif; color: #454748; width: 100%; border-collapse:separate;"><tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="590" style="padding: 16px; background-color: #FFFFFF; color: #454748; border-collapse:separate;">
+<tbody>
+    <tr>
+        <td align="center" style="min-width: 590px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                <tr><td valign="middle">
+                    <span style="font-size: 20px; font-weight: bold;">IEM Redimidos - Activación de acceso</span>
+                </td><td valign="middle" align="right" t-if="not object.company_id.uses_default_logo">
+                    <img t-attf-src="/logo.png?company={{ object.company_id.id }}" style="padding: 0px; margin: 0px; height: auto; width: 80px;" t-att-alt="object.company_id.name"/>
+                </td></tr>
+                <tr><td colspan="2" style="text-align:center;">
+                    <hr width="100%" style="background-color:rgb(204,204,204); border:medium none; clear:both; display:block; font-size:0px; min-height:1px; line-height:0; margin: 16px 0px 16px 0px;"/>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="min-width: 590px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                <tr><td valign="top" style="font-size: 13px;">
+                    <div>
+                        Estimado(a) <t t-out="object.name or ''">Usuario</t>,<br/><br/>
+                        El Administrador de IEM Redimidos le invita a activar su acceso a la plataforma.<br/><br/>
+                        Para completar el proceso, haga clic en el siguiente botón:<br/><br/>
+                        <div style="margin: 16px 0px 16px 0px;">
+                            <a t-att-href="object.partner_id._get_signup_url()"
+                               t-attf-style="background-color: {{ object.company_id.email_secondary_color or '#875A7B' }}; padding: 8px 16px 8px 16px; text-decoration: none; color: #fff; border-radius: 5px; font-size:13px;">
+                                Aceptar invitación
+                            </a>
+                        </div>
+                        Este enlace estará disponible durante <t t-out="int(int(object.env['ir.config_parameter'].sudo().get_param('auth_signup.signup.validity.hours', 144))/24)"></t> días.<br/><br/>
+                        Datos de acceso:<br/>
+                        Correo de inicio de sesión: <b><a t-attf-href="/web/login?login={{ object.email }}" target="_blank" t-out="object.email or ''">usuario@dominio.com</a></b><br/><br/>
+                        Le recomendamos activar su cuenta dentro del plazo indicado para evitar inconvenientes.<br/><br/>
+                        Si requiere asistencia, puede comunicarse con nuestro equipo de soporte.<br/><br/>
+                        Muchas Gracias
+                    </div>
+                </td></tr>
+                <tr><td style="text-align:center;">
+                    <hr width="100%" style="background-color:rgb(204,204,204); border:medium none; clear:both; display:block; font-size:0px; min-height:1px; line-height:0; margin: 16px 0px 16px 0px;"/>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="min-width: 590px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; font-size: 11px; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                <tr><td valign="middle" align="left">
+                    <t t-out="object.company_id.name or ''">My Company</t>
+                </td></tr>
+                <tr><td valign="middle" align="left" style="opacity: 0.7;">
+                    <t t-out="object.company_id.phone or ''"></t>
+                    <t t-if="object.company_id.email">
+                        | <a t-att-href="'mailto:%s' % object.company_id.email" style="text-decoration:none; color: #454748;" t-out="object.company_id.email or ''">info@mycompany.com</a>
+                    </t>
+                    <t t-if="object.company_id.website">
+                        | <a t-att-href="object.company_id.website" style="text-decoration:none; color: #454748;" t-out="object.company_id.website or ''">https://mycompany.com</a>
+                    </t>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+</tbody>
+</table>
+</td></tr></table>
+            </field>
+        </record>
+
+        <record id="auth_signup.mail_template_user_signup_account_created" model="mail.template">
+            <field name="name">Settings: New Portal Sign Up</field>
+            <field name="subject">Tu cuenta ha sido creada con éxito</field>
+            <field name="lang">en_US</field>
+            <field name="body_html" type="html">
+<table border="0" cellpadding="0" cellspacing="0" style="padding-top: 16px; background-color: #FFFFFF; font-family:Verdana, Arial, sans-serif; color: #454748; width: 100%; border-collapse:separate;"><tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="590" style="padding: 16px; background-color: #FFFFFF; color: #454748; border-collapse:separate;">
+<tbody>
+    <tr>
+        <td align="center" style="min-width: 590px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                <tr><td valign="middle">
+                    <span style="font-size: 20px; font-weight: bold;">IEM Redimidos - Tu cuenta ha sido creada con éxito</span>
+                </td><td valign="middle" align="right" t-if="not object.company_id.uses_default_logo">
+                    <img t-attf-src="/logo.png?company={{ object.company_id.id }}" style="padding: 0px; margin: 0px; height: auto; width: 80px;" t-att-alt="object.company_id.name"/>
+                </td></tr>
+                <tr><td colspan="2" style="text-align:center;">
+                    <hr width="100%" style="background-color:rgb(204,204,204); border:medium none; clear:both; display:block; font-size:0px; min-height:1px; line-height:0; margin: 16px 0px 16px 0px;"/>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="min-width: 590px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                <tr><td valign="top" style="font-size: 13px;">
+                    <div>
+                        Estimado(a) <t t-out="object.name or ''">Usuario</t>,<br/><br/>
+                        Nos complace informarle que su cuenta en IEM Redimidos ha sido creada exitosamente.<br/><br/>
+                        Usuario: <strong><t t-out="object.email or ''">usuario@dominio.com</t></strong><br/><br/>
+                        Para acceder a su cuenta, haga clic en el siguiente enlace:
+                        <div style="margin: 16px 0px 16px 0px;">
+                            <a t-attf-href="/web/login?auth_login={{ object.email }}"
+                               t-attf-style="background-color: {{ object.company_id.email_secondary_color or '#875A7B' }}; padding: 8px 16px 8px 16px; text-decoration: none; color: #fff; border-radius: 5px; font-size:13px;">
+                                Acceder a mi cuenta
+                            </a>
+                        </div>
+                        Le recomendamos conservar este correo como referencia.<br/>
+                        Si presenta algún inconveniente para ingresar, puede comunicarse con nuestro equipo de soporte.<br/><br/>
+                        Muchas Gracias
+                    </div>
+                </td></tr>
+                <tr><td style="text-align:center;">
+                    <hr width="100%" style="background-color:rgb(204,204,204); border:medium none; clear:both; display:block; font-size:0px; min-height:1px; line-height:0; margin: 16px 0px 16px 0px;"/>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="min-width: 590px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; font-size: 11px; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                <tr><td valign="middle" align="left">
+                    <t t-out="object.company_id.name or ''">My Company</t>
+                </td></tr>
+                <tr><td valign="middle" align="left" style="opacity: 0.7;">
+                    <t t-out="object.company_id.phone or ''"></t>
+                    <t t-if="object.company_id.email">
+                        | <a t-att-href="'mailto:%s' % object.company_id.email" style="text-decoration:none; color: #454748;" t-out="object.company_id.email or ''">info@mycompany.com</a>
+                    </t>
+                    <t t-if="object.company_id.website">
+                        | <a t-att-href="object.company_id.website" style="text-decoration:none; color: #454748;" t-out="object.company_id.website or ''">https://mycompany.com</a>
+                    </t>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+</tbody>
+</table>
+</td></tr></table>
+            </field>
+        </record>
+    </data>
+
+    <template id="auth_signup.reset_password_email" name="User Reset Password">
+        <table border="0" cellpadding="0" cellspacing="0" style="padding-top: 16px; background-color: #FFFFFF; font-family:Verdana, Arial, sans-serif; color: #454748; width: 100%; border-collapse:separate;"><tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" width="590" style="padding: 16px; background-color: #FFFFFF; color: #454748; border-collapse:separate;">
+        <tbody>
+            <tr>
+                <td align="center" style="min-width: 590px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                        <tr><td valign="middle">
+                            <span style="font-size: 20px; font-weight: bold;">Solicitud de restablecimiento de contraseña</span>
+                        </td><td valign="middle" align="right" t-if="not object.company_id.uses_default_logo">
+                            <img t-attf-src="/logo.png?company={{ object.company_id.id }}" style="padding: 0px; margin: 0px; height: auto; width: 80px;" t-att-alt="object.company_id.name"/>
+                        </td></tr>
+                        <tr><td colspan="2" style="text-align:center;">
+                          <hr width="100%" style="background-color:rgb(204,204,204); border:medium none; clear:both; display:block; font-size:0px; min-height:1px; line-height:0; margin: 16px 0px 16px 0px;"/>
+                        </td></tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="min-width: 590px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                        <tr><td valign="top" style="font-size: 13px;">
+                            <div>
+                                Estimado(a) <t t-out="object.name or ''">Usuario</t>,<br/><br/>
+                                Hemos recibido una solicitud para restablecer la contraseña de la cuenta asociada a este correo electrónico.<br/><br/>
+                                Para crear una nueva contraseña, haga clic en el siguiente enlace (válido por <t t-out="user.env['ir.config_parameter'].sudo().get_param('auth_signup.reset_password.validity.hours', 4)"></t> horas):<br/><br/>
+                                <div style="margin: 16px 0px 16px 0px;">
+                                    <a t-att-href="object.partner_id._get_signup_url()"
+                                       t-attf-style="background-color: {{ object.company_id.email_secondary_color or '#875A7B' }}; padding: 8px 16px 8px 16px; text-decoration: none; color: #fff; border-radius: 5px; font-size:13px;">
+                                        Restablecer contraseña
+                                    </a>
+                                </div>
+                                Si usted no realizó esta solicitud, puede ignorar este mensaje con total tranquilidad. Su cuenta permanecerá segura y no se realizará ningún cambio.<br/><br/>
+                                Si necesita asistencia adicional, no dude en contactarnos.<br/><br/>
+                                Muchas Gracias
+                            </div>
+                        </td></tr>
+                        <tr><td style="text-align:center;">
+                          <hr width="100%" style="background-color:rgb(204,204,204); border:medium none; clear:both; display:block; font-size:0px; min-height:1px; line-height:0; margin: 16px 0px 16px 0px;"/>
+                        </td></tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="min-width: 590px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; font-size: 11px; padding: 0px 8px 0px 8px; border-collapse:separate;">
+                        <tr><td valign="middle" align="left">
+                            <t t-out="object.company_id.name or ''">My Company</t>
+                        </td></tr>
+                        <tr><td valign="middle" align="left" style="opacity: 0.7;">
+                            <t t-out="object.company_id.phone or ''"></t>
+                            <t t-if="object.company_id.email">
+                                | <a t-att-href="'mailto:%s' % object.company_id.email" style="text-decoration:none; color: #454748;" t-out="object.company_id.email or ''">info@mycompany.com</a>
+                            </t>
+                            <t t-if="object.company_id.website">
+                                | <a t-att-href="object.company_id.website" style="text-decoration:none; color: #454748;" t-out="object.company_id.website or ''">https://mycompany.com</a>
+                            </t>
+                        </td></tr>
+                    </table>
+                </td>
+            </tr>
+        </tbody>
+        </table>
+        </td></tr></table>
+    </template>
+</odoo>

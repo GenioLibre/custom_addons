@@ -10,17 +10,17 @@
     </record>
 
     <record id="group_iem_pastor_gobierno" model="res.groups">
-        <field name="name">Pastor Gobierno</field>
+        <field name="name">Pastor(a) de Gobierno</field>
         <field name="category_id" ref="module_category_iem_church_management" />
     </record>
 
     <record id="group_iem_pastor" model="res.groups">
-        <field name="name">Pastor / Obrero</field>
+        <field name="name">Pastor(a) / Obrero(a)</field>
         <field name="category_id" ref="module_category_iem_church_management" />
     </record>
 
     <record id="group_iem_discipulador" model="res.groups">
-        <field name="name">Discipulador</field>
+        <field name="name">Discipulador(a)</field>
         <field name="category_id" ref="module_category_iem_church_management" />
     </record>
 

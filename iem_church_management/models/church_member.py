@@ -54,12 +54,12 @@ class ChurchMember(models.Model):
     celula_id = fields.Many2one("iem.church.celula", string="Celula")
     current_position = fields.Selection(
         [
-            ("pastor_gobierno", "Pastor de Gobierno"),
-            ("pastor", "Pastor"),
-            ("obrero", "Obrero"),
-            ("discipulador", "Discipulador"),
-            ("lider_celula", "Lider de celula"),
-            ("lider_entrenamiento", "Lider en entrenamiento"),
+            ("pastor_gobierno", "Pastor(a) de Gobierno"),
+            ("pastor", "Pastor(a)"),
+            ("obrero", "Obrero(a)"),
+            ("discipulador", "Discipulador(a)"),
+            ("lider_celula", "Lider de Celula"),
+            ("lider_entrenamiento", "Lider en Entrenamiento"),
             ("miembro", "Miembro"),
             ("participante", "Participante"),
             ("visitante", "Visitante"),
@@ -575,16 +575,31 @@ class ChurchMember(models.Model):
             raise UserError(_("El contacto debe tener un correo para crear el usuario."))
         group_ids = self._get_access_group_ids()
 
-        existing_user = self.partner_id.user_ids[:1]
+        Users = self.env["res.users"].sudo().with_context(active_test=False)
+
+        existing_user = Users.search([("partner_id", "=", self.partner_id.id)], limit=1)
         if existing_user:
-            existing_user.sudo().write({"groups_id": [(6, 0, group_ids)]})
+            existing_user.write({"groups_id": [(6, 0, group_ids)], "active": True, "share": False})
+            existing_user.with_context(create_user=True).action_reset_password()
             return existing_user._action_show()
 
-        existing_user = self.env["res.users"].sudo().search([("login", "=", email)], limit=1)
+        existing_user = Users.search([("login", "=", email)], limit=1)
         if existing_user:
-            raise UserError(_("Ya existe un usuario con el correo: %s.") % email)
+            existing_user.write(
+                {
+                    "name": self.name,
+                    "partner_id": self.partner_id.id,
+                    "groups_id": [(6, 0, group_ids)],
+                    "company_id": self.env.company.id,
+                    "company_ids": [(6, 0, [self.env.company.id])],
+                    "active": True,
+                    "share": False,
+                }
+            )
+            existing_user.with_context(create_user=True).action_reset_password()
+            return existing_user._action_show()
 
-        user = self.env["res.users"].sudo().create(
+        user = Users.create(
             {
                 "name": self.name,
                 "login": email,
@@ -595,24 +610,27 @@ class ChurchMember(models.Model):
                 "share": False,
             }
         )
-        user.action_reset_password()
         return user._action_show()
 
     def action_sync_access(self):
         self.ensure_one()
-        users = self.partner_id.user_ids
+        users = self.env["res.users"].sudo().with_context(active_test=False).search(
+            [("partner_id", "=", self.partner_id.id)]
+        )
         if not users:
             return self.action_grant_access()
         group_ids = self._get_access_group_ids()
-        users.sudo().write({"groups_id": [(6, 0, group_ids)]})
+        users.write({"groups_id": [(6, 0, group_ids)], "active": True, "share": False})
         return users[0]._action_show()
 
     def action_revoke_access(self):
         self.ensure_one()
-        users = self.partner_id.user_ids
+        users = self.env["res.users"].sudo().with_context(active_test=False).search(
+            [("partner_id", "=", self.partner_id.id)]
+        )
         if not users:
             return True
-        users.sudo().unlink()
+        users.write({"active": False})
         return True
 
     def unlink(self):

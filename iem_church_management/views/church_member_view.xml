@@ -5,7 +5,7 @@
         <field name="arch" type="xml">
             <list string="Miembros">
                 <field name="name" />
-                <field name="vat" />
+                <field name="vat" string="Numero de Documento" />
                 <field name="member_status" />
                 <field name="predio_id" />
                 <field name="red_id" />

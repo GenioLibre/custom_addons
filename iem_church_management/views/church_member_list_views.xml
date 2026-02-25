@@ -1,0 +1,174 @@
+<odoo>
+    <record id="view_iem_church_member_list_list" model="ir.ui.view">
+        <field name="name">iem.church.member.list.list</field>
+        <field name="model">iem.church.member.list</field>
+        <field name="arch" type="xml">
+            <list string="Listas de Membresia">
+                <field name="name" />
+                <field name="creation_date" />
+                <field name="filter_summary" />
+                <field name="member_count" />
+                <field name="filter_member_count" />
+                <field name="manual_member_count" />
+                <field name="create_uid" string="Creado por" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_iem_church_member_list_form" model="ir.ui.view">
+        <field name="name">iem.church.member.list.form</field>
+        <field name="model">iem.church.member.list</field>
+        <field name="arch" type="xml">
+            <form string="Lista de Membresia">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Ej: Hombres mayores de 30" readonly="id != False" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="creation_date" readonly="1" />
+                            <field name="create_uid" readonly="1" string="Creado por" />
+                            <field name="currency_id" readonly="id != False" options="{'no_create': True, 'no_create_edit': True}" />
+                        </group>
+                        <group>
+                            <field name="member_count" readonly="1" />
+                            <field name="filter_member_count" readonly="1" />
+                            <field name="manual_member_count" readonly="1" />
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Miembros" invisible="id == False">
+                            <field
+                                name="member_line_ids"
+                                context="{
+                                    'default_list_id': id,
+                                    'list_boolean_label': boolean_extra_label,
+                                    'list_amount_label': amount_extra_label,
+                                    'list_text_label': text_extra_label
+                                }"
+                            >
+                                <list editable="bottom" string="Miembros de la lista">
+                                    <field name="member_id" options="{'no_create': True, 'no_create_edit': True, 'no_open': True}" />
+                                    <field name="source" />
+                                    <field name="predio_id" optional="hide" />
+                                    <field name="red_id" optional="hide" />
+                                    <field name="discipulado_id" optional="hide" />
+                                    <field name="celula_id" optional="hide" />
+                                    <field name="extra_boolean" column_invisible="parent.show_boolean_extra == False" />
+                                    <field name="extra_amount" column_invisible="parent.show_amount_extra == False" />
+                                    <field name="extra_text" column_invisible="parent.show_text_extra == False" />
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Filtro">
+                            <group>
+                                <group>
+                                    <field name="gender" readonly="id != False" />
+                                    <field name="member_status" readonly="id != False" />
+                                    <field name="position_filter_ids" readonly="id != False" widget="many2many_tags" options="{'no_create': True, 'no_create_edit': True}" />
+                                    <field name="age_from" readonly="id != False" />
+                                    <field name="age_to" readonly="id != False" />
+                                </group>
+                                <group>
+                                    <field name="predio_id" readonly="id != False" options="{'no_create': True, 'no_create_edit': True}" />
+                                    <field name="red_id" readonly="id != False" domain="[('predio_id', '=', predio_id)]" options="{'no_create': True, 'no_create_edit': True}" />
+                                    <field name="discipulado_id" readonly="id != False" domain="[('red_id', '=', red_id)]" options="{'no_create': True, 'no_create_edit': True}" />
+                                    <field name="celula_id" readonly="id != False" domain="[('discipulado_id', '=', discipulado_id)]" options="{'no_create': True, 'no_create_edit': True}" />
+                                </group>
+                            </group>
+                            <group>
+                                <field name="filter_summary" readonly="1" nolabel="1" widget="text" />
+                            </group>
+                        </page>
+                        <page string="Campos extra">
+                            <group>
+                                <group>
+                                    <field name="show_boolean_extra" readonly="id != False" />
+                                    <field name="boolean_extra_label" readonly="id != False" invisible="show_boolean_extra == False" />
+                                </group>
+                                <group>
+                                    <field name="show_amount_extra" readonly="id != False" />
+                                    <field name="amount_extra_label" readonly="id != False" invisible="show_amount_extra == False" />
+                                </group>
+                            </group>
+                            <group>
+                                <group>
+                                    <field name="show_text_extra" readonly="id != False" />
+                                    <field name="text_extra_label" readonly="id != False" invisible="show_text_extra == False" />
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Miembros" invisible="id != False">
+                            <field
+                                name="member_line_ids"
+                                context="{
+                                    'default_list_id': id,
+                                    'list_boolean_label': boolean_extra_label,
+                                    'list_amount_label': amount_extra_label,
+                                    'list_text_label': text_extra_label
+                                }"
+                            >
+                                <list editable="bottom" string="Miembros de la lista">
+                                    <field name="member_id" options="{'no_create': True, 'no_create_edit': True, 'no_open': True}" />
+                                    <field name="source" />
+                                    <field name="predio_id" optional="hide" />
+                                    <field name="red_id" optional="hide" />
+                                    <field name="discipulado_id" optional="hide" />
+                                    <field name="celula_id" optional="hide" />
+                                    <field name="extra_boolean" column_invisible="parent.show_boolean_extra == False" />
+                                    <field name="extra_amount" column_invisible="parent.show_amount_extra == False" />
+                                    <field name="extra_text" column_invisible="parent.show_text_extra == False" />
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <record id="view_iem_church_member_list_search" model="ir.ui.view">
+        <field name="name">iem.church.member.list.search</field>
+        <field name="model">iem.church.member.list</field>
+        <field name="arch" type="xml">
+            <search string="Buscar listas">
+                <field name="name" />
+                <field name="create_uid" />
+                <filter name="filter_male" string="Hombres" domain="[('gender', '=', 'male')]" />
+                <filter name="filter_female" string="Mujeres" domain="[('gender', '=', 'female')]" />
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_creator" string="Creado por" context="{'group_by': 'create_uid'}" />
+                    <filter name="group_predio" string="Predio" context="{'group_by': 'predio_id'}" />
+                    <filter name="group_red" string="Red" context="{'group_by': 'red_id'}" />
+                    <filter name="group_discipulado" string="Discipulado" context="{'group_by': 'discipulado_id'}" />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_iem_church_member_list" model="ir.actions.act_window">
+        <field name="name">Listas</field>
+        <field name="res_model">iem.church.member.list</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_iem_church_member_list_list" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+            ref('iem_church_management.group_iem_discipulador')
+        ])]" />
+    </record>
+
+    <menuitem
+        id="menu_church_membership_member_lists"
+        name="Listas"
+        parent="menu_church_membership_root"
+        action="action_iem_church_member_list"
+        sequence="15"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor,iem_church_management.group_iem_discipulador"
+    />
+</odoo>

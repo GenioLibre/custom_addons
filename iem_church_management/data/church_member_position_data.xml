@@ -1,0 +1,47 @@
+<odoo>
+    <record id="member_position_pastor_gobierno" model="iem.church.member.position.option">
+        <field name="name">Pastor(a) de Gobierno</field>
+        <field name="code">pastor_gobierno</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="member_position_pastor" model="iem.church.member.position.option">
+        <field name="name">Pastor(a)</field>
+        <field name="code">pastor</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="member_position_obrero" model="iem.church.member.position.option">
+        <field name="name">Obrero(a)</field>
+        <field name="code">obrero</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="member_position_discipulador" model="iem.church.member.position.option">
+        <field name="name">Discipulador(a)</field>
+        <field name="code">discipulador</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="member_position_lider_celula" model="iem.church.member.position.option">
+        <field name="name">Lider de Celula</field>
+        <field name="code">lider_celula</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="member_position_lider_entrenamiento" model="iem.church.member.position.option">
+        <field name="name">Lider en Entrenamiento</field>
+        <field name="code">lider_entrenamiento</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="member_position_miembro" model="iem.church.member.position.option">
+        <field name="name">Miembro</field>
+        <field name="code">miembro</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="member_position_participante" model="iem.church.member.position.option">
+        <field name="name">Participante</field>
+        <field name="code">participante</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="member_position_visitante" model="iem.church.member.position.option">
+        <field name="name">Visitante</field>
+        <field name="code">visitante</field>
+        <field name="sequence">90</field>
+    </record>
+</odoo>
