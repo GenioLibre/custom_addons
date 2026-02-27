@@ -51,15 +51,15 @@ class ChurchMember(models.Model):
     predio_id = fields.Many2one("iem.church.predio", string="Predio")
     red_id = fields.Many2one("iem.church.red", string="Red")
     discipulado_id = fields.Many2one("iem.church.discipulado", string="Discipulado")
-    celula_id = fields.Many2one("iem.church.celula", string="Celula")
+    celula_id = fields.Many2one("iem.church.celula", string="Célula")
     current_position = fields.Selection(
         [
             ("pastor_gobierno", "Pastor(a) de Gobierno"),
             ("pastor", "Pastor(a)"),
             ("obrero", "Obrero(a)"),
             ("discipulador", "Discipulador(a)"),
-            ("lider_celula", "Lider de Celula"),
-            ("lider_entrenamiento", "Lider en Entrenamiento"),
+            ("lider_celula", "Líder de Célula"),
+            ("lider_entrenamiento", "Líder en Entrenamiento"),
             ("miembro", "Miembro"),
             ("participante", "Participante"),
             ("visitante", "Visitante"),
@@ -77,11 +77,11 @@ class ChurchMember(models.Model):
             ("divorced", "Divorciado(a)"),
             ("widowed", "Viudo(a)"),
             ("separated", "Separado(a)"),
-            ("union", "Union libre"),
+            ("union", "Unión libre"),
         ],
         string="Estado civil",
     )
-    spouse_id = fields.Many2one("res.partner", string="Conyuge")
+    spouse_id = fields.Many2one("res.partner", string="Cónyuge")
     child_ids = fields.Many2many(
         "res.partner",
         "church_member_child_rel",
@@ -173,7 +173,7 @@ class ChurchMember(models.Model):
         target_predio = vals.get("predio_id") if vals else self.predio_id.id
         target_red = vals.get("red_id") if vals else self.red_id.id
         target_discipulado = vals.get("discipulado_id") if vals else self.discipulado_id.id
-        message = _("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado).")
+        message = _("No tienes permiso para agregar registros fuera de tu ámbito (Predio, Red, Discipulado).")
 
         if user.has_group("iem_church_management.group_iem_pastor_gobierno"):
             if not target_predio:
@@ -205,7 +205,7 @@ class ChurchMember(models.Model):
             return
         if not self.discipulado_id:
             return self._scope_error_action(
-                [_("No tienes permiso para agregar registros fuera de tu ambito (Predio, Red, Discipulado).")]
+                [_("No tienes permiso para agregar registros fuera de tu ámbito (Predio, Red, Discipulado).")]
             )
 
     @api.onchange("predio_id")
@@ -268,7 +268,7 @@ class ChurchMember(models.Model):
                 )
                 if existing_partner:
                     raise ValidationError(
-                        _("El documento ya esta registrado en el contacto: %s.")
+                        _("El documento ya está registrado en el contacto: %s.")
                         % existing_partner.display_name
                     )
             if not vals.get("partner_id"):
@@ -319,7 +319,7 @@ class ChurchMember(models.Model):
                     if existing_partner:
                         raise ValidationError(
                             _(
-                                "El documento ya esta registrado en el contacto: %s."
+                                "El documento ya está registrado en el contacto: %s."
                             )
                             % existing_partner.display_name
                         )
@@ -355,7 +355,7 @@ class ChurchMember(models.Model):
                 and member.discipulado_id
                 and member.celula_id.discipulado_id != member.discipulado_id
             ):
-                raise ValidationError(_("La Celula no pertenece al Discipulado seleccionado."))
+                raise ValidationError(_("La Célula no pertenece al Discipulado seleccionado."))
 
     @api.model
     def _generate_member_code(self, first_name, last_name):
@@ -422,7 +422,7 @@ class ChurchMember(models.Model):
                     "warning": {
                         "title": _("Documento"),
                         "message": _(
-                            "El documento ya esta registrado en el contacto: %s."
+                            "El documento ya está registrado en el contacto: %s."
                         )
                         % existing_partner.display_name,
                     }
@@ -514,7 +514,7 @@ class ChurchMember(models.Model):
         if existing_partner:
             return self._notify(
                 _("DNI"),
-                _("El DNI ya esta registrado en el contacto: %s.") % existing_partner.display_name,
+                _("El DNI ya está registrado en el contacto: %s.") % existing_partner.display_name,
                 "warning",
             )
 

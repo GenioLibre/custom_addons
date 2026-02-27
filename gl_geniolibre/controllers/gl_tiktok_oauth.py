@@ -21,21 +21,36 @@ class gl_tiktok_oauth_controller(http.Controller):
 
         code = kw.get('code')
         error = kw.get('error')
-        partner_id = kw.get('state')
+        raw_state = kw.get('state') or ''
 
         if error:
             _logger.error("TikTok OAuth error: %s - %s", error, kw.get('error_description', ''))
-            return "Authentication failed. Please check the logs for details."
+            return redirect('/web?error=tiktok_auth_failed')
 
         if not code:
-            return "No authorization code received from TikTok."
+            return redirect('/web?error=tiktok_missing_code')
+
+        if ':' not in raw_state:
+            _logger.warning("TikTok OAuth state inválido.")
+            return redirect('/web?error=tiktok_state_invalid')
+
+        partner_id_str, oauth_state = raw_state.split(':', 1)
+        if not partner_id_str.isdigit():
+            _logger.warning("TikTok OAuth state con partner inválido.")
+            return redirect('/web?error=tiktok_state_invalid')
+        partner_id = int(partner_id_str)
 
         # Store the auth code in the TikTok account
-        res_partner = request.env['res.partner'].search([
-                                                            ('id', '=', partner_id)
-                                                        ], limit=1)
+        res_partner = request.env['res.partner'].search([('id', '=', partner_id)], limit=1)
 
         if res_partner:
+            if (not res_partner.tiktok_oauth_state or
+                    oauth_state != res_partner.tiktok_oauth_state or
+                    not res_partner.tiktok_oauth_state_expiry or
+                    int(datetime.now().timestamp()) > int(res_partner.tiktok_oauth_state_expiry)):
+                _logger.warning("TikTok OAuth state inválido o expirado para partner %s", partner_id)
+                return redirect('/web?error=tiktok_state_invalid')
+
             base_url = "https://open.tiktokapis.com/v2/oauth/token/"
             parametros = request.env['ir.config_parameter'].sudo()
             tiktok_client = parametros.get_param('tiktok_key')
@@ -56,7 +71,7 @@ class gl_tiktok_oauth_controller(http.Controller):
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Cache-Control': 'no-cache'
             }
-            response = requests.post(base_url, headers=headers, data=payload)
+            response = requests.post(base_url, headers=headers, data=payload, timeout=20)
             response.raise_for_status()  # Raises exception for 4XX/5XX errors
             data = response.json()
             access_token = data.get('access_token')
@@ -71,7 +86,9 @@ class gl_tiktok_oauth_controller(http.Controller):
                 'tiktok_expires_in': expires_in,
                 'tiktok_refresh_token': refresh_token,
                 'tiktok_issued_at': int(datetime.now().timestamp()),
-                'tiktok_open_id': open_id
+                'tiktok_open_id': open_id,
+                'tiktok_oauth_state': False,
+                'tiktok_oauth_state_expiry': 0,
             })
 
             self.tiktok_get_nickname(res_partner, access_token)
@@ -80,7 +97,7 @@ class gl_tiktok_oauth_controller(http.Controller):
 
             return redirect(f'/web#id={partner_id}&model=res.partner&view_type=form')
 
-        return "No TikTok account configured in Odoo."
+        return redirect('/web?error=tiktok_partner_missing')
 
     def tiktok_get_nickname(self, partner, access_token):
 

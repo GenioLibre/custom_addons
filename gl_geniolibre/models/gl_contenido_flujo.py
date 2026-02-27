@@ -209,7 +209,7 @@ class GeneradorContenidoFlujo(models.Model):
 
                 record.anotaciones_cliente = raw
 
-            except Exception as e:
+            except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                 raise ValidationError(f"Error al convertir a instrucciones: {e}")
 
         return {
@@ -282,7 +282,7 @@ class GeneradorContenidoFlujo(models.Model):
                         fecha_local = tz.localize(fecha_local)
                         fecha_utc = fecha_local.astimezone(pytz.UTC)
                         fecha_publicacion = fecha_utc.replace(tzinfo=None)
-                    except Exception:
+                    except (ValueError, TypeError, pytz.AmbiguousTimeError, pytz.NonExistentTimeError):
                         raise ValidationError(f"Formato de fecha inválido: {fecha_publicacion_str}. Usa 'YYYY-MM-DD HH:MM:SS'")
 
                 vals = {
@@ -335,7 +335,7 @@ class GeneradorContenidoFlujo(models.Model):
                 data = json.loads(record.promtp_respuesta_refinamiento)
                 if not isinstance(data, list):
                     raise ValidationError("El resultado del refinamiento debe ser una lista JSON.")
-            except Exception as e:
+            except (json.JSONDecodeError, TypeError, ValidationError) as e:
                 raise ValidationError(f"Error al interpretar el JSON del refinamiento: {e}")
 
             # --- Validar que existan publicaciones ---
@@ -660,7 +660,7 @@ class GeneradorContenidoFlujo(models.Model):
                 suggestion = data["choices"][0]["message"]["content"].strip()
                 record.dias_festivos_referencia = suggestion
 
-            except Exception as e:
+            except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                 raise ValidationError(f"Error al obtener sugerencias: {e}")
 
         # 🟩 Notificación + recargar vista
@@ -684,13 +684,13 @@ class GeneradorContenidoFlujo(models.Model):
         def _safe_date_str(d):
             try:
                 return d.isoformat() if d else ""
-            except Exception:
+            except (AttributeError, ValueError, TypeError):
                 return ""
 
         def _try_json_loads(s):
             try:
                 return json.loads(s or "{}")
-            except Exception:
+            except (json.JSONDecodeError, TypeError):
                 return {}
 
         def _dedup_lines(s: str) -> str:

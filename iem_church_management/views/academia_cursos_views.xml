@@ -1,0 +1,163 @@
+<odoo>
+    <record id="academia_view_cursos_list" model="ir.ui.view">
+        <field name="name">academia.cursos.list</field>
+        <field name="model">academia.cursos</field>
+        <field name="arch" type="xml">
+            <list string="Cursos" open_form_view="0">
+                <field name="name" />
+                <field name="prerequisite_course_id" />
+                <field name="total_class_count" string="Número de clases" />
+                <field name="duration_hours" optional="hide" />
+            </list>
+        </field>
+    </record>
+
+    <record id="academia_view_cursos_form" model="ir.ui.view">
+        <field name="name">academia.cursos.form</field>
+        <field name="model">academia.cursos</field>
+        <field name="arch" type="xml">
+            <form string="Curso">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nombre del curso" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="prerequisite_course_id" />
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="duration_hours" />
+                            <field name="total_class_count" readonly="1" />
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Materias">
+                            <field name="materia_ids" context="{'default_curso_id': id}">
+                                <list string="Materias" open_form_view="1">
+                                    <field name="name" />
+                                    <field name="planned_class_count" string="Número de clases" />
+                                </list>
+                                <form string="Materia">
+                                    <group>
+                                        <field name="name" />
+                                        <field name="curso_id" readonly="1" />
+                                        <field name="planned_class_count" string="Número de clases" />
+                                    </group>
+                                    <group>
+                                        <field name="description" />
+                                    </group>
+                                    <separator string="Clases" />
+                                    <field name="class_ids" context="{'default_materia_id': id}">
+                                        <list editable="bottom" string="Clases">
+                                            <field name="name" />
+                                        </list>
+                                        <form string="Clase">
+                                            <group>
+                                                <field name="name" />
+                                            </group>
+                                        </form>
+                                    </field>
+                                </form>
+                            </field>
+                        </page>
+                        <page string="Descripción">
+                            <field name="description" placeholder="Detalle del curso" />
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="academia_view_cursos_search" model="ir.ui.view">
+        <field name="name">academia.cursos.search</field>
+        <field name="model">academia.cursos</field>
+        <field name="arch" type="xml">
+            <search string="Buscar cursos">
+                <field name="name" />
+                <field name="prerequisite_course_id" />
+            </search>
+        </field>
+    </record>
+
+    <record id="academia_action_cursos" model="ir.actions.act_window">
+        <field name="name">Cursos</field>
+        <field name="res_model">academia.cursos</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="academia_view_cursos_list" />
+        <field name="search_view_id" ref="academia_view_cursos_search" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor')
+        ])]" />
+    </record>
+
+    <record id="academia_view_periodo_lectivo_list" model="ir.ui.view">
+        <field name="name">academia.periodo.lectivo.list</field>
+        <field name="model">academia.periodo.lectivo</field>
+        <field name="arch" type="xml">
+            <list string="Períodos lectivos">
+                <field name="name" />
+                <field name="start_date" />
+                <field name="end_date" />
+            </list>
+        </field>
+    </record>
+
+    <record id="academia_view_periodo_lectivo_form" model="ir.ui.view">
+        <field name="name">academia.periodo.lectivo.form</field>
+        <field name="model">academia.periodo.lectivo</field>
+        <field name="arch" type="xml">
+            <form string="Período lectivo">
+                <sheet>
+                    <group>
+                        <field name="name" />
+                        <field name="start_date" />
+                        <field name="end_date" />
+                    </group>
+                    <group>
+                        <field name="description" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="academia_action_periodo_lectivo" model="ir.actions.act_window">
+        <field name="name">Períodos lectivos</field>
+        <field name="res_model">academia.periodo.lectivo</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="academia_view_periodo_lectivo_list" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor')
+        ])]" />
+    </record>
+
+    <menuitem
+        id="academia_menu_cursos"
+        name="Cursos"
+        parent="menu_iem_academy_root"
+        action="academia_action_cursos"
+        sequence="10"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+
+    <menuitem
+        id="academia_menu_periodo_lectivo"
+        name="Períodos lectivos"
+        parent="menu_iem_academy_root"
+        action="academia_action_periodo_lectivo"
+        sequence="20"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+</odoo>

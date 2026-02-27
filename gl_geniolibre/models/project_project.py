@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-:
 import datetime, time, pytz, requests
+import logging
 
 import json
 
@@ -13,6 +14,7 @@ from google.ads.googleads.client import GoogleAdsClient
 
 API_VERSION = None
 LinkedIn_Version = "202505"
+_logger = logging.getLogger(__name__)
 
 
 class GlJsonViewerWizard(models.TransientModel):
@@ -227,10 +229,10 @@ class project_project(models.Model):
 
         if not self.partner_id_facebook_ad_account:
             # 🔥 No existe cuenta Facebook → borrar TODO
-            FacebookCampaign.search([]).unlink()
+            FacebookCampaign.search([('project_id', '=', self.id)]).unlink()
         else:
-            # Existe cuenta Facebook → ejecutar Google
-            self.fetch_google_campaigns()
+            # Existe cuenta Facebook → ejecutar Facebook
+            self.fetch_facebook_campaigns()
 
         # =========================
         # GOOGLE ADS
@@ -239,10 +241,10 @@ class project_project(models.Model):
 
         if not self.partner_id_google_ads_account:
             # 🔥 No existe cuenta Google → borrar TODO
-            GoogleCampaign.search([]).unlink()
+            GoogleCampaign.search([('project_id', '=', self.id)]).unlink()
         else:
-            # Existe cuenta Google → ejecutar Facebook
-            self.fetch_facebook_campaigns()
+            # Existe cuenta Google → ejecutar Google
+            self.fetch_google_campaigns()
 
         return True
 
@@ -256,7 +258,7 @@ class project_project(models.Model):
         Campaign = self.env['facebook.ad.campaigns'].sudo()
 
         # 2. Borrar SOLO campañas de este proyecto
-        Campaign.search([]).unlink()
+        Campaign.search([('project_id', '=', self.id)]).unlink()
 
         # 3. Token
         access_token = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_key')
@@ -307,7 +309,7 @@ class project_project(models.Model):
         CampaignGA = self.env['google.ad.campaigns'].sudo()
 
         # 🔥 6. Limpiar campañas previas del proyecto
-        CampaignGA.search([]).unlink()
+        CampaignGA.search([('project_id', '=', self.id)]).unlink()
 
         # 1. Obtener configuración técnica
         cfg = self.env['ir.config_parameter'].sudo()
@@ -684,7 +686,7 @@ class project_project(models.Model):
                 }
                 creative_response = requests.get(creative_url, params=creative_params).json()
                 return creative_response.get('thumbnail_url')
-            except Exception:
+            except (requests.exceptions.RequestException, ValueError, TypeError, KeyError):
                 return None
 
         if not self.partner_page_access_token:
@@ -750,12 +752,12 @@ class project_project(models.Model):
                         }
                         resp = requests.get(insights_url, params=insights_params, timeout=15).json()
                         campaign_data['breakdowns'][key] = resp.get('data', [])
-                    except Exception:
+                    except (requests.exceptions.RequestException, ValueError, TypeError, KeyError):
                         campaign_data['breakdowns'][key] = []
 
                 all_campaigns_data.append(campaign_data)
 
-            except Exception:
+            except (requests.exceptions.RequestException, ValueError, TypeError, KeyError):
                 continue
 
         return {
@@ -920,7 +922,7 @@ class project_project(models.Model):
                     'campaigns': campaigns,
                     'keywords_summary': keywords_summary,
                 }
-            except Exception as e:
+            except (ValidationError, ValueError, TypeError, KeyError, requests.exceptions.RequestException) as e:
                 # Registrar error pero continuar
                 raise ValidationError(f"Error al obtener datos de Google Ads para el proyecto {project.name}: {str(e)}")
 
@@ -994,7 +996,7 @@ class project_project(models.Model):
 
                     cursor = next_cursor
 
-                except Exception as e:
+                except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
                     break
 
             # 3️⃣ Crear resumen
@@ -1014,7 +1016,8 @@ class project_project(models.Model):
                 "top_5_videos": top_5_videos
             }
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
+            _logger.exception("Error obteniendo datos de TikTok para proyecto %s: %s", self.id, e)
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
@@ -1048,14 +1051,11 @@ class project_project(models.Model):
         # ================================================
         # 1️⃣ OBTENER SHARES (máximo 100 publicaciones)
         # ================================================
-        print("ORG RAW:", repr(org_id_raw))
 
         # url_shares = f"https://api.linkedin.com/rest/shares?q=owners&owners=List(urn:li:organization:{org_id_raw})&count=100"
         # url = f"https://api.linkedin.com/rest/organizations/{org_urn}"
-        # print(url)
         # try:
         #     r = requests.get(url, headers=headers, timeout=20)
-        #     print(r.json())
         #     # Ignorar 404 (no hay posts)
         #     if r.status_code == 404:
         #         return []
@@ -1063,8 +1063,6 @@ class project_project(models.Model):
         #     r.raise_for_status()
         #     data = r.json()
         #
-        # except Exception as e:
-        #     print("SHARES error:", e)
         #     return []
         #
         # from datetime import datetime
@@ -1096,7 +1094,6 @@ class project_project(models.Model):
         #         "media": media,
         #     })
         #
-        # print(posts)
 
         # --- 1. organizationPageStatistics ---
         page_views_total = 0
@@ -1107,10 +1104,8 @@ class project_project(models.Model):
                    f"?q=organization&organization={org_urn}"
                    f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms + 86400}),timeGranularityType:DAY)")
             resp = requests.get(url, headers=headers, timeout=20)
-            print(resp)
             resp.raise_for_status()
             data = resp.json()
-            print(data)
             for el in data.get("elements", []):
                 total_stats = el.get("totalPageStatistics", {})
 
@@ -1125,8 +1120,8 @@ class project_project(models.Model):
                 for btn in clicks.get("mobileCustomButtonClickCounts", []) or []:
                     page_custom_button_clicks += int(btn.get("clicks", 0) or 0)
 
-        except Exception as e:
-            print(f"⚠️ No se pudo obtener organizationPageStatistics: {e}")
+        except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+            _logger.warning("No se pudo obtener organizationPageStatistics (%s): %s", self.id, e)
 
         # --- 2. organizationalEntityShareStatistics ---
         share_data = {}
@@ -1137,8 +1132,8 @@ class project_project(models.Model):
             resp_shares = requests.get(url_shares, headers=headers, timeout=20)
             resp_shares.raise_for_status()
             share_data = resp_shares.json()
-        except Exception as e:
-            print(f"⚠️ No se pudo obtener organizationalEntityShareStatistics: {e}")
+        except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+            _logger.warning("No se pudo obtener organizationalEntityShareStatistics (%s): %s", self.id, e)
             share_data = {}
 
         # --- 3. Followers: período ---
@@ -1162,8 +1157,8 @@ class project_project(models.Model):
                 new_followers_period += int(counts.get("newFollowerCount", 0) or 0)
                 unfollows_period += int(counts.get("unfollowCount", 0) or 0)
 
-        except Exception as e:
-            print(f"⚠️ No se pudo obtener seguidores del período: {e}")
+        except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+            _logger.warning("No se pudo obtener seguidores del período (%s): %s", self.id, e)
 
         # --- 4. Followers: totales ---
         try:
@@ -1179,8 +1174,8 @@ class project_project(models.Model):
                 for c in countries:
                     total_followers += int(c.get("followerCounts", {}).get("organicFollowerCount", 0) or 0)
 
-        except Exception as e:
-            print(f"⚠️ No se pudo obtener followers totales: {e}")
+        except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+            _logger.warning("No se pudo obtener followers totales (%s): %s", self.id, e)
 
         # =====================================================================
         # 2️⃣ OPERACIONES Y PROCESAMIENTO
@@ -1314,7 +1309,6 @@ class project_project(models.Model):
         try:
             # ⚡ Llamar a la función normal de reporte pero en modo JSON
             result = self.with_context(raw_json=True).action_generate_report()
-            print(result)
             data = {}
             if isinstance(result, dict) and "data" in result:
                 data = result["data"]
@@ -1345,7 +1339,7 @@ class project_project(models.Model):
             # ⛔ errores funcionales conocidos → se relanzan tal cual
             raise
 
-        except Exception as e:
+        except (ValidationError, requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
             # 🧨 cualquier otro error inesperado
             error_detalle = str(e)
 
@@ -1500,7 +1494,6 @@ class project_project(models.Model):
                 chunk_end_ts = int(chunk_end_dt.timestamp())
 
                 chunks.append((chunk_start_ts, chunk_end_ts))
-                print("fechas en chunk", chunk_start_ts, chunk_end_ts)
 
             # Iterar sobre las fuentes seleccionadas
             for source in selected_sources:
@@ -1553,7 +1546,7 @@ class project_project(models.Model):
                             messages.append(f"✅ {source['name']}: datos obtenidos.")
                         else:
                             messages.append(f"⚠️ {source['name']}: sin datos en el período.")
-                except Exception as e:
+                except (ValidationError, requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
                     has_errors = True
                     messages.append(f"❌ {source['name']}: error - {str(e)}")
 
@@ -1572,7 +1565,6 @@ class project_project(models.Model):
                                 'sticky': True,
                             },
                         }
-            print("data",data)
             if self.env.context.get("raw_json"):
                 return {
                     "data": data
@@ -1582,7 +1574,7 @@ class project_project(models.Model):
             })
 
 
-        except Exception as e:
+        except (ValidationError, requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
             if self.env.context.get("raw_json"):
                 raise
 
@@ -1599,14 +1591,6 @@ class project_project(models.Model):
 
 
 def resumir_reporte(data: dict) -> dict:
-    """
-    Compacta el reporte final para IA.
-    Usa estructuras generadas por:
-    - merge_final_facebook_data
-    - merge_final_instagram_data
-    - merge_final_metaads_data
-    - merge_final_google_ads_data
-    """
 
     resumen = {
         "Cliente": data.get("partner_name"),
@@ -1822,7 +1806,6 @@ def merge_final_google_ads_data(data_list):
 
 
 def merge_final_tiktok_data(chunk_results):
-    print(chunk_results)
     try:
         if not chunk_results:
             return {}
@@ -1858,20 +1841,14 @@ def merge_final_tiktok_data(chunk_results):
 
         return merged
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e:
         return {
             "error": f"❌ Error al combinar datos de TikTok: {str(e)}"
         }
 
 
 def merge_final_metaads_data(chunks):
-    """
-    Combina múltiples bloques de datos de MetaAds en un solo dict.
-    Calcula métricas agregadas y métricas derivadas por campaña.
-    Convierte las acciones a dict para que encajen en el XML.
-    Filtra campañas vacías.
-    """
-    import json
+
     # Solo para depuración
     all_campaigns = []
     total_impressions = total_clicks = total_spend = total_reach = total_cost_per_conversion = 0
@@ -1981,7 +1958,7 @@ def merge_final_facebook_data(chunks):
             if end_time:
                 try:
                     dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-                except Exception:
+                except ValueError:
                     dt = datetime.min
             else:
                 dt = datetime.min
@@ -2064,10 +2041,7 @@ def merge_final_facebook_data(chunks):
 
 
 def merge_final_instagram_data(chunks):
-    """
-    Combina múltiples resultados crudos de Instagram y calcula métricas agregadas.
-    chunks: lista de dicts devueltos por get_instagram_data.
-    """
+
     all_posts = []
 
     # Inicializar totals
@@ -2160,13 +2134,6 @@ def merge_final_instagram_data(chunks):
 
 
 def merge_final_linkedin_data(chunk_results):
-    """
-    Merge seguro para LinkedIn:
-    - Suma totals numéricos
-    - Deep-merge de post_type_summary (dict de dicts)
-    - Conserva organization_id
-    - Conserva el último time_range
-    """
     final = {
         "totals": {},
         "post_type_summary": {},

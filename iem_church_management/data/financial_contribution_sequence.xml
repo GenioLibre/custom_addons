@@ -1,0 +1,8 @@
+<odoo>
+    <record id="seq_iem_financial_contribution" model="ir.sequence">
+        <field name="name">Contribución Financiera</field>
+        <field name="code">iem.financial.contribution</field>
+        <field name="prefix">FIN/</field>
+        <field name="padding">6</field>
+    </record>
+</odoo>

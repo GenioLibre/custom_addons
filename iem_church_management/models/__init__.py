@@ -4,5 +4,10 @@ from . import res_partner
 from . import church_member
 from . import church_member_position
 from . import church_member_list
+from . import financial_contribution
+from . import academy_dashboard
+from . import academia_cursos
+from . import academia_inscripcion
+from . import academia_asistencia
 from . import res_config_settings
 from . import res_users

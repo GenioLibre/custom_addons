@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-:
 import urllib.parse
+import secrets
+import time
 
 import boto3
+import botocore
 import requests
 from odoo.exceptions import ValidationError
 from odoo import fields, models, api
+from odoo.http import request
 
 API_VERSION = None
+OAUTH_STATE_TTL = 600
+
+
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
@@ -33,13 +40,21 @@ class ResConfigSettings(models.TransientModel):
 
     linkedin_client_id = fields.Char("LinkedIn Client ID", config_parameter="linkedin.client_id")
     linkedin_client_secret = fields.Char("LinkedIn Client Secret", config_parameter="linkedin.client_secret")
-    linkedin_redirect_uri = fields.Char("Redirect URI", config_parameter="linkedin.redirect_uri", default="http://localhost:8018/linkedinauth/")
+    linkedin_redirect_uri = fields.Char("Redirect URI", config_parameter="linkedin.redirect_uri", default="http://localhost:8018/linkedin-oauth/")
     linkedin_access_token = fields.Char(string="LinkedIn Access Token", config_parameter='linkedin.access_token')
     linkedin_token_expiry = fields.Char(string="Token Expiry", config_parameter='linkedin.token_expiry')
 
     chatgpt_api_key = fields.Char("ChatGPT API Key", config_parameter="chatgpt.api_key")
     chatgpt_base_url = fields.Char("ChatGPT Base URL", config_parameter="chatgpt.base_url", default="https://api.openai.com/v1")
     chatgpt_model = fields.Char("ChatGPT Modelo", config_parameter="chatgpt.model", default="gpt-4.1-mini")
+
+    def _create_oauth_state(self, provider):
+        if not request or not request.session:
+            raise ValidationError("No se encontró una sesión HTTP activa para iniciar OAuth.")
+        state = secrets.token_urlsafe(32)
+        request.session[f'gl_oauth_{provider}_state'] = state
+        request.session[f'gl_oauth_{provider}_state_ts'] = int(time.time()) + OAUTH_STATE_TTL
+        return state
 
     def action_test_aws_connection(self):
         """Probar conexión con AWS S3 (muestra popup visual en Odoo)"""
@@ -52,7 +67,6 @@ class ResConfigSettings(models.TransientModel):
             raise ValidationError("Debes configurar las claves de AWS antes de probar la conexión.")
 
         try:
-            print("Probando conexión con AWS S3...")
             s3_client = boto3.client('s3', aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name='us-east-2', )
 
             response = s3_client.list_buckets()
@@ -60,7 +74,6 @@ class ResConfigSettings(models.TransientModel):
             bucket_text = ', '.join(bucket_names) or 'ninguno encontrado'
 
             msg = f"✅ Conexión exitosa con AWS S3.\nBuckets disponibles: {bucket_text}"
-            print(msg)
 
             # Mostrar popup visual (bus message)
             return {
@@ -74,8 +87,7 @@ class ResConfigSettings(models.TransientModel):
                 }
             }
 
-        except Exception as e:
-            print("Error al conectar con AWS S3")
+        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError, ValueError, TypeError) as e:
             error_msg = f"No se pudo conectar con AWS S3:\n{str(e)}"
             return {
                 'type': 'ir.actions.client',
@@ -89,8 +101,6 @@ class ResConfigSettings(models.TransientModel):
             }
 
     def conectar_facebook(self):
-        API_VERSION = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_version')
-        print(API_VERSION)
         scopes_list = [
             "pages_read_user_content",
             "ads_read",
@@ -108,12 +118,13 @@ class ResConfigSettings(models.TransientModel):
         ]
 
         scopes = ",".join(scopes_list)
+        state = self._create_oauth_state('facebook')
         auth_url = (f"https://www.facebook.com/dialog/oauth"
                     f"?client_id={self.facebook_app_id}"
                     f"&redirect_uri={self.facebook_redirect_uri}"
                     f"&scope={scopes}"
+                    f"&state={state}"
                     f"&config_id=843300575254898")
-        print(auth_url)
         return {
             'type': 'ir.actions.act_url',
             'url': auth_url,
@@ -128,14 +139,17 @@ class ResConfigSettings(models.TransientModel):
         ]
 
         scopes = " ".join(scopes_list)
-
-        auth_url = (f"https://accounts.google.com/o/oauth2/v2/auth"
-                    f"?client_id={self.google_client_id}"
-                    f"&redirect_uri={self.google_redirect_uri}"
-                    f"&response_type=code"
-                    f"&scope={scopes}"
-                    f"&access_type=offline"
-                    f"&prompt=consent")
+        state = self._create_oauth_state('google')
+        query = urllib.parse.urlencode({
+            'client_id': self.google_client_id,
+            'redirect_uri': self.google_redirect_uri,
+            'response_type': 'code',
+            'scope': scopes,
+            'access_type': 'offline',
+            'prompt': 'consent',
+            'state': state,
+        }, safe=':/')
+        auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{query}"
 
         return {
             'type': 'ir.actions.act_url',
@@ -166,6 +180,7 @@ class ResConfigSettings(models.TransientModel):
             "client_id": client_id,
             "redirect_uri": redirect_uri,
             "scope": " ".join(scope),  # Espacios normales (urlencode se encargará)
+            "state": self._create_oauth_state('linkedin'),
         }
 
         # 4. Construcción de la URL con codificación correcta

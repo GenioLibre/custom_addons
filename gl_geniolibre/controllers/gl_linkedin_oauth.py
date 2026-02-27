@@ -1,4 +1,5 @@
 import requests
+import time
 
 from odoo import http
 from odoo.http import request
@@ -10,6 +11,15 @@ class LinkedInAuthController(http.Controller):
 
     @http.route('/linkedin-oauth', type='http', auth='public', website=True)
     def linkedin_callback(self, **kwargs):
+        state = kwargs.get('state')
+        expected_state = request.session.get('gl_oauth_linkedin_state')
+        expires_at = request.session.get('gl_oauth_linkedin_state_ts')
+        request.session.pop('gl_oauth_linkedin_state', None)
+        request.session.pop('gl_oauth_linkedin_state_ts', None)
+        if (not state or not expected_state or state != expected_state or
+                not expires_at or int(time.time()) > int(expires_at)):
+            return request.redirect('/web?error=linkedin_state_invalid')
+
         code = kwargs.get('code')
         if not code:
             return request.redirect('/web?error=linkedin_auth_failed')
@@ -29,7 +39,7 @@ class LinkedInAuthController(http.Controller):
             "client_secret": client_secret
         }
 
-        response = requests.post(token_url, data=data)
+        response = requests.post(token_url, data=data, timeout=20)
         if response.status_code != 200:
             return request.redirect('/web?error=linkedin_token_failed')
 

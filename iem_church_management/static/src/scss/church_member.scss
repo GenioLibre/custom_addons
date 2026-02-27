@@ -11,3 +11,95 @@
   vertical-align: top;
   border: 1px solid #dee2e6;
 }
+
+.iem_academy_dashboard_sheet {
+  background: linear-gradient(180deg, #f6fbff 0%, #ffffff 100%);
+}
+
+.iem_academy_dashboard_header {
+  margin-bottom: 16px;
+}
+
+.iem_academy_dashboard_header h1 {
+  margin: 0;
+  color: #12344d;
+  font-size: 30px;
+}
+
+.iem_academy_dashboard_header p {
+  margin: 8px 0 0;
+  color: #496a80;
+}
+
+.iem_academy_stats_grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.iem_academy_stat_card {
+  border: 1px solid #d8e5ef;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.iem_academy_stat_label {
+  display: block;
+  color: #496a80;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.iem_academy_stat_value {
+  display: block;
+  color: #12344d;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.iem_academy_actions_grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.iem_academy_action_button {
+  min-height: 54px;
+  font-size: 17px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.iem_academy_action_button_group {
+  width: 100%;
+}
+
+.iem_academy_action_button_group .iem_academy_action_button {
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .iem_academy_stats_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .iem_academy_actions_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 576px) {
+  .iem_academy_actions_grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+th[data-name="planned_class_count"] .o_column_title,
+th[data-name="total_class_count"] .o_column_title {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  min-width: 130px;
+}

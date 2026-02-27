@@ -42,7 +42,7 @@ class ResPartner(models.Model):
     membership_date = fields.Date(string="Fecha ingreso")
     district = fields.Char(string="Distrito")
     maps_url = fields.Char(
-        string="Mapa",
+        string="Link al mapa",
         compute="_compute_maps_url",
         inverse="_inverse_maps_url",
         store=True,

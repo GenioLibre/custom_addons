@@ -62,21 +62,6 @@ else:
         <field name="priority">0</field>
         <field name="user_id" ref="base.user_root"/>
     </record>
-    <record id="ir_cron_tiktok_renew_token" model="ir.cron">
-        <field name="name">GL TikTok Renew Token Daily</field>
-        <field name="model_id" ref="base.model_res_partner"/>
-        <field name="state">code</field>
-        <field name="code">
-            for record in model.search([('tiktok_refresh_token', '!=', False)]):
-            try:
-                record.tiktok_renew_token()
-            except Exception as e:
-                _logger.error(f"Error al renovar el token {record.id}: {e}")
-        </field>
-        <field name="interval_number">1</field>
-        <field name="interval_type">days</field>
-        <field name="active">True</field>
-    </record>
     <record id="ir_cron_check_ins_processing" model="ir.cron">
         <field name="name">GL Revisar publicaciones en proceso</field>
         <field name="model_id" ref="model_project_task"/>

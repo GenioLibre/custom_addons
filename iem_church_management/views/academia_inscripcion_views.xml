@@ -1,0 +1,127 @@
+<odoo>
+    <record id="academia_view_inscripcion_list" model="ir.ui.view">
+        <field name="name">academia.inscripcion.list</field>
+        <field name="model">academia.inscripcion</field>
+        <field name="arch" type="xml">
+            <list string="Inscripciones">
+                <field name="name" />
+                <field name="curso_id"/>
+                <field name="periodo_lectivo_id" optional="hide" />
+                <field name="start_date" />
+                <field name="stage" widget="badge" />
+                <field name="currency_id" optional="hide" />
+                <field name="amount" />
+                <field name="capacity" />
+                <field name="enrolled_count" string="Inscritos" />
+            </list>
+        </field>
+    </record>
+
+    <record id="academia_view_inscripcion_form" model="ir.ui.view">
+        <field name="name">academia.inscripcion.form</field>
+        <field name="model">academia.inscripcion</field>
+        <field name="arch" type="xml">
+            <form string="Inscripción">
+                <header>
+                    <button
+                        name="action_close_enrollment"
+                        type="object"
+                        string="Cerrar inscripción"
+                        class="btn-primary"
+                        confirm="¿Deseas cerrar la inscripción y pasarla a En curso?"
+                        invisible="stage != 'inscripcion'"
+                    />
+                    <button
+                        name="action_back_to_enrollment"
+                        type="object"
+                        string="Volver"
+                        class="btn-secondary"
+                        invisible="stage == 'inscripcion'"
+                    />
+                    <field name="stage" widget="statusbar" statusbar_visible="inscripcion,en_curso,finalizado" options="{'clickable': False}" />
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nombre de inscripción" readonly="stage != 'inscripcion'" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="curso_id" readonly="stage != 'inscripcion'" />
+                            <field name="periodo_lectivo_id" readonly="stage != 'inscripcion'" />
+                            <field name="start_date" readonly="stage != 'inscripcion'" />
+                        </group>
+                        <group>
+                            <field name="currency_id" readonly="stage != 'inscripcion'" />
+                            <field name="amount" readonly="stage != 'inscripcion'" />
+                            <field name="capacity" readonly="stage != 'inscripcion'" />
+                            <field name="enrolled_count" readonly="1" />
+                        </group>
+                    </group>
+                    <group string="Inscritos">
+                        <field name="line_ids" context="{'active_test': False}" readonly="stage != 'inscripcion'">
+                            <list string="Inscritos">
+                                <field name="member_id" string="Miembro" options="{'no_create': True, 'no_create_edit': True}" />
+                                <field name="predio_id" />
+                                <field name="red_id" />
+                                <field name="discipulado_id" />
+                                <field name="student_type" />
+                                <field name="situation" />
+                            </list>
+                            <form string="Inscrito">
+                                <group>
+                                    <field name="member_id" options="{'no_create': True, 'no_create_edit': True}" />
+                                    <field name="predio_id" readonly="1" />
+                                    <field name="red_id" readonly="1" />
+                                    <field name="discipulado_id" readonly="1" />
+                                    <field name="student_type" />
+                                    <field name="situation" />
+                                </group>
+                            </form>
+                        </field>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="academia_view_inscripcion_search" model="ir.ui.view">
+        <field name="name">academia.inscripcion.search</field>
+        <field name="model">academia.inscripcion</field>
+        <field name="arch" type="xml">
+            <search string="Buscar inscripciones">
+                <field name="name" />
+                <field name="curso_id" />
+                <field name="periodo_lectivo_id" />
+                <field name="stage" />
+                <filter name="filter_stage_inscripcion" string="Inscripción" domain="[('stage', '=', 'inscripcion')]" />
+                <filter name="filter_stage_en_curso" string="En curso" domain="[('stage', '=', 'en_curso')]" />
+                <filter name="filter_stage_finalizado" string="Finalizado" domain="[('stage', '=', 'finalizado')]" />
+            </search>
+        </field>
+    </record>
+
+    <record id="academia_action_inscripcion" model="ir.actions.act_window">
+        <field name="name">Inscripción</field>
+        <field name="res_model">academia.inscripcion</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="academia_view_inscripcion_list" />
+        <field name="search_view_id" ref="academia_view_inscripcion_search" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor')
+        ])]" />
+    </record>
+
+    <menuitem
+        id="academia_menu_inscripcion"
+        name="Inscripción"
+        parent="menu_iem_academy_root"
+        action="academia_action_inscripcion"
+        sequence="15"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+</odoo>

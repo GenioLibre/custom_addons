@@ -5,6 +5,7 @@ import json
 import tempfile
 import base64
 import botocore
+import binascii
 
 from io import BytesIO
 from odoo.tools import html2plaintext
@@ -265,9 +266,8 @@ class project_task(models.Model):
 
                                 try:
                                     duration_seconds = get_video_duration_ffprobe(attachment.datas)
-                                    print(duration_seconds)
                                     vals['tiktok_video_duration'] = duration_seconds
-                                except Exception as e:
+                                except (ValidationError, ValueError, TypeError, OSError, subprocess.CalledProcessError, binascii.Error) as e:
                                     raise ValidationError(f"No se pudo analizar el video MP4: {e}")
 
                 else:  # current_tipo == "feed"
@@ -287,9 +287,10 @@ class project_task(models.Model):
             # Eliminar la siguiente línea: Odoo manejará el commit de la transacción.
             self.post_estado = "Programado"  # Opcional: Si este metodo se llama desde un botón y quieres dar feedback  # podrías devolver una acción de notificación, pero para la lógica del modelo  # simplemente cambiar el estado es suficiente.  # Mensaje simple
 
-        except Exception as e:
+        except ValidationError:
+            raise
+        except (ValueError, TypeError) as e:
             _logger.error("Error en mi_funcion_critica: %s", e)
-            error_detalle = str(e)
             raise ValidationError("Ocurrió un error inesperado. Revisa la notificación.")
 
     def cancelar_post(self):
@@ -363,7 +364,7 @@ class project_task(models.Model):
                     val = (self.fb_post_id or "").strip()
                     if val.startswith("["):
                         media_ids = json.loads(val)
-                except Exception:
+                except (json.JSONDecodeError, ValueError, TypeError):
                     media_ids = None
 
                 if media_ids:
@@ -380,7 +381,7 @@ class project_task(models.Model):
                         resp = requests.post(fb_feed_url, params=params, timeout=20)
                         resp.raise_for_status()
                         data = resp.json()
-                    except Exception as e:
+                    except requests.exceptions.RequestException as e:
                         self.fb_estado = "Error"
                         raise ValidationError(f"Facebook Feed: error de comunicación con la API. Detalle: {e}")
 
@@ -438,14 +439,12 @@ class project_task(models.Model):
 
             # FACEBOOK REELS (VIDEO) – FLUJO POR ETAPAS
             if self.tipo == "video_reels":
-                print("Estamos en video reels")
 
                 # PROCESANDO → REVISANDO (sin cortar ejecución)
                 if self.fb_estado == "Procesando":
                     self.fb_estado = "Revisando"
                     return True
 
-                print(self.fb_estado)
 
                 # REVISANDO
                 if self.fb_estado == "Revisando" and self.fb_video_id:
@@ -536,7 +535,7 @@ class project_task(models.Model):
                         },
                     }
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             _logger.error("Error en revisar_post (%s): %s", self.id, e)
 
             if from_cron:
@@ -659,7 +658,7 @@ class project_task(models.Model):
 
             return True
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.ig_estado = "Error"
             self.ig_error = str(e)
             if from_cron:
@@ -740,7 +739,7 @@ class project_task(models.Model):
 
             return True
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.tt_estado = "Error"
             self.tt_error = str(e)
             if from_cron:
@@ -783,7 +782,7 @@ class project_task(models.Model):
 
             return True
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.li_estado = "Error"
             self.li_error = str(e)
             if from_cron:
@@ -1036,10 +1035,9 @@ class project_task(models.Model):
                 "ig_error": False,
             })
 
-            print("Fin Publicar en Instagram", container_id)
             return True
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.write({
                 "ig_estado": "Error",
                 "ig_error": str(e),
@@ -1297,7 +1295,7 @@ class project_task(models.Model):
     
             raise ValidationError(error_msg) from err
     
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.post_estado = "Error"
             raise ValidationError(f"Error inesperado: {str(e)}") from e
 
@@ -1383,7 +1381,7 @@ class project_task(models.Model):
                     self.publish_on_facebook(media_urls, combined_text)
                     success_messages.append("Facebook: Publicación en proceso")
                     published_on.append("Facebook")
-                except Exception as e:
+                except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"fb_estado": "Error", "fb_error": str(e)})
                     errors.append(f"Facebook: {str(e)}")
 
@@ -1395,7 +1393,7 @@ class project_task(models.Model):
                     self.publish_on_instagram(media_urls, combined_text, cover_url)
                     success_messages.append("Instagram: Publicación en proceso")
                     published_on.append("Instagram")
-                except Exception as e:
+                except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"ig_estado": "Error", "ig_error": str(e)})
                     errors.append(f"Instagram: {str(e)}")
 
@@ -1413,7 +1411,7 @@ class project_task(models.Model):
                     else:
                         self.write({"tt_estado": "Error", "tt_error": "No se recibió respuesta del servidor"})
                         errors.append("TikTok: No se recibió respuesta del servidor")
-                except Exception as e:
+                except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"tt_estado": "Error", "tt_error": str(e)})
                     errors.append(f"TikTok: {str(e)}")
 
@@ -1432,7 +1430,7 @@ class project_task(models.Model):
                     else:
                         self.write({"li_estado": "Error", "li_error": "No se recibió respuesta del servidor"})
                         errors.append("LinkedIn: No se recibió respuesta del servidor")
-                except Exception as e:
+                except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"li_estado": "Error", "li_error": str(e)})
                     errors.append(f"LinkedIn: {str(e)}")
 
@@ -1478,7 +1476,7 @@ class project_task(models.Model):
                 else:
                     try:
                         self.revisar_post()
-                    except Exception as err:
+                    except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as err:
                         # No rompemos la UI, solo registramos
                         _logger.error("Error en revisar_post (post ID %s): %s", self.id, err)
 
@@ -1532,7 +1530,7 @@ class project_task(models.Model):
 
                 raise ValidationError("No se pudo iniciar el proceso en ninguna red social:\n" + error_detalle)
 
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             _logger.error("Error en mi_funcion_critica: %s", e)
             error_detalle = str(e)
             selected = set(self.red_social_ids.mapped('name'))
@@ -1645,7 +1643,7 @@ def upload_files_to_s3(files, aws_api, aws_secret):
                                  region_name=region_name,
                                  config=botocore.config.Config(connect_timeout=5, read_timeout=15), )
         _logger.info("Cliente AWS S3 creado correctamente.")
-    except Exception as e:
+    except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError, ValueError, TypeError) as e:
         _logger.exception("Error al crear el cliente AWS S3")
         raise ValidationError(f"Error al crear el cliente AWS S3: {e}")
 
@@ -1709,7 +1707,7 @@ def upload_files_to_s3(files, aws_api, aws_secret):
 
             _logger.info(f"Archivo subido correctamente: {file_url}")
 
-        except Exception as e:
+        except (ValidationError, binascii.Error, botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError, ValueError, TypeError) as e:
             _logger.exception(f"Error al subir {file_name_raw} a S3")
             raise ValidationError(f"Error al subir archivo {file_name_raw}: {str(e)}")
 
@@ -1749,7 +1747,7 @@ def get_video_duration_ffprobe(base64_data):
     except subprocess.TimeoutExpired:
         raise ValidationError("ffprobe demoró demasiado y fue detenido. El archivo puede estar corrupto.")
 
-    except Exception as e:
+    except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError, ValueError, TypeError, binascii.Error) as e:
         raise ValidationError(f"No se pudo obtener la duración del video usando ffprobe: {e}")
 
 

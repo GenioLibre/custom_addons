@@ -47,11 +47,11 @@ class IemChurchDiscipulado(models.Model):
 
 class IemChurchCelula(models.Model):
     _name = "iem.church.celula"
-    _description = "IEM Church Celula"
+    _description = "IEM Church Célula"
 
     name = fields.Char(required=True, index=True)
     discipulado_id = fields.Many2one("iem.church.discipulado", required=True, ondelete="restrict")
-    lider_id = fields.Many2one("res.partner", string="Lider de Celula")
+    lider_id = fields.Many2one("res.partner", string="Líder de Célula")
 
     street = fields.Char()
     street2 = fields.Char()

@@ -197,4 +197,94 @@
         <field name="domain_force">['&amp;', '&amp;', ('list_id.predio_id', '=', user.partner_id.predio_id.id), ('list_id.red_id', '=', user.partner_id.red_id.id), ('list_id.discipulado_id', '=', user.partner_id.discipulado_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_discipulador'))]" />
     </record>
+
+
+    <!-- Financial Contribution Type rules -->
+    <record id="rule_iem_financial_contribution_type_admin" model="ir.rule">
+        <field name="name">Financial Contribution Type Admin</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution_type" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_admin'))]" />
+    </record>
+
+    <record id="rule_iem_financial_contribution_type_system" model="ir.rule">
+        <field name="name">Financial Contribution Type System</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution_type" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('base.group_system'))]" />
+    </record>
+
+    <record id="rule_iem_financial_contribution_type_pastor_gobierno" model="ir.rule">
+        <field name="name">Financial Contribution Type Pastor Gobierno</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution_type" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor_gobierno'))]" />
+    </record>
+
+    <record id="rule_iem_financial_contribution_type_pastor" model="ir.rule">
+        <field name="name">Financial Contribution Type Pastor</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution_type" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor'))]" />
+    </record>
+
+    <!-- Financial Contribution rules -->
+    <record id="rule_iem_financial_contribution_admin" model="ir.rule">
+        <field name="name">Financial Contribution Admin</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_admin'))]" />
+    </record>
+
+    <record id="rule_iem_financial_contribution_system" model="ir.rule">
+        <field name="name">Financial Contribution System</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('base.group_system'))]" />
+    </record>
+
+    <record id="rule_iem_financial_contribution_pastor_gobierno" model="ir.rule">
+        <field name="name">Financial Contribution Pastor Gobierno</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution" />
+        <field name="domain_force">[('predio_id', '=', user.partner_id.predio_id.id)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor_gobierno'))]" />
+    </record>
+
+    <record id="rule_iem_financial_contribution_pastor" model="ir.rule">
+        <field name="name">Financial Contribution Pastor</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_contribution" />
+        <field name="domain_force">['&amp;', ('predio_id', '=', user.partner_id.predio_id.id), ('red_id', '=', user.partner_id.red_id.id)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor'))]" />
+    </record>
+
+
+    <!-- Financial Payment Method rules -->
+    <record id="rule_iem_financial_payment_method_admin" model="ir.rule">
+        <field name="name">Financial Payment Method Admin</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_payment_method" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_admin'))]" />
+    </record>
+
+    <record id="rule_iem_financial_payment_method_system" model="ir.rule">
+        <field name="name">Financial Payment Method System</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_payment_method" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('base.group_system'))]" />
+    </record>
+
+    <record id="rule_iem_financial_payment_method_pastor_gobierno" model="ir.rule">
+        <field name="name">Financial Payment Method Pastor Gobierno</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_payment_method" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor_gobierno'))]" />
+    </record>
+
+    <record id="rule_iem_financial_payment_method_pastor" model="ir.rule">
+        <field name="name">Financial Payment Method Pastor</field>
+        <field name="model_id" ref="iem_church_management.model_iem_financial_payment_method" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor'))]" />
+    </record>
+
 </odoo>

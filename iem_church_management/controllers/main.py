@@ -330,6 +330,7 @@ class IemChurchWebsite(http.Controller):
             "gender": (kwargs.get("gender") or "").strip() or False,
             "birth_date": (kwargs.get("birth_date") or "").strip() or False,
             "street": (kwargs.get("street") or "").strip() or False,
+            "maps_url": (kwargs.get("maps_url") or "").strip() or False,
             "city": (kwargs.get("city") or "").strip() or False,
             "district": (kwargs.get("district") or "").strip() or False,
             "state_id": self._to_int_or_false(kwargs.get("state_id")),

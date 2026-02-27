@@ -1,0 +1,232 @@
+<odoo>
+    <record id="view_iem_financial_contribution_list" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.list</field>
+        <field name="model">iem.financial.contribution</field>
+        <field name="arch" type="xml">
+            <list string="Contribuciones" decoration-muted="state == 'cancelled'">
+                <field name="name" />
+                <field name="registration_date" />
+                <field name="member_id" />
+                <field name="predio_id" />
+                <field name="red_id" />
+                <field name="discipulado_id" />
+                <field name="contribution_type_id" />
+                <field name="contribution_month" />
+                <field name="contribution_year" />
+                <field name="payment_method_id" optional="hide" />
+                <field name="currency_id" optional="hide" />
+                <field name="amount" />
+                <field name="state" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_iem_financial_contribution_form" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.form</field>
+        <field name="model">iem.financial.contribution</field>
+        <field name="arch" type="xml">
+            <form string="Contribución">
+                <header>
+                    <button name="action_confirm" type="object" string="Confirmar" class="btn-primary" invisible="state != 'draft'" />
+                    <button name="action_set_draft" type="object" string="Borrador" invisible="state == 'draft'" />
+                    <button name="action_cancel" type="object" string="Anular" invisible="state == 'cancelled'" />
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,cancelled" />
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1" />
+                            <field name="registration_date" />
+                            <field name="contribution_type_id" options="{'no_create': False}" />
+                            <field name="contribution_month" />
+                            <field name="contribution_year" />
+                        </group>
+                        <group>
+                            <field name="currency_id" required="1" options="{'no_create': True, 'no_create_edit': True}" />
+                            <field name="amount" required="1" />
+                            <field name="payment_method_id" options="{'no_create': False}" />
+                            <field name="reference" />
+                        </group>
+                    </group>
+                    <group string="Miembro y ámbito">
+                        <group>
+                            <field name="member_id" options="{'no_create': True, 'no_create_edit': True}" />
+                            <field name="predio_id" readonly="1" options="{'no_create': True, 'no_create_edit': True}" />
+                            <field name="red_id" readonly="1" domain="[('predio_id', '=', predio_id)]" options="{'no_create': True, 'no_create_edit': True}" />
+                            <field name="discipulado_id" readonly="1" domain="[('red_id', '=', red_id)]" options="{'no_create': True, 'no_create_edit': True}" />
+                        </group>
+                    </group>
+                    <group>
+                        <field name="note" nolabel="1" placeholder="Observación..." />
+                    </group>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <record id="view_iem_financial_contribution_search" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.search</field>
+        <field name="model">iem.financial.contribution</field>
+        <field name="arch" type="xml">
+            <search string="Buscar contribuciones">
+                <field name="name" />
+                <field name="member_id" />
+                <field name="contribution_type_id" />
+                <field name="payment_method_id" />
+                <field name="predio_id" />
+                <field name="red_id" />
+                <field name="discipulado_id" />
+                <filter name="filter_draft" string="Borrador" domain="[('state', '=', 'draft')]" />
+                <filter name="filter_confirmed" string="Confirmado" domain="[('state', '=', 'confirmed')]" />
+                <filter name="filter_cancelled" string="Anulado" domain="[('state', '=', 'cancelled')]" />
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_type" string="Tipo" context="{'group_by': 'contribution_type_id'}" />
+                    <filter name="group_month" string="Mes" context="{'group_by': 'contribution_month'}" />
+                    <filter name="group_year" string="Año" context="{'group_by': 'contribution_year'}" />
+                    <filter name="group_payment_method" string="Método de pago" context="{'group_by': 'payment_method_id'}" />
+                    <filter name="group_predio" string="Predio" context="{'group_by': 'predio_id'}" />
+                    <filter name="group_red" string="Red" context="{'group_by': 'red_id'}" />
+                    <filter name="group_discipulado" string="Discipulado" context="{'group_by': 'discipulado_id'}" />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_iem_financial_contribution" model="ir.actions.act_window">
+        <field name="name">Contribuciones</field>
+        <field name="res_model">iem.financial.contribution</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_iem_financial_contribution_list" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+        ])]" />
+    </record>
+
+    <record id="view_iem_financial_contribution_type_list" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.type.list</field>
+        <field name="model">iem.financial.contribution.type</field>
+        <field name="arch" type="xml">
+            <list string="Tipos de contribución" editable="bottom">
+                <field name="sequence" />
+                <field name="name" />
+                <field name="active" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_iem_financial_contribution_type_form" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.type.form</field>
+        <field name="model">iem.financial.contribution.type</field>
+        <field name="arch" type="xml">
+            <form string="Tipo de contribución">
+                <sheet>
+                    <group>
+                        <field name="name" />
+                        <field name="sequence" />
+                        <field name="active" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_iem_financial_contribution_type" model="ir.actions.act_window">
+        <field name="name">Tipos de contribución</field>
+        <field name="res_model">iem.financial.contribution.type</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_iem_financial_contribution_type_list" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+        ])]" />
+    </record>
+
+    <record id="view_iem_financial_payment_method_list" model="ir.ui.view">
+        <field name="name">iem.financial.payment.method.list</field>
+        <field name="model">iem.financial.payment.method</field>
+        <field name="arch" type="xml">
+            <list string="Métodos de pago" editable="bottom">
+                <field name="sequence" />
+                <field name="name" />
+                <field name="active" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_iem_financial_payment_method_form" model="ir.ui.view">
+        <field name="name">iem.financial.payment.method.form</field>
+        <field name="model">iem.financial.payment.method</field>
+        <field name="arch" type="xml">
+            <form string="Método de pago">
+                <sheet>
+                    <group>
+                        <field name="name" />
+                        <field name="sequence" />
+                        <field name="active" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_iem_financial_payment_method" model="ir.actions.act_window">
+        <field name="name">Métodos de pago</field>
+        <field name="res_model">iem.financial.payment.method</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_iem_financial_payment_method_list" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+        ])]" />
+    </record>
+
+    <menuitem
+        id="menu_iem_financial_root"
+        name="Financiero"
+        sequence="25"
+        web_icon="iem_church_management,static/description/finance.png"
+    />
+
+    <menuitem
+        id="menu_iem_financial_contribution"
+        name="Contribuciones"
+        parent="menu_iem_financial_root"
+        action="action_iem_financial_contribution"
+        sequence="10"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+
+    <menuitem
+        id="menu_iem_financial_config"
+        name="Configuración"
+        parent="menu_iem_financial_root"
+        sequence="20"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+
+    <menuitem
+        id="menu_iem_financial_contribution_type"
+        name="Tipos de contribución"
+        parent="menu_iem_financial_config"
+        action="action_iem_financial_contribution_type"
+        sequence="10"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+
+    <menuitem
+        id="menu_iem_financial_payment_method"
+        name="Métodos de pago"
+        parent="menu_iem_financial_config"
+        action="action_iem_financial_payment_method"
+        sequence="20"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+</odoo>

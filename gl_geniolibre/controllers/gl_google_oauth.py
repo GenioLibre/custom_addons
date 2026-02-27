@@ -1,6 +1,6 @@
 import logging
 import requests
-from datetime import datetime
+import time
 
 from odoo import http
 from odoo.http import request
@@ -17,13 +17,23 @@ class gl_google_oauth_controller(http.Controller):
         Este es el endpoint que Google usará para redirigir al usuario después de la autorización.
         Aquí recibimos el 'code' que Google nos envía y lo intercambiamos por el access_token y refresh_token.
         """
+        # Validar state anti-CSRF/replay
+        state = kw.get('state')
+        expected_state = request.session.get('gl_oauth_google_state')
+        expires_at = request.session.get('gl_oauth_google_state_ts')
+        request.session.pop('gl_oauth_google_state', None)
+        request.session.pop('gl_oauth_google_state_ts', None)
+        if (not state or not expected_state or state != expected_state or
+                not expires_at or int(time.time()) > int(expires_at)):
+            _logger.warning('Google OAuth state inválido o expirado.')
+            return redirect('/web?error=google_state_invalid')
+
         # Recibir el 'code' de la URL
         code = kw.get('code')
-        partner_id = kw.get('partner_id')  # Recuperar el partner_id de los parámetros de la URL
 
         if not code:
             _logger.error('No se recibió el código de autorización de Google.')
-            return "Error: No se recibió el código de autorización."
+            return redirect('/web?error=google_missing_code')
 
         # Obtener los parámetros globales de configuración de la aplicación
         google_client_id = request.env['ir.config_parameter'].sudo().get_param('gl_google.client_id')
@@ -42,10 +52,10 @@ class gl_google_oauth_controller(http.Controller):
             'grant_type': 'authorization_code',
         }
 
-        response = requests.post(token_url, data=payload)
+        response = requests.post(token_url, data=payload, timeout=20)
         if response.status_code != 200:
             _logger.error(f"Error al obtener el token de Google: {response.text}")
-            return "Error al obtener el token de Google."
+            return redirect('/web?error=google_token_failed')
 
         # Analizar la respuesta JSON para obtener el access_token y refresh_token
         data = response.json()
@@ -54,7 +64,7 @@ class gl_google_oauth_controller(http.Controller):
 
         if not access_token or not refresh_token:
             _logger.error('No se obtuvo el access_token o refresh_token de Google.')
-            return "Error: No se obtuvieron los tokens necesarios."
+            return redirect('/web?error=google_token_missing')
 
         # Guardar el refresh_token globalmente
         config_params = request.env['ir.config_parameter'].sudo()
@@ -63,5 +73,4 @@ class gl_google_oauth_controller(http.Controller):
         # Guardar también el access_token
         config_params.set_param('gl_google.access_token', access_token)
 
-        # Si no se pasa partner_id, redirigir a alguna vista predeterminada
         return redirect('/odoo/settings?#GenioLibre')

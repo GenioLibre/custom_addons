@@ -20,12 +20,12 @@
         <field name="sequence">40</field>
     </record>
     <record id="member_position_lider_celula" model="iem.church.member.position.option">
-        <field name="name">Lider de Celula</field>
+        <field name="name">Líder de Célula</field>
         <field name="code">lider_celula</field>
         <field name="sequence">50</field>
     </record>
     <record id="member_position_lider_entrenamiento" model="iem.church.member.position.option">
-        <field name="name">Lider en Entrenamiento</field>
+        <field name="name">Líder en Entrenamiento</field>
         <field name="code">lider_entrenamiento</field>
         <field name="sequence">60</field>
     </record>

@@ -54,8 +54,8 @@
             'gl_geniolibre/static/src/scss/custom_css.css',
         ],
         'web.assets_frontend': [
-            'https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css',
-            'https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js',  
+            'gl_geniolibre/static/src/lib/fullcalendar/fallback.css',
+            'gl_geniolibre/static/src/lib/fullcalendar/index.global.min.js',
             'gl_geniolibre/static/src/js/calendar_init.js',
         ],
 

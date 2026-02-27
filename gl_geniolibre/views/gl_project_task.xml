@@ -55,14 +55,7 @@
                 <xpath expr="//page[@name='description_page']" position="after">
                     <page string="Publicar en TikTok"
                           name="tiktok_publish_page"
-                          modifiers='{
-                              "invisible": [
-                                  ["|",
-                                      ["tipo", "=", "otro"],
-                                      ["red_social_ids", "not in", ref("tu_modulo.red_social_tiktok")]
-                                  ]
-                              ]
-                          }'>
+                          invisible="tipo == 'otro' or not has_tiktok">
                         <!-- INFORMACIÓN DEL CREADOR TIKTOK -->
                         <group string="Información del Creador TikTok">
                             <group>
@@ -107,7 +100,7 @@
                                 <field name="tiktok_video_duration"/>
                             </group>
                             <group>
-                                <field name="imagen_portada" widget="image" accept=".jpg,.jpeg,image/jpeg"/>/>
+                                <field name="imagen_portada" widget="image" accept=".jpg,.jpeg,image/jpeg"/>
                             </group>
                         </group>
                     </page>

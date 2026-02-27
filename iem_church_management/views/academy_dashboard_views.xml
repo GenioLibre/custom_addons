@@ -1,0 +1,93 @@
+<odoo>
+    <record id="iem_academy_dashboard_main" model="iem.academy.dashboard">
+        <field name="name">Panel Academia</field>
+    </record>
+
+    <record id="view_iem_academy_dashboard_form" model="ir.ui.view">
+        <field name="name">iem.academy.dashboard.form</field>
+        <field name="model">iem.academy.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Academia" create="0" edit="0" delete="0">
+                <sheet class="iem_academy_dashboard_sheet">
+                    <div class="iem_academy_dashboard_header">
+                        <h1>Academia</h1>
+                        <p>Panel de acceso rápido para operaciones académicas.</p>
+                    </div>
+
+                    <div class="iem_academy_stats_grid">
+                        <div class="iem_academy_stat_card">
+                            <span class="iem_academy_stat_label">Inscripciones del mes</span>
+                            <span class="iem_academy_stat_value">
+                                <field name="demo_enrollment_count" nolabel="1" />
+                            </span>
+                        </div>
+                        <div class="iem_academy_stat_card">
+                            <span class="iem_academy_stat_label">Asistencia promedio</span>
+                            <span class="iem_academy_stat_value">
+                                <field name="demo_attendance_rate" nolabel="1" />%
+                            </span>
+                        </div>
+                        <div class="iem_academy_stat_card">
+                            <span class="iem_academy_stat_label">Mensualidades pendientes</span>
+                            <span class="iem_academy_stat_value">
+                                <field name="demo_pending_payments" nolabel="1" />
+                            </span>
+                        </div>
+                        <div class="iem_academy_stat_card">
+                            <span class="iem_academy_stat_label">Maestros activos</span>
+                            <span class="iem_academy_stat_value">
+                                <field name="demo_teachers_count" nolabel="1" />
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="iem_academy_actions_grid">
+                        <button name="action_open_courses" type="object" string="Cursos" class="btn btn-primary iem_academy_action_button" />
+                        <button name="action_open_enrollment" type="object" string="Inscripción" class="btn btn-primary iem_academy_action_button" />
+                        <button name="action_open_attendance" type="object" string="Asistencia" class="btn btn-primary iem_academy_action_button" />
+                        <button name="action_open_monthly_fees" type="object" string="Mensualidades" class="btn btn-primary iem_academy_action_button" />
+                        <button name="action_open_teacher_schedule" type="object" string="Escala de maestros" class="btn btn-primary iem_academy_action_button" />
+                        <div class="btn-group iem_academy_action_button_group" role="group">
+                            <button
+                                name="action_reports_dropdown_placeholder"
+                                type="object"
+                                class="btn btn-primary dropdown-toggle iem_academy_action_button"
+                                data-bs-toggle="dropdown"
+                            >Reportes</button>
+                            <div class="dropdown-menu">
+                                <button
+                                    name="action_report_attendance_placeholder"
+                                    type="object"
+                                    class="dropdown-item"
+                                >Reporte de Asistencia</button>
+                            </div>
+                        </div>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_iem_academy_dashboard" model="ir.actions.act_window">
+        <field name="name">Academia</field>
+        <field name="res_model">iem.academy.dashboard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_iem_academy_dashboard_form" />
+        <field name="res_id" ref="iem_academy_dashboard_main" />
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor')
+        ])]" />
+    </record>
+
+    <menuitem
+        id="menu_iem_academy_root"
+        name="Academia"
+        sequence="23"
+        action="action_iem_academy_dashboard"
+        web_icon="iem_church_management,static/description/academia.png"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+</odoo>

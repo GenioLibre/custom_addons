@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import random
+import secrets
 import time
 import requests
 
@@ -69,6 +70,8 @@ class Partner(models.Model):
     tiktok_nickname = fields.Char(string='TikTok Nickname')
     tiktok_avatar_url = fields.Char(string='TikTok Avatar URL')
     tiktok_open_id = fields.Char(string='TikTok Open ID')
+    tiktok_oauth_state = fields.Char(copy=False)
+    tiktok_oauth_state_expiry = fields.Integer(copy=False)
 
     # Google Ads
     google_ads_account = fields.Many2one('google.ads.account', string='Cuenta de Google Ads')
@@ -154,6 +157,7 @@ class Partner(models.Model):
                 raise ValidationError(f"Error al obtener Tokens de Facebook: {response.json()}")
 
     def tiktok_get_auth_code(self):
+        self.ensure_one()
         parametros = self.env['ir.config_parameter'].sudo()
         tiktok_client = parametros.get_param('tiktok_key')
         tiktok_secret = parametros.get_param('tiktok_secret')
@@ -163,10 +167,12 @@ class Partner(models.Model):
 
         # Usage example:
         codigos = generate_code_challenge()
+        oauth_state = secrets.token_urlsafe(24)
         self.write({
             'code_verifier': codigos[0],
             'code_challenge': codigos[1],
-
+            'tiktok_oauth_state': oauth_state,
+            'tiktok_oauth_state_expiry': int(time.time()) + 600,
         })
 
         def get_auth_url():
@@ -178,7 +184,7 @@ class Partner(models.Model):
                 'response_type': 'code',
                 'scope': 'user.info.basic,video.upload,video.publish,video.list,user.info.stats,user.info.profile',
                 'redirect_uri': tiktok_redirect,
-                'state': self.id,
+                'state': f"{self.id}:{oauth_state}",
                 'code_challenge': self.code_challenge,
                 'code_challenge_method': 'S256',
                 'force_web': 'true'
@@ -273,7 +279,6 @@ class Partner(models.Model):
         return GoogleAdsClient.load_from_dict(config)
 
     def google_obtener_datos(self):
-        self.env['google.ads.account'].search([]).unlink()
         client = self._get_google_ads_client()
         ga_service = client.get_service("GoogleAdsService")
 
@@ -292,17 +297,27 @@ class Partner(models.Model):
         response = ga_service.search(customer_id=login_customer_id, query=query)
 
         account_model = self.env["google.ads.account"].sudo()
+        api_ids = []
         for row in response:
             customer = row.customer_client
             customer_id = customer.client_customer.split("/")[-1]
             name = customer.descriptive_name
-            if not account_model.search([
+            api_ids.append(customer_id)
+            existing = account_model.search([
                 ("account_id", "=", customer_id)
-            ]):
+            ], limit=1)
+            if existing:
+                if existing.name != (name or f"Cuenta {customer_id}"):
+                    existing.write({
+                        "name": name or f"Cuenta {customer_id}",
+                    })
+            else:
                 account_model.create({
                     "name": name or f"Cuenta {customer_id}",
                     "account_id": customer_id,
                 })
+        # opcional: limpiar obsoletas
+        # account_model.search([('account_id', 'not in', api_ids)]).unlink()
 
     def update_linkedin_organizations(self):
         """Actualiza las organizaciones de LinkedIn desde la API"""
@@ -314,7 +329,6 @@ class Partner(models.Model):
             url = f"https://api.linkedin.com/rest/organizations/{org_id}"
             try:
                 response = requests.get(url, headers=headers, timeout=10)
-                print(response.json())
                 response.raise_for_status()  # Lanza excepción para códigos 4XX/5XX
 
                 data = response.json()
@@ -392,9 +406,7 @@ class Partner(models.Model):
             error_msg = f"Error en API de LinkedIn: {str(e)}"
             raise ValidationError(error_msg)
 
-        # 2. Borrar registros existentes (solo si obtuvimos datos nuevos)
-        if elements:
-            LinkedInOrg.search([]).unlink()
+        api_org_ids = []
 
         # 3. Crear nuevos registros
         created_count = 0
@@ -407,18 +419,26 @@ class Partner(models.Model):
 
             # Obtener nombre de la organización
             org_name = _get_linkedin_org_name(org_id, headers)
-            print(org_name)
             # Crear registro con manejo de errores
             try:
-                LinkedInOrg.create({
+                api_org_ids.append(org_id)
+                vals = {
                     'name': org_name,
                     'account_id': org_id,
                     'full_urn': org_urn,
-                })
+                }
+                existing = LinkedInOrg.search([('account_id', '=', org_id)], limit=1)
+                if existing:
+                    existing.write(vals)
+                else:
+                    LinkedInOrg.create(vals)
                 created_count += 1
-            except Exception as e:
+            except (ValidationError, ValueError, TypeError) as e:
                 raise ValidationError(f"Error al crear organización {org_id}: {str(e)}")
                 continue
+        # opcional: limpiar obsoletas
+        # if api_org_ids:
+        #     LinkedInOrg.search([('account_id', 'not in', api_org_ids)]).unlink()
 
         return {
             'type': 'ir.actions.client',

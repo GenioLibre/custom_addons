@@ -153,6 +153,12 @@
                                     <input type="text" name="street" class="form-control"
                                         t-att-value="form.get('street') or ''"/>
                                 </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Link al mapa</label>
+                                    <input type="url" name="maps_url" class="form-control"
+                                        placeholder="https://maps.google.com/..."
+                                        t-att-value="form.get('maps_url') or ''"/>
+                                </div>
                                 <div class="col-12 col-md-4 mb-3">
                                     <label class="form-label">Codigo postal</label>
                                     <input type="text" name="zip" class="form-control"

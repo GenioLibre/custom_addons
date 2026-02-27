@@ -98,7 +98,21 @@
                             <field name="name"/>
                             <field name="link"/>
                             <field name="usuario"/>
-                            <field name="password"/>
+                            <field name="show_password" invisible="1"/>
+                            <field name="password" password="True" invisible="show_password"/>
+                            <field name="password" invisible="not show_password"/>
+                            <button name="action_reveal_password"
+                                    type="object"
+                                    icon="fa-eye"
+                                    class="btn-link"
+                                    string=""
+                                    invisible="show_password"/>
+                            <button name="action_hide_password"
+                                    type="object"
+                                    icon="fa-eye-slash"
+                                    class="btn-link"
+                                    string=""
+                                    invisible="not show_password"/>
                         </group>
                     </sheet>
                 </form>

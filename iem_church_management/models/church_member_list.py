@@ -23,9 +23,9 @@ class IemChurchMemberList(models.Model):
         "age_to",
     }
 
-    name = fields.Char(string="Titulo", required=True, tracking=True)
+    name = fields.Char(string="Título", required=True, tracking=True)
     active = fields.Boolean(default=True)
-    creation_date = fields.Datetime(string="Fecha de creacion", related="create_date", readonly=True)
+    creation_date = fields.Datetime(string="Fecha de creación", related="create_date", readonly=True)
 
     gender = fields.Selection(
         [("male", "Masculino"), ("female", "Femenino")],
@@ -52,18 +52,18 @@ class IemChurchMemberList(models.Model):
     predio_id = fields.Many2one("iem.church.predio", string="Predio", tracking=True)
     red_id = fields.Many2one("iem.church.red", string="Red", tracking=True)
     discipulado_id = fields.Many2one("iem.church.discipulado", string="Discipulado", tracking=True)
-    celula_id = fields.Many2one("iem.church.celula", string="Celula", tracking=True)
-    age_from = fields.Integer(string="Edad minima", tracking=True, default=0)
-    age_to = fields.Integer(string="Edad maxima", tracking=True, default=99)
+    celula_id = fields.Many2one("iem.church.celula", string="Célula", tracking=True)
+    age_from = fields.Integer(string="Edad mínima", tracking=True, default=0)
+    age_to = fields.Integer(string="Edad máxima", tracking=True, default=99)
 
     filter_summary = fields.Text(string="Filtro original", readonly=True)
 
-    show_boolean_extra = fields.Boolean(string="Usar campo Si/No", default=True, tracking=True)
-    boolean_extra_label = fields.Char(string="Titulo Si/No", tracking=True)
+    show_boolean_extra = fields.Boolean(string="Usar campo Sí/No", default=True, tracking=True)
+    boolean_extra_label = fields.Char(string="Título Sí/No", tracking=True)
     show_amount_extra = fields.Boolean(string="Usar campo Monto", default=True, tracking=True)
-    amount_extra_label = fields.Char(string="Titulo Monto", tracking=True)
+    amount_extra_label = fields.Char(string="Título Monto", tracking=True)
     show_text_extra = fields.Boolean(string="Usar campo Texto", default=True, tracking=True)
-    text_extra_label = fields.Char(string="Titulo Texto", tracking=True)
+    text_extra_label = fields.Char(string="Título Texto", tracking=True)
 
     currency_id = fields.Many2one(
         "res.currency",
@@ -125,11 +125,11 @@ class IemChurchMemberList(models.Model):
     def _check_age_bounds(self):
         for rec in self:
             if rec.age_from and rec.age_from < 0:
-                raise ValidationError(_("La edad minima no puede ser negativa."))
+                raise ValidationError(_("La edad mínima no puede ser negativa."))
             if rec.age_to and rec.age_to < 0:
-                raise ValidationError(_("La edad maxima no puede ser negativa."))
+                raise ValidationError(_("La edad máxima no puede ser negativa."))
             if rec.age_from and rec.age_to and rec.age_from > rec.age_to:
-                raise ValidationError(_("La edad minima no puede ser mayor a la edad maxima."))
+                raise ValidationError(_("La edad mínima no puede ser mayor a la edad máxima."))
 
     @api.onchange("predio_id")
     def _onchange_predio_id_reset_structure(self):
@@ -172,7 +172,7 @@ class IemChurchMemberList(models.Model):
         if self.env.context.get("allow_filter_write"):
             return super().write(vals)
         if self._FILTER_FIELDS & set(vals.keys()):
-            raise UserError(_("El filtro esta congelado. Crea una nueva lista si necesitas otro filtro."))
+            raise UserError(_("El filtro está congelado. Crea una nueva lista si necesitas otro filtro."))
         return super().write(vals)
 
     def _apply_scope_defaults(self, vals):
@@ -206,7 +206,7 @@ class IemChurchMemberList(models.Model):
         target_predio = vals.get("predio_id")
         target_red = vals.get("red_id")
         target_discipulado = vals.get("discipulado_id")
-        message = _("No tienes permiso para crear listas fuera de tu ambito (Predio, Red, Discipulado).")
+        message = _("No tienes permiso para crear listas fuera de tu ámbito (Predio, Red, Discipulado).")
 
         if user.has_group("iem_church_management.group_iem_pastor_gobierno"):
             if not target_predio:
@@ -280,11 +280,11 @@ class IemChurchMemberList(models.Model):
         if self.discipulado_id:
             parts.append(_("Discipulado: %s") % self.discipulado_id.display_name)
         if self.celula_id:
-            parts.append(_("Celula: %s") % self.celula_id.display_name)
+            parts.append(_("Célula: %s") % self.celula_id.display_name)
         if self.age_from:
-            parts.append(_("Edad minima: %s") % self.age_from)
+            parts.append(_("Edad mínima: %s") % self.age_from)
         if self.age_to:
-            parts.append(_("Edad maxima: %s") % self.age_to)
+            parts.append(_("Edad máxima: %s") % self.age_to)
         return " | ".join(parts) if parts else _("Sin filtros")
 
     def _populate_members_from_filter(self):
@@ -387,8 +387,8 @@ class IemChurchMemberListLine(models.Model):
             for rec in self:
                 changes = []
                 if "extra_boolean" in vals:
-                    label = rec.list_id.boolean_extra_label or _("Si/No")
-                    changes.append(_("%s: %s") % (label, _("Si") if rec.extra_boolean else _("No")))
+                    label = rec.list_id.boolean_extra_label or _("Sí/No")
+                    changes.append(_("%s: %s") % (label, _("Sí") if rec.extra_boolean else _("No")))
                 if "extra_amount" in vals:
                     label = rec.list_id.amount_extra_label or _("Monto")
                     changes.append(_("%s: %s") % (label, rec.extra_amount))
@@ -397,7 +397,7 @@ class IemChurchMemberListLine(models.Model):
                     changes.append(_("%s: %s") % (label, rec.extra_text or "-"))
                 if changes:
                     rec.list_id.message_post(
-                        body=_("Actualizacion de %s -> %s")
+                        body=_("Actualización de %s -> %s")
                         % (rec.member_id.display_name, " | ".join(changes))
                     )
         return res
