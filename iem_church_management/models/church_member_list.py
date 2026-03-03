@@ -11,20 +11,8 @@ class IemChurchMemberList(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc, id desc"
 
-    _FILTER_FIELDS = {
-        "gender",
-        "member_status",
-        "position_filter_ids",
-        "predio_id",
-        "red_id",
-        "discipulado_id",
-        "celula_id",
-        "age_from",
-        "age_to",
-    }
-
     name = fields.Char(string="Título", required=True, tracking=True)
-    active = fields.Boolean(default=True)
+    active = fields.Boolean(default=True, tracking=True)
     creation_date = fields.Datetime(string="Fecha de creación", related="create_date", readonly=True)
 
     gender = fields.Selection(
@@ -53,10 +41,10 @@ class IemChurchMemberList(models.Model):
     red_id = fields.Many2one("iem.church.red", string="Red", tracking=True)
     discipulado_id = fields.Many2one("iem.church.discipulado", string="Discipulado", tracking=True)
     celula_id = fields.Many2one("iem.church.celula", string="Célula", tracking=True)
-    age_from = fields.Integer(string="Edad mínima", tracking=True, default=0)
-    age_to = fields.Integer(string="Edad máxima", tracking=True, default=99)
+    age_from = fields.Integer(string="Edad mínima", tracking=True)
+    age_to = fields.Integer(string="Edad máxima", default=99, tracking=True)
 
-    filter_summary = fields.Text(string="Filtro original", readonly=True)
+    filter_summary = fields.Text(string="Filtro original", readonly=True, tracking=True)
 
     show_boolean_extra = fields.Boolean(string="Usar campo Sí/No", default=True, tracking=True)
     boolean_extra_label = fields.Char(string="Título Sí/No", tracking=True)
@@ -70,6 +58,7 @@ class IemChurchMemberList(models.Model):
         string="Moneda",
         default=lambda self: self.env.company.currency_id,
         required=True,
+        tracking=True,
     )
 
     member_line_ids = fields.One2many(
@@ -164,16 +153,40 @@ class IemChurchMemberList(models.Model):
         records = super().create(vals_list)
         for rec in records:
             rec.with_context(allow_filter_write=True).write({"filter_summary": rec._build_filter_summary()})
-            rec._populate_members_from_filter()
             rec.message_post(body=_("Lista creada."))
         return records
 
     def write(self, vals):
         if self.env.context.get("allow_filter_write"):
             return super().write(vals)
-        if self._FILTER_FIELDS & set(vals.keys()):
-            raise UserError(_("El filtro está congelado. Crea una nueva lista si necesitas otro filtro."))
+        if self._is_limited_discipulador() and ("name" in vals or vals.get("active") is False):
+            foreign_lists = self.filtered(lambda rec: rec.create_uid != self.env.user)
+            if foreign_lists:
+                raise UserError(
+                    _(
+                        "No tienes permiso para renombrar o borrar listas creadas por otros usuarios."
+                    )
+                )
         return super().write(vals)
+
+    def unlink(self):
+        if self._is_limited_discipulador():
+            foreign_lists = self.filtered(lambda rec: rec.create_uid != self.env.user)
+            if foreign_lists:
+                raise UserError(
+                    _("No tienes permiso para borrar listas creadas por otros usuarios.")
+                )
+        return super().unlink()
+
+    def _is_limited_discipulador(self):
+        user = self.env.user
+        return (
+            user.has_group("iem_church_management.group_iem_discipulador")
+            and not user.has_group("iem_church_management.group_iem_pastor")
+            and not user.has_group("iem_church_management.group_iem_pastor_gobierno")
+            and not user.has_group("iem_church_management.group_iem_admin")
+            and not user.has_group("base.group_system")
+        )
 
     def _apply_scope_defaults(self, vals):
         user = self.env.user
@@ -255,8 +268,12 @@ class IemChurchMemberList(models.Model):
             domain.append(("birth_date", "<=", max_birthdate))
         if self.age_to:
             min_birthdate = today - relativedelta(years=self.age_to + 1) + relativedelta(days=1)
-            domain.append(("birth_date", ">=", min_birthdate))
-        if self.age_from or self.age_to:
+            if self.age_from:
+                domain.append(("birth_date", ">=", min_birthdate))
+            else:
+                # With only max age set, keep members without birth date in result.
+                domain.extend(["|", ("birth_date", "=", False), ("birth_date", ">=", min_birthdate)])
+        if self.age_from:
             domain.append(("birth_date", "!=", False))
 
         return domain
@@ -287,24 +304,42 @@ class IemChurchMemberList(models.Model):
             parts.append(_("Edad máxima: %s") % self.age_to)
         return " | ".join(parts) if parts else _("Sin filtros")
 
-    def _populate_members_from_filter(self):
-        Line = self.env["iem.church.member.list.line"]
+    def action_add_members_from_filter(self):
         for rec in self:
-            members = self.env["church.member"].search(rec._member_domain_from_filter())
-            if not members:
-                continue
-            existing_member_ids = set(rec.member_line_ids.mapped("member_id").ids)
-            line_vals = [
-                {
-                    "list_id": rec.id,
-                    "member_id": member.id,
-                    "source": "filter",
-                }
-                for member in members
-                if member.id not in existing_member_ids
-            ]
-            if line_vals:
-                Line.create(line_vals)
+            rec.with_context(allow_filter_write=True).write({"filter_summary": rec._build_filter_summary()})
+            added_count = rec._populate_members_from_filter()
+            rec.message_post(
+                body=_("Filtro aplicado. Miembros agregados a la lista: %s") % added_count
+            )
+        return True
+
+    def action_clear_member_lines(self):
+        for rec in self:
+            removed_count = len(rec.member_line_ids)
+            if removed_count:
+                rec.member_line_ids.unlink()
+            rec.message_post(body=_("Lista limpiada. Miembros removidos: %s") % removed_count)
+        return True
+
+    def _populate_members_from_filter(self):
+        self.ensure_one()
+        Line = self.env["iem.church.member.list.line"]
+        members = self.env["church.member"].search(self._member_domain_from_filter())
+        if not members:
+            return 0
+        existing_member_ids = set(self.member_line_ids.mapped("member_id").ids)
+        line_vals = [
+            {
+                "list_id": self.id,
+                "member_id": member.id,
+                "source": "filter",
+            }
+            for member in members
+            if member.id not in existing_member_ids
+        ]
+        if line_vals:
+            Line.create(line_vals)
+        return len(line_vals)
 
 
 class IemChurchMemberListLine(models.Model):

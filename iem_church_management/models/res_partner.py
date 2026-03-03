@@ -20,7 +20,7 @@ class ResPartner(models.Model):
         default=lambda self: self.env["res.country"].search([("code", "=", "PE")], limit=1)
         or self.env.company.country_id,
     )
-    is_member = fields.Boolean(string="Es Miembro de la Iglesia")
+    is_member = fields.Boolean(string="Es Miembro de la Iglesia", default=True)
     gender = fields.Selection(
         [
             ("male", "Masculino"),
@@ -28,6 +28,14 @@ class ResPartner(models.Model):
         ],
         string="Sexo",
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # In this module, every new contact is treated as a church member.
+        for vals in vals_list:
+            vals["is_member"] = True
+        return super().create(vals_list)
+
     def unlink(self):
         if not self.env.context.get("skip_church_member_partner_cleanup"):
             members = self.env["church.member"].search([("partner_id", "in", self.ids)])
