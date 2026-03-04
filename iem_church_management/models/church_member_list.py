@@ -13,6 +13,19 @@ class IemChurchMemberList(models.Model):
 
     name = fields.Char(string="Título", required=True, tracking=True)
     active = fields.Boolean(default=True, tracking=True)
+    visibility = fields.Selection(
+        [("public", "Pública"), ("private", "Privada")],
+        string="Visibilidad",
+        default="public",
+        required=True,
+        tracking=True,
+    )
+    creator_access_level = fields.Integer(
+        string="Nivel del creador",
+        compute="_compute_creator_access_level",
+        store=True,
+        readonly=True,
+    )
     creation_date = fields.Datetime(string="Fecha de creación", related="create_date", readonly=True)
 
     gender = fields.Selection(
@@ -45,6 +58,7 @@ class IemChurchMemberList(models.Model):
     age_to = fields.Integer(string="Edad máxima", default=99, tracking=True)
 
     filter_summary = fields.Text(string="Filtro original", readonly=True, tracking=True)
+    details = fields.Text(string="Detalles", tracking=True)
 
     show_boolean_extra = fields.Boolean(string="Usar campo Sí/No", default=True, tracking=True)
     boolean_extra_label = fields.Char(string="Título Sí/No", tracking=True)
@@ -110,6 +124,25 @@ class IemChurchMemberList(models.Model):
             rec.filter_member_count = len(rec.member_line_ids.filtered(lambda line: line.source == "filter"))
             rec.manual_member_count = len(rec.member_line_ids.filtered(lambda line: line.source == "manual"))
 
+    @api.depends("create_uid", "create_uid.groups_id")
+    def _compute_creator_access_level(self):
+        for rec in self:
+            rec.creator_access_level = rec._access_level_for_user(rec.create_uid)
+
+    @api.model
+    def _access_level_for_user(self, user):
+        if not user:
+            return 0
+        if user.has_group("base.group_system") or user.has_group("iem_church_management.group_iem_admin"):
+            return 4
+        if user.has_group("iem_church_management.group_iem_pastor_gobierno"):
+            return 3
+        if user.has_group("iem_church_management.group_iem_pastor"):
+            return 2
+        if user.has_group("iem_church_management.group_iem_discipulador"):
+            return 1
+        return 0
+
     @api.constrains("age_from", "age_to")
     def _check_age_bounds(self):
         for rec in self:
@@ -160,7 +193,9 @@ class IemChurchMemberList(models.Model):
         if self.env.context.get("allow_filter_write"):
             return super().write(vals)
         if self._is_limited_discipulador() and ("name" in vals or vals.get("active") is False):
-            foreign_lists = self.filtered(lambda rec: rec.create_uid != self.env.user)
+            foreign_lists = self.filtered(
+                lambda rec: rec.create_uid != self.env.user and rec.visibility == "private"
+            )
             if foreign_lists:
                 raise UserError(
                     _(
@@ -171,7 +206,9 @@ class IemChurchMemberList(models.Model):
 
     def unlink(self):
         if self._is_limited_discipulador():
-            foreign_lists = self.filtered(lambda rec: rec.create_uid != self.env.user)
+            foreign_lists = self.filtered(
+                lambda rec: rec.create_uid != self.env.user and rec.visibility == "private"
+            )
             if foreign_lists:
                 raise UserError(
                     _("No tienes permiso para borrar listas creadas por otros usuarios.")

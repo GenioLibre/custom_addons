@@ -6,7 +6,6 @@
             <list string="Miembros">
                 <field name="name" />
                 <field name="vat" string="Numero de Documento" />
-                <field name="member_status" />
                 <field name="predio_id" />
                 <field name="red_id" />
                 <field name="discipulado_id" />
@@ -75,7 +74,6 @@
                             <field name="email" />
                             <field name="street" string="Direccion" />
                             <field name="ref" />
-                            <field name="maps_url" widget="url" />
                             <field name="state_id" string="Departamento" />
                             <field name="city" string="Provincia" />
                             <field name="district" string="Distrito" />
@@ -152,6 +150,13 @@
         <field name="name">Miembros</field>
         <field name="res_model">church.member</field>
         <field name="view_mode">list,form</field>
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+            ref('iem_church_management.group_iem_discipulador')
+        ])]" />
     </record>
 
     <menuitem
@@ -159,6 +164,7 @@
         name="Membresia"
         sequence="20"
         web_icon="iem_church_management,static/description/team.png"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor,iem_church_management.group_iem_discipulador"
     />
     <menuitem
         id="menu_church_member"
@@ -166,5 +172,6 @@
         parent="menu_church_membership_root"
         action="action_church_member"
         sequence="10"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor,iem_church_management.group_iem_discipulador"
     />
 </odoo>

@@ -1,4 +1,5 @@
-from odoo import fields, models
+from odoo import _, fields, models
+from odoo.exceptions import UserError
 
 
 class IemChurchPredio(models.Model):
@@ -23,6 +24,13 @@ class IemChurchPredio(models.Model):
     longitude = fields.Float(string="Longitud", digits=(10, 7))
 
     active = fields.Boolean(default=True)
+
+    def action_view_map(self):
+        self.ensure_one()
+        if self.latitude is False or self.longitude is False:
+            raise UserError(_("Debe definir latitud y longitud para ver el mapa."))
+        url = f"https://www.google.com/maps/search/?api=1&query={self.latitude},{self.longitude}"
+        return {"type": "ir.actions.act_url", "url": url, "target": "new"}
 
 
 class IemChurchRed(models.Model):
@@ -66,3 +74,10 @@ class IemChurchCelula(models.Model):
     longitude = fields.Float(string="Longitud", digits=(10, 7))
 
     active = fields.Boolean(default=True)
+
+    def action_view_map(self):
+        self.ensure_one()
+        if self.latitude is False or self.longitude is False:
+            raise UserError(_("Debe definir latitud y longitud para ver el mapa."))
+        url = f"https://www.google.com/maps/search/?api=1&query={self.latitude},{self.longitude}"
+        return {"type": "ir.actions.act_url", "url": url, "target": "new"}

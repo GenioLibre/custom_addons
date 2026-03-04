@@ -38,6 +38,12 @@
                             <field name="street" string="Calle" />
                             <field name="latitude" />
                             <field name="longitude" />
+                            <button
+                                name="action_view_map"
+                                type="object"
+                                string="Ver mapa"
+                                class="btn-secondary"
+                            />
                         </group>
                     </group>
                 </sheet>
@@ -185,6 +191,12 @@
                             <field name="street" string="Calle" />
                             <field name="latitude" />
                             <field name="longitude" />
+                            <button
+                                name="action_view_map"
+                                type="object"
+                                string="Ver mapa"
+                                class="btn-secondary"
+                            />
                         </group>
                     </group>
                 </sheet>

@@ -50,6 +50,9 @@ class IemChurchWebsite(http.Controller):
 
     def _get_public_form_reference_data(self):
         env = request.env
+        member_model = env["church.member"].sudo()
+        current_position_options = member_model._fields["current_position"].selection
+        marital_status_options = member_model._fields["marital_status"].selection
         peru = env["res.country"].sudo().search([("code", "=", "PE")], limit=1)
         province_suggestions, district_suggestions = self._get_partner_location_suggestions(peru.id)
         return {
@@ -63,6 +66,8 @@ class IemChurchWebsite(http.Controller):
             "redes": env["iem.church.red"].sudo().search([], order="name asc"),
             "discipulados": env["iem.church.discipulado"].sudo().search([], order="name asc"),
             "celulas": env["iem.church.celula"].sudo().search([], order="name asc"),
+            "current_position_options": current_position_options,
+            "marital_status_options": marital_status_options,
         }
 
     def _render_public_form(self, form=None, error=False, success=False):
@@ -237,6 +242,7 @@ class IemChurchWebsite(http.Controller):
         csrf=True,
     )
     def church_member_form_submit(self, **kwargs):
+        form_values = dict(kwargs)
         settings = self._get_public_form_settings()
 
         # Honeypot: silently ignore spam submissions.
@@ -248,14 +254,14 @@ class IemChurchWebsite(http.Controller):
         last_submit = request.session.get(self._rate_limit_key())
         if last_submit and (now - last_submit) < settings["rate_limit_seconds"]:
             return self._render_public_form(
-                form=kwargs,
+                form=form_values,
                 error=_("Por favor espera un momento antes de volver a enviar el formulario."),
             )
 
         access_password = (kwargs.get("access_password") or "").strip()
         if settings["access_password"] and access_password != settings["access_password"]:
             return self._render_public_form(
-                form=kwargs,
+                form=form_values,
                 error=_("La clave de acceso es incorrecta."),
             )
         verified_at = int(request.session.get(self._access_verified_at_key()) or 0)
@@ -265,7 +271,7 @@ class IemChurchWebsite(http.Controller):
             request.session[self._access_verified_key()] = False
             request.session[self._access_verified_at_key()] = 0
             return self._render_public_form(
-                form=kwargs,
+                form=form_values,
                 error=_("Primero valida la clave de acceso para continuar."),
             )
 
@@ -273,7 +279,7 @@ class IemChurchWebsite(http.Controller):
         last_name = (kwargs.get("last_name") or "").strip()
         if not first_name or not last_name:
             return self._render_public_form(
-                form=kwargs,
+                form=form_values,
                 error=_("Nombre y Apellido son obligatorios."),
             )
 
@@ -281,13 +287,13 @@ class IemChurchWebsite(http.Controller):
         vat = (kwargs.get("vat") or "").strip()
         if not identification_type_id or not vat:
             return self._render_public_form(
-                form=kwargs,
+                form=form_values,
                 error=_("Tipo de identificacion y numero de documento son obligatorios."),
             )
         existing = self._find_existing_document(identification_type_id, vat)
         if existing:
             return self._render_public_form(
-                form=kwargs,
+                form=form_values,
                 error=_("Ya existe el documento de identidad registrado. El formulario no sera guardado."),
             )
         peru_country = request.env["res.country"].sudo().search([("code", "=", "PE")], limit=1)
@@ -302,7 +308,7 @@ class IemChurchWebsite(http.Controller):
         if image_file and image_file.filename:
             if not (image_file.mimetype or "").startswith("image/"):
                 return self._render_public_form(
-                    form=kwargs,
+                    form=form_values,
                     error=_("El archivo de imagen no es valido."),
                 )
             try:
@@ -316,7 +322,7 @@ class IemChurchWebsite(http.Controller):
                 image_1920 = base64.b64encode(processed) if processed else False
             except Exception:
                 return self._render_public_form(
-                    form=kwargs,
+                    form=form_values,
                     error=_("No se pudo procesar la imagen. Usa una imagen valida."),
                 )
 
@@ -330,7 +336,6 @@ class IemChurchWebsite(http.Controller):
             "gender": (kwargs.get("gender") or "").strip() or False,
             "birth_date": (kwargs.get("birth_date") or "").strip() or False,
             "street": (kwargs.get("street") or "").strip() or False,
-            "maps_url": (kwargs.get("maps_url") or "").strip() or False,
             "city": (kwargs.get("city") or "").strip() or False,
             "district": (kwargs.get("district") or "").strip() or False,
             "state_id": self._to_int_or_false(kwargs.get("state_id")),
@@ -340,9 +345,12 @@ class IemChurchWebsite(http.Controller):
             "red_id": self._to_int_or_false(kwargs.get("red_id")),
             "discipulado_id": self._to_int_or_false(kwargs.get("discipulado_id")),
             "celula_id": self._to_int_or_false(kwargs.get("celula_id")),
+            "current_position": (kwargs.get("current_position") or "").strip() or "participante",
+            "baptism_date": (kwargs.get("baptism_date") or "").strip() or False,
+            "spiritual_encounter_date": (kwargs.get("spiritual_encounter_date") or "").strip() or False,
+            "marital_status": (kwargs.get("marital_status") or "").strip() or False,
             "is_member": True,
             "member_status": "active",
-            "current_position": "participante",
             "membership_date": fields.Date.today(),
             "image_1920": image_1920,
         }
@@ -350,7 +358,7 @@ class IemChurchWebsite(http.Controller):
         try:
             request.env["church.member"].sudo().with_context(skip_scope_check=True).create(member_vals)
         except (ValidationError, UserError) as exc:
-            return self._render_public_form(form=kwargs, error=str(exc))
+            return self._render_public_form(form=form_values, error=str(exc))
 
         request.session[self._rate_limit_key()] = now
         request.session[self._access_verified_key()] = False

@@ -5,8 +5,8 @@
         <field name="arch" type="xml">
             <list string="Listas de Membresía">
                 <field name="name" />
+                <field name="visibility" />
                 <field name="creation_date" />
-                <field name="filter_summary" />
                 <field name="member_count" />
                 <field name="filter_member_count" />
                 <field name="manual_member_count" />
@@ -28,6 +28,7 @@
                     </div>
                     <group>
                         <group>
+                            <field name="visibility" />
                             <field name="creation_date" readonly="1" />
                             <field name="create_uid" readonly="1" string="Creado por" />
                             <field name="currency_id" options="{'no_create': True, 'no_create_edit': True}" />
@@ -36,6 +37,7 @@
                             <field name="member_count" readonly="1" />
                             <field name="filter_member_count" readonly="1" />
                             <field name="manual_member_count" readonly="1" />
+                            <field name="details" widget="text" />
                         </group>
                     </group>
                     <notebook>
@@ -52,13 +54,13 @@
                             >
                                 <list editable="bottom" string="Miembros de la lista">
                                     <field name="member_id" options="{'no_create': True, 'no_create_edit': True}" />
-                                    <field name="source" />
+                                    <field name="source" optional="hide" />
                                     <field name="predio_id" optional="hide" />
                                     <field name="red_id" optional="hide" />
                                     <field name="discipulado_id" optional="hide" />
-                                    <field name="celula_id" optional="hide" />
                                     <field name="extra_boolean" column_invisible="parent.show_boolean_extra == False" />
-                                    <field name="extra_amount" column_invisible="parent.show_amount_extra == False" />
+                                    <field name="currency_id" optional="hide"  />
+                                    <field name="extra_amount" column_invisible="parent.show_amount_extra == False" sum="Total" />
                                     <field name="extra_text" column_invisible="parent.show_text_extra == False" />
                                 </list>
                             </field>
@@ -133,6 +135,8 @@
             <search string="Buscar listas">
                 <field name="name" />
                 <field name="create_uid" />
+                <filter name="filter_public_list" string="Públicas" domain="[('visibility', '=', 'public')]" />
+                <filter name="filter_private_list" string="Privadas" domain="[('visibility', '=', 'private')]" />
                 <filter name="filter_male" string="Hombres" domain="[('gender', '=', 'male')]" />
                 <filter name="filter_female" string="Mujeres" domain="[('gender', '=', 'female')]" />
                 <group expand="0" string="Agrupar por">

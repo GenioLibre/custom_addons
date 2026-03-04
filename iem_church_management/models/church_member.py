@@ -133,6 +133,27 @@ class ChurchMember(models.Model):
             group_ids.append(self.env.ref(group_xmlid).id)
         return group_ids
 
+    def _get_iem_security_group_ids(self):
+        return [
+            self.env.ref("iem_church_management.group_iem_admin").id,
+            self.env.ref("iem_church_management.group_iem_pastor_gobierno").id,
+            self.env.ref("iem_church_management.group_iem_pastor").id,
+            self.env.ref("iem_church_management.group_iem_discipulador").id,
+        ]
+
+    def _sync_linked_user_groups_from_position(self):
+        Users = self.env["res.users"].sudo().with_context(active_test=False)
+        for member in self:
+            users = Users.search([("partner_id", "=", member.partner_id.id)])
+            if not users:
+                continue
+            iem_group_ids = set(member._get_iem_security_group_ids())
+            target_group_ids = set(member._get_access_group_ids())
+            for user in users:
+                current_group_ids = set(user.groups_id.ids)
+                new_group_ids = (current_group_ids - iem_group_ids) | target_group_ids
+                user.write({"groups_id": [(6, 0, list(new_group_ids))]})
+
     @api.depends("name")
     def _compute_name_parts(self):
         for member in self:
@@ -289,7 +310,9 @@ class ChurchMember(models.Model):
                     vals.get("first_name") or partner_vals.get("name"),
                     vals.get("last_name"),
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records._sync_linked_user_groups_from_position()
+        return records
 
     def write(self, vals):
         if {"predio_id", "red_id", "discipulado_id"} & set(vals.keys()):
@@ -323,6 +346,7 @@ class ChurchMember(models.Model):
                             )
                             % existing_partner.display_name
                         )
+        sync_groups = "current_position" in vals or "partner_id" in vals
         res = super().write(vals)
         partner_sync_fields = {"predio_id", "red_id", "discipulado_id", "celula_id", "membership_date"}
         if partner_sync_fields & set(vals.keys()):
@@ -337,6 +361,8 @@ class ChurchMember(models.Model):
                         member.first_name or member.name,
                         member.last_name,
                     )
+        if sync_groups:
+            self._sync_linked_user_groups_from_position()
         return res
 
     @api.constrains("predio_id", "red_id", "discipulado_id", "celula_id")

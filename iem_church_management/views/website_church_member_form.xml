@@ -33,7 +33,10 @@
                             <div class="row js-step" data-step="0">
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Clave de acceso</label>
-                                    <input type="password" name="access_password" class="form-control" required="required"/>
+                                    <div class="input-group">
+                                        <input type="password" name="access_password" class="form-control" required="required"/>
+                                        <button type="button" id="iem_toggle_access_password" class="btn btn-outline-secondary">Mostrar</button>
+                                    </div>
                                 </div>
                                 <div class="col-12">
                                     <button type="button" id="iem_validate_access" class="btn btn-primary">Validar clave</button>
@@ -92,6 +95,17 @@
                                     <label class="form-label">Fecha de nacimiento</label>
                                     <input type="date" name="birth_date" class="form-control"
                                         t-att-value="form.get('birth_date') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Estado civil</label>
+                                    <select name="marital_status" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="marital_status_options" t-as="marital_option">
+                                            <option t-att-value="marital_option[0]" t-att-selected="form.get('marital_status') == marital_option[0]">
+                                                <t t-esc="marital_option[1]"/>
+                                            </option>
+                                        </t>
+                                    </select>
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Imagen</label>
@@ -153,12 +167,6 @@
                                     <input type="text" name="street" class="form-control"
                                         t-att-value="form.get('street') or ''"/>
                                 </div>
-                                <div class="col-12 mb-3">
-                                    <label class="form-label">Link al mapa</label>
-                                    <input type="url" name="maps_url" class="form-control"
-                                        placeholder="https://maps.google.com/..."
-                                        t-att-value="form.get('maps_url') or ''"/>
-                                </div>
                                 <div class="col-12 col-md-4 mb-3">
                                     <label class="form-label">Codigo postal</label>
                                     <input type="text" name="zip" class="form-control"
@@ -211,6 +219,27 @@
                                         </t>
                                     </select>
                                 </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Cargo actual</label>
+                                    <select name="current_position" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="current_position_options" t-as="position_option">
+                                            <option t-att-value="position_option[0]" t-att-selected="form.get('current_position') == position_option[0]">
+                                                <t t-esc="position_option[1]"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Fecha de bautismo</label>
+                                    <input type="date" name="baptism_date" class="form-control"
+                                        t-att-value="form.get('baptism_date') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Fecha encuentro con Dios</label>
+                                    <input type="date" name="spiritual_encounter_date" class="form-control"
+                                        t-att-value="form.get('spiritual_encounter_date') or ''"/>
+                                </div>
                             </div>
 
                             <div class="d-none">
@@ -239,6 +268,7 @@
                     const clientMessage = document.getElementById("iem_form_client_message");
                     const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
                     const accessPasswordInput = document.querySelector('input[name="access_password"]');
+                    const toggleAccessPasswordBtn = document.getElementById("iem_toggle_access_password");
                     const identificationTypeInput = document.querySelector('select[name="l10n_latam_identification_type_id"]');
                     const dniInput = document.querySelector('input[name="vat"]');
                     const firstNameInput = document.querySelector('input[name="first_name"]');
@@ -426,6 +456,13 @@
                             syncExclusiveImageInputs();
                             const file = takePhotoInput.files &amp;&amp; takePhotoInput.files.length ? takePhotoInput.files[0] : null;
                             renderPhotoPreview(file);
+                        });
+                    }
+                    if (toggleAccessPasswordBtn &amp;&amp; accessPasswordInput) {
+                        toggleAccessPasswordBtn.addEventListener("click", function () {
+                            const visible = accessPasswordInput.type === "text";
+                            accessPasswordInput.type = visible ? "password" : "text";
+                            toggleAccessPasswordBtn.textContent = visible ? "Mostrar" : "Ocultar";
                         });
                     }
 
