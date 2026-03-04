@@ -16,7 +16,7 @@
     <record id="gl_print_marketing_report" model="ir.actions.report">
         <field name="name">Reporte de Marketing</field>
         <field name="model">ir.ui.view</field> <!-- Modelo genérico -->
-        <field name="report_type">qweb-html</field>
+        <field name="report_type">qweb-pdf</field>
         <field name="report_name">gl_geniolibre.gl_print_marketing_report_template</field>
         <field name="paperformat_id" ref="paperformat_a4_no_vertical_margins"/>
         <field name="binding_model_id" eval="False"/> <!-- Eliminar vinculación a modelo -->

@@ -8,7 +8,7 @@ from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 from urllib.parse import urlparse, parse_qs
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone, time
+from datetime import datetime, timedelta, timezone, time, date
 from collections import defaultdict
 from google.ads.googleads.client import GoogleAdsClient
 
@@ -80,7 +80,7 @@ class FacebookAdCampaigns(models.Model):
     name = fields.Char('Nombre')
     campaign_id = fields.Char('ID de Campaña', required=True)
     account_id = fields.Char('ID Cuenta Publicitaria')
-    project_id = fields.Many2one('project.project', string='Proyecto', required=True, ondelete='cascade')
+    project_id = fields.Many2one('project.project', string='Proyecto', required=False, ondelete='cascade')
 
 
 class project_project(models.Model):
@@ -229,7 +229,7 @@ class project_project(models.Model):
 
         if not self.partner_id_facebook_ad_account:
             # 🔥 No existe cuenta Facebook → borrar TODO
-            FacebookCampaign.search([('project_id', '=', self.id)]).unlink()
+            FacebookCampaign.search([]).unlink()
         else:
             # Existe cuenta Facebook → ejecutar Facebook
             self.fetch_facebook_campaigns()
@@ -257,8 +257,8 @@ class project_project(models.Model):
 
         Campaign = self.env['facebook.ad.campaigns'].sudo()
 
-        # 2. Borrar SOLO campañas de este proyecto
-        Campaign.search([('project_id', '=', self.id)]).unlink()
+        # 2. Borrar TODAS las campañas de Facebook (sin filtrar por project_id)
+        Campaign.search([]).unlink()
 
         # 3. Token
         access_token = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_key')
@@ -267,7 +267,7 @@ class project_project(models.Model):
 
         API_VERSION = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_version')
 
-        # 4. Fechas
+        # 4. API
         since_date = self.date_start
         until_date = self.date
         if isinstance(since_date, datetime):
@@ -275,7 +275,6 @@ class project_project(models.Model):
         if isinstance(until_date, datetime):
             until_date = until_date.date()
 
-        # 5. API
         url = f"https://graph.facebook.com/{API_VERSION}/act_{self.partner_id_facebook_ad_account}/campaigns"
         params = {
             'access_token': access_token,
@@ -295,13 +294,13 @@ class project_project(models.Model):
 
         filtered_campaigns = [c for c in campaigns if self._is_campaign_within_range(c, since_date, until_date)]
 
-        # 6. Crear campañas del proyecto
+        # 5. Crear campañas del proyecto
         for campaign in filtered_campaigns:
             Campaign.create({
                 'name': campaign['name'],
                 'campaign_id': campaign['id'],
                 'account_id': self.partner_id_facebook_ad_account,
-                'project_id': self.id,
+                'project_id': False,
             })
 
     def fetch_google_campaigns(self):
@@ -375,8 +374,8 @@ class project_project(models.Model):
         """Valida que la campaña esté dentro del rango de fechas."""
         start_str = campaign.get('start_time')
         end_str = campaign.get('stop_time')
-        start_date = fields.Date.from_string(start_str) if start_str else None
-        end_date = fields.Date.from_string(end_str) if end_str else None
+        start_date = fields.Date.from_string(start_str[:10]) if start_str else None
+        end_date = fields.Date.from_string(end_str[:10]) if end_str else None
 
         # Verificar superposición
         return ((start_date is None or start_date <= until_date) and (end_date is None or end_date >= since_date))
