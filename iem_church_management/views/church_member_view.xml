@@ -136,6 +136,12 @@
                 <field name="name" />
                 <field name="vat" />
                 <field name="member_code" />
+                <field name="predio_id" />
+                <field name="red_id" />
+                <field name="discipulado_id" />
+                <field name="celula_id" />
+                <field name="gender" />
+                <field name="current_position" />
                 <group expand="0" string="Agrupar por">
                     <filter name="group_predio" string="Predio" context="{'group_by': 'predio_id'}" />
                     <filter name="group_red" string="Red" context="{'group_by': 'red_id'}" />
