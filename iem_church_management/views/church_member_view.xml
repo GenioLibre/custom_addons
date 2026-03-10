@@ -118,8 +118,11 @@
                                     <field name="registered_by_id" readonly="1" />
                                     <field name="last_update_date" readonly="1" />
                                 </group>
+                                <group>
+                                    <field name="comment" />
+                                </group>
                             </group>
-                            <field name="comment" />
+                            
                         </page>
                     </notebook>
                 </sheet>

@@ -41,6 +41,8 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='date_start']" position="after">
                     <field name="project_type"/>
+                    <field name="web_type_id" invisible="project_type != 'web'"/>
+                    <field name="web_roadmap_generated" invisible="1"/>
                     <field name="facebook_ad_campaigns_ids" widget="many2many_tags"
                            invisible="project_type != 'marketing'"/>
 
@@ -65,6 +67,12 @@
                             type="object"
                             icon="fa-android"
                             class="btn-secondary" invisible="project_type != 'marketing'"/>
+                    <button name="action_generate_web_roadmap"
+                            string="Generar Hoja de Ruta"
+                            type="object"
+                            icon="fa-map"
+                            class="btn-primary"
+                            invisible="project_type != 'web'"/>
                 </xpath>
             </field>
         </record>

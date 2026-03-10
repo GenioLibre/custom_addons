@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_gl_web_roadmap_generate_wizard_form" model="ir.ui.view">
+            <field name="name">gl.web.roadmap.generate.wizard.form</field>
+            <field name="model">gl.web.roadmap.generate.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Confirmar generación">
+                    <group>
+                        <field name="project_id"/>
+                        <field name="warning_message" nolabel="1"/>
+                    </group>
+                    <footer>
+                        <button name="action_confirm_generate" string="Confirmar" type="object" class="btn-primary"/>
+                        <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+    </data>
+</odoo>

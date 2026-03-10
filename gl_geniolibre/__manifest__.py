@@ -29,6 +29,8 @@
         'views/gl_res_config_settings_views.xml',
         'views/gl_res_partner.xml',
         'views/gl_project_task.xml',
+        'views/gl_project_web_type.xml',
+        'views/gl_web_roadmap_wizard.xml',
         'views/gl_project_project.xml',
         'views/gl_project_portal.xml',
         'views/gl_project_portal_calendar.xml',
