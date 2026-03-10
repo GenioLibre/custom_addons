@@ -159,17 +159,23 @@ class ProjectProject(models.Model):
             })
 
             for task_data in stage_data['tasks']:
-                checklist_lines = [f"- {line}" for line in task_data['items']]
-                description = '\n'.join(checklist_lines) if checklist_lines else False
-
-                Task.create({
+                parent_task = Task.create({
                     'name': task_data['name'],
                     'project_id': self.id,
                     'stage_id': stage.id,
-                    'description': description,
                     'partner_id': self.partner_id.id or False,
                     'gl_is_web_roadmap_generated': True,
                 })
+
+                for item_name in task_data['items']:
+                    Task.create({
+                        'name': item_name,
+                        'project_id': self.id,
+                        'parent_id': parent_task.id,
+                        'stage_id': stage.id,
+                        'partner_id': self.partner_id.id or False,
+                        'gl_is_web_roadmap_generated': True,
+                    })
 
         self.web_roadmap_generated = True
 
