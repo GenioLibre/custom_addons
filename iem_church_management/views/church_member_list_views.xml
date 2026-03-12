@@ -21,6 +21,15 @@
         <field name="arch" type="xml">
             <form string="Lista de Membresía">
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_export_member_list_xlsx"
+                            string="Exportar lista (Excel)"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-download"
+                        />
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" placeholder="Ej: Hombres mayores de 30" />

@@ -1,0 +1,18 @@
+<odoo>
+    <record id="action_export_church_member_basic_list" model="ir.actions.server">
+        <field name="name">Exportar lista básica</field>
+        <field name="model_id" ref="iem_church_management.model_church_member" />
+        <field name="binding_model_id" ref="iem_church_management.model_church_member" />
+        <field name="binding_type">action</field>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+            ref('iem_church_management.group_iem_discipulador')
+        ])]" />
+        <field name="state">code</field>
+        <field name="code">action = model.action_export_basic_list_xlsx()</field>
+    </record>
+</odoo>

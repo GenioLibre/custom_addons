@@ -378,6 +378,30 @@ class IemChurchMemberList(models.Model):
             Line.create(line_vals)
         return len(line_vals)
 
+    def action_export_member_list_xlsx(self):
+        self.ensure_one()
+        members = self.member_line_ids.mapped("member_id")
+        today = fields.Date.context_today(self)
+        safe_name = (self.name or "lista").strip().replace(" ", "_")
+        filename = f"{safe_name}_{fields.Date.to_string(today)}.xlsx"
+        boolean_title = self.boolean_extra_label or _("Sí/No")
+        amount_title = self.amount_extra_label or _("Monto")
+        text_title = self.text_extra_label or _("Texto")
+        extra_headers = [boolean_title, amount_title, text_title]
+        values_by_member = {}
+        for line in self.member_line_ids:
+            values_by_member[line.member_id.id] = [
+                _("Sí") if line.extra_boolean else _("No"),
+                line.extra_amount or 0.0,
+                line.extra_text or "",
+            ]
+        return self.env["church.member"]._export_basic_list_xlsx(
+            members,
+            filename=filename,
+            extra_headers=extra_headers,
+            extra_values_by_member=values_by_member,
+        )
+
 
 class IemChurchMemberListLine(models.Model):
     _name = "iem.church.member.list.line"

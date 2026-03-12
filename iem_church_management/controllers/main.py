@@ -345,7 +345,7 @@ class IemChurchWebsite(http.Controller):
             "red_id": self._to_int_or_false(kwargs.get("red_id")),
             "discipulado_id": self._to_int_or_false(kwargs.get("discipulado_id")),
             "celula_id": self._to_int_or_false(kwargs.get("celula_id")),
-            "current_position": (kwargs.get("current_position") or "").strip() or "participante",
+            "current_position": (kwargs.get("current_position") or "").strip() or "miembro",
             "baptism_date": (kwargs.get("baptism_date") or "").strip() or False,
             "spiritual_encounter_date": (kwargs.get("spiritual_encounter_date") or "").strip() or False,
             "marital_status": (kwargs.get("marital_status") or "").strip() or False,

@@ -11,6 +11,7 @@
         "security/iem_church_management_rules.xml",
         "security/ir.model.access.csv",
         "data/church_member_sequence.xml",
+        "data/church_member_export_action.xml",
         "data/financial_contribution_sequence.xml",
         "data/church_member_position_data.xml",
         "data/auth_signup_mail_templates.xml",

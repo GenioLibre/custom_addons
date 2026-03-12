@@ -1,5 +1,8 @@
+import base64
+import io
 import random
 import requests
+import xlsxwriter
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
@@ -61,7 +64,6 @@ class ChurchMember(models.Model):
             ("lider_celula", "Líder de Célula"),
             ("lider_entrenamiento", "Líder en Entrenamiento"),
             ("miembro", "Miembro"),
-            ("participante", "Participante"),
             ("visitante", "Visitante"),
         ],
         string="Cargo actual",
@@ -77,7 +79,7 @@ class ChurchMember(models.Model):
             ("divorced", "Divorciado(a)"),
             ("widowed", "Viudo(a)"),
             ("separated", "Separado(a)"),
-            ("union", "Unión libre"),
+            ("union", "Conviviente"),
         ],
         string="Estado civil",
     )
@@ -110,6 +112,16 @@ class ChurchMember(models.Model):
         string="Tiene usuario",
         compute="_compute_has_portal_user",
     )
+
+    def init(self):
+        # Migration safeguard after removing `participante` from selection.
+        self._cr.execute(
+            """
+            UPDATE church_member
+               SET current_position = 'miembro'
+             WHERE current_position = 'participante'
+            """
+        )
 
     @api.depends("partner_id.user_ids")
     def _compute_has_portal_user(self):
@@ -677,3 +689,109 @@ class ChurchMember(models.Model):
                 "type": notif_type,
             },
         }
+
+    @api.model
+    def _export_basic_list_xlsx(self, members, filename=None, extra_headers=None, extra_values_by_member=None):
+        members = members.sorted(
+            key=lambda m: (
+                (m.last_name or "").lower(),
+                (m.first_name or "").lower(),
+                m.id,
+            )
+        )
+
+        today = fields.Date.context_today(self)
+        field_meta = self.fields_get(["gender", "current_position"])
+        gender_labels = dict(field_meta["gender"]["selection"])
+        current_position_labels = dict(field_meta["current_position"]["selection"])
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {"in_memory": True})
+        worksheet = workbook.add_worksheet("Membresia")
+        header_fmt = workbook.add_format({"bold": True})
+        headers = [
+            "Nombres",
+            "Apellidos",
+            "Tipo de documento",
+            "Numero de documento",
+            "Fecha de nacimiento",
+            "Edad",
+            "Telefono",
+            "Cargo actual",
+            "Sexo",
+            "Predio",
+            "Red",
+            "Discipulado",
+            "Celula",
+        ]
+        extra_headers = extra_headers or []
+        headers.extend(extra_headers)
+        for col, title in enumerate(headers):
+            worksheet.write(0, col, title, header_fmt)
+
+        row_idx = 1
+        for member in members:
+            age = ""
+            if member.birth_date:
+                age = today.year - member.birth_date.year
+                if (today.month, today.day) < (member.birth_date.month, member.birth_date.day):
+                    age -= 1
+            row_vals = [
+                member.first_name or "",
+                member.last_name or "",
+                member.l10n_latam_identification_type_id.display_name or "",
+                member.vat or "",
+                fields.Date.to_string(member.birth_date) if member.birth_date else "",
+                age,
+                member.mobile or member.phone or "",
+                current_position_labels.get(member.current_position, ""),
+                gender_labels.get(member.gender, ""),
+                member.predio_id.display_name or "",
+                member.red_id.display_name or "",
+                member.discipulado_id.display_name or "",
+                member.celula_id.display_name or "",
+            ]
+            if extra_headers:
+                extra_vals = (extra_values_by_member or {}).get(member.id, [])
+                row_vals.extend(extra_vals[: len(extra_headers)])
+                if len(extra_vals) < len(extra_headers):
+                    row_vals.extend([""] * (len(extra_headers) - len(extra_vals)))
+            for col, val in enumerate(row_vals):
+                worksheet.write(row_idx, col, val)
+            row_idx += 1
+
+        worksheet.set_column(0, 12, 20)
+        workbook.close()
+        xlsx_data = output.getvalue()
+        filename = filename or f"lista_membresia_{fields.Date.to_string(today)}.xlsx"
+        attachment = self.env["ir.attachment"].create(
+            {
+                "name": filename,
+                "type": "binary",
+                "datas": base64.b64encode(xlsx_data),
+                "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "res_model": "church.member",
+                "public": False,
+            }
+        )
+        return {
+            "type": "ir.actions.act_url",
+            "url": f"/web/content/{attachment.id}?download=true",
+            "target": "self",
+        }
+
+    @api.model
+    def action_export_basic_list_xlsx(self):
+        members = self
+        active_domain = self.env.context.get("active_domain")
+        if self.env.context.get("export_all_members"):
+            members = self.search(active_domain or [])
+        elif not members and active_domain:
+            members = self.search(active_domain)
+        elif not members:
+            members = self.search([])
+        return self._export_basic_list_xlsx(members)
+
+    @api.model
+    def action_export_basic_list_csv(self):
+        # Backward compatibility for existing action bindings.
+        return self.action_export_basic_list_xlsx()

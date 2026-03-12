@@ -38,6 +38,7 @@
         <field name="name">Participante</field>
         <field name="code">participante</field>
         <field name="sequence">80</field>
+        <field name="active">False</field>
     </record>
     <record id="member_position_visitante" model="iem.church.member.position.option">
         <field name="name">Visitante</field>
