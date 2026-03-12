@@ -67,6 +67,7 @@
                                     <field name="predio_id" optional="hide" />
                                     <field name="red_id" optional="hide" />
                                     <field name="discipulado_id" optional="hide" />
+                                    <field name="celula_id" optional="hide" />
                                     <field name="extra_boolean" column_invisible="parent.show_boolean_extra == False" />
                                     <field name="currency_id" column_invisible="True"  />
                                     <field name="extra_amount" column_invisible="parent.show_amount_extra == False" sum="Total" />
