@@ -599,12 +599,17 @@ class ChurchMember(models.Model):
             vals["last_name"] = last_name.title()
         if vals:
             self.write(vals)
-            return self._notify(
-                _("DNI"),
-                _("Datos actualizados correctamente."),
-                "success",
-                sticky=False,
-            )
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("DNI"),
+                    "message": _("Datos actualizados correctamente."),
+                    "sticky": False,
+                    "type": "success",
+                    "next": {"type": "ir.actions.client", "tag": "reload"},
+                },
+            }
         return True
 
     def action_grant_access(self):

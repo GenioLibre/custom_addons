@@ -64,6 +64,12 @@
                             <div class="o_row">
                                 <field name="vat" />
                             </div>
+                            <button
+                                name="action_fetch_dni"
+                                type="object"
+                                string="Buscar DNI"
+                                class="btn-secondary"
+                            />
                             <field name="first_name" required="1" />
                             <field name="last_name" required="1" />
                             <field name="gender" />

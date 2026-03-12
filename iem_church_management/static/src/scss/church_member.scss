@@ -103,3 +103,14 @@ th[data-name="total_class_count"] .o_column_title {
   text-overflow: unset !important;
   min-width: 130px;
 }
+
+@media (max-width: 992px) {
+  .o_action_manager .o_list_view .o_list_renderer {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .o_action_manager .o_list_view .o_list_renderer .o_list_table {
+    min-width: 760px;
+  }
+}
