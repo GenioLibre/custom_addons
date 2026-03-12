@@ -290,6 +290,27 @@ class IemChurchWebsite(http.Controller):
                 form=form_values,
                 error=_("Tipo de identificacion y numero de documento son obligatorios."),
             )
+        required_map = {
+            "gender": _("Sexo"),
+            "birth_date": _("Fecha de nacimiento"),
+            "predio_id": _("Predio"),
+            "discipulado_id": _("Discipulado"),
+            "celula_id": _("Celula"),
+            "current_position": _("Cargo actual"),
+        }
+        missing_labels = []
+        for key, label in required_map.items():
+            raw_val = kwargs.get(key)
+            if key.endswith("_id"):
+                if not self._to_int_or_false(raw_val):
+                    missing_labels.append(label)
+            elif not (raw_val or "").strip():
+                missing_labels.append(label)
+        if missing_labels:
+            return self._render_public_form(
+                form=form_values,
+                error=_("Faltan campos obligatorios: %s") % ", ".join(missing_labels),
+            )
         existing = self._find_existing_document(identification_type_id, vat)
         if existing:
             return self._render_public_form(

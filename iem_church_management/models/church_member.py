@@ -2,6 +2,7 @@ import base64
 import io
 import random
 import requests
+from datetime import datetime
 import xlsxwriter
 
 from odoo import api, fields, models, _
@@ -708,6 +709,7 @@ class ChurchMember(models.Model):
         workbook = xlsxwriter.Workbook(output, {"in_memory": True})
         worksheet = workbook.add_worksheet("Membresia")
         header_fmt = workbook.add_format({"bold": True})
+        date_fmt = workbook.add_format({"num_format": "dd/mm/yyyy"})
         headers = [
             "Nombres",
             "Apellidos",
@@ -740,7 +742,7 @@ class ChurchMember(models.Model):
                 member.last_name or "",
                 member.l10n_latam_identification_type_id.display_name or "",
                 member.vat or "",
-                fields.Date.to_string(member.birth_date) if member.birth_date else "",
+                member.birth_date or "",
                 age,
                 member.mobile or member.phone or "",
                 current_position_labels.get(member.current_position, ""),
@@ -756,7 +758,15 @@ class ChurchMember(models.Model):
                 if len(extra_vals) < len(extra_headers):
                     row_vals.extend([""] * (len(extra_headers) - len(extra_vals)))
             for col, val in enumerate(row_vals):
-                worksheet.write(row_idx, col, val)
+                if col == 4 and member.birth_date:
+                    worksheet.write_datetime(
+                        row_idx,
+                        col,
+                        datetime.combine(member.birth_date, datetime.min.time()),
+                        date_fmt,
+                    )
+                else:
+                    worksheet.write(row_idx, col, val)
             row_idx += 1
 
         worksheet.set_column(0, 12, 20)

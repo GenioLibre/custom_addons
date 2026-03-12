@@ -85,7 +85,7 @@
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Sexo</label>
-                                    <select name="gender" class="form-select">
+                                    <select name="gender" class="form-select" required="required">
                                         <option value="" t-att-selected="not form.get('gender')">Selecciona</option>
                                         <option value="male" t-att-selected="form.get('gender') == 'male'">Masculino</option>
                                         <option value="female" t-att-selected="form.get('gender') == 'female'">Femenino</option>
@@ -93,7 +93,7 @@
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Fecha de nacimiento</label>
-                                    <input type="date" name="birth_date" class="form-control"
+                                    <input type="date" name="birth_date" class="form-control" required="required"
                                         t-att-value="form.get('birth_date') or ''"/>
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
@@ -177,7 +177,7 @@
                             <div class="row js-step d-none" data-step="3">
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Predio</label>
-                                    <select name="predio_id" class="form-select">
+                                    <select name="predio_id" class="form-select" required="required">
                                         <option value="">Selecciona</option>
                                         <t t-foreach="predios" t-as="predio">
                                             <option t-att-value="predio.id" t-att-selected="form.get('predio_id') == str(predio.id)">
@@ -199,7 +199,7 @@
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Discipulado</label>
-                                    <select name="discipulado_id" class="form-select">
+                                    <select name="discipulado_id" class="form-select" required="required">
                                         <option value="">Selecciona</option>
                                         <t t-foreach="discipulados" t-as="discipulado">
                                             <option t-att-value="discipulado.id" t-att-data-red-id="discipulado.red_id.id or ''" t-att-selected="form.get('discipulado_id') == str(discipulado.id)">
@@ -210,7 +210,7 @@
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Celula</label>
-                                    <select name="celula_id" class="form-select">
+                                    <select name="celula_id" class="form-select" required="required">
                                         <option value="">Selecciona</option>
                                         <t t-foreach="celulas" t-as="celula">
                                             <option t-att-value="celula.id" t-att-data-discipulado-id="celula.discipulado_id.id or ''" t-att-selected="form.get('celula_id') == str(celula.id)">
@@ -221,7 +221,7 @@
                                 </div>
                                 <div class="col-12 col-md-6 mb-3">
                                     <label class="form-label">Cargo actual</label>
-                                    <select name="current_position" class="form-select">
+                                    <select name="current_position" class="form-select" required="required">
                                         <option value="">Selecciona</option>
                                         <t t-foreach="current_position_options" t-as="position_option">
                                             <option t-att-value="position_option[0]" t-att-selected="form.get('current_position') == position_option[0]">
