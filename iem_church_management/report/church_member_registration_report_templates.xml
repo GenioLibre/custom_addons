@@ -176,7 +176,6 @@
                 }
                 .field-line {
                     display: block;
-                    border-bottom: 1px solid #444444;
                     min-height: 1.3em;
                     width: 100%;
                 }
@@ -233,7 +232,7 @@
                 <t t-set="gender_label" t-value="dict(o.partner_id._fields['gender'].selection).get(o.gender, '') if o.gender else ''"/>
                 <t t-set="marital_status_label" t-value="dict(o._fields['marital_status'].selection).get(o.marital_status, '') if o.marital_status else ''"/>
                 <t t-set="current_position_label" t-value="dict(o._fields['current_position'].selection).get(o.current_position, '') if o.current_position else ''"/>
-                <t t-set="child_list" t-value="o.child_ids[:4]"/>
+                <t t-set="family_rows" t-value="o._get_family_report_rows()"/>
                 <div class="sheet">
                     <table class="topbar">
                         <tr>
@@ -254,7 +253,7 @@
                                     <h2>"CIELOS ABIERTOS"</h2>
                                     <div class="title-row">
                                         <span>Ficha de Registro</span>
-                                        <span class="report-no">N° <t t-esc="o.member_code or ''"/></span>
+                                        <span class="report-no">N° ................................</span>
                                     </div>
                                 </div>
                             </td>
@@ -369,32 +368,12 @@
                                 <th style="width:18%" class="center">Bautismo</th>
                                 <th style="width:10%" class="center">Vive</th>
                             </tr>
-                            <tr><td class="label">Padre</td><td></td><td></td><td></td><td></td></tr>
-                            <tr><td class="label">Madre</td><td></td><td></td><td></td><td></td></tr>
-                            <tr>
-                                <td class="label">Conyugue</td>
-                                <td><t t-esc="o.spouse_id.name or ''"/></td>
-                                <td></td><td></td><td></td>
-                            </tr>
-                            <tr>
-                                <td class="label">Hijo1</td>
-                                <td><t t-esc="child_list[0].name if len(child_list) &gt; 0 else ''"/></td>
-                                <td></td><td></td><td></td>
-                            </tr>
-                            <tr>
-                                <td class="label">Hijo2</td>
-                                <td><t t-esc="child_list[1].name if len(child_list) &gt; 1 else ''"/></td>
-                                <td></td><td></td><td></td>
-                            </tr>
-                            <tr>
-                                <td class="label">Hijo3</td>
-                                <td><t t-esc="child_list[2].name if len(child_list) &gt; 2 else ''"/></td>
-                                <td></td><td></td><td></td>
-                            </tr>
-                            <tr>
-                                <td class="label">Hijo4</td>
-                                <td><t t-esc="child_list[3].name if len(child_list) &gt; 3 else ''"/></td>
-                                <td></td><td></td><td></td>
+                            <tr t-foreach="family_rows" t-as="family_row">
+                                <td class="label"><t t-esc="family_row['label']"/></td>
+                                <td><t t-esc="family_row['name']"/></td>
+                                <td><t t-esc="family_row['birth_date']"/></td>
+                                <td><t t-esc="family_row['baptism_date']"/></td>
+                                <td><t t-esc="family_row['alive']"/></td>
                             </tr>
                         </table>
                     </div>

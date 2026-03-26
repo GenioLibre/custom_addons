@@ -694,6 +694,65 @@ class ChurchMember(models.Model):
             },
         }
 
+    def _get_related_member_for_partner(self, partner):
+        self.ensure_one()
+        if not partner:
+            return self.env["church.member"]
+        return self.env["church.member"].search([("partner_id", "=", partner.id)], limit=1)
+
+    def _format_report_date(self, value):
+        return value.strftime("%d/%m/%Y") if value else ""
+
+    def _get_family_report_rows(self):
+        self.ensure_one()
+        child_list = self.child_ids[:4]
+        spouse_member = self._get_related_member_for_partner(self.spouse_id)
+        child_members = {
+            partner.id: self._get_related_member_for_partner(partner)
+            for partner in child_list
+        }
+        return [
+            {
+                "label": "Padre",
+                "name": "",
+                "birth_date": "",
+                "baptism_date": "",
+                "alive": "",
+            },
+            {
+                "label": "Madre",
+                "name": "",
+                "birth_date": "",
+                "baptism_date": "",
+                "alive": "",
+            },
+            {
+                "label": "Conyugue",
+                "name": self.spouse_id.name or "",
+                "birth_date": self._format_report_date(spouse_member.birth_date if spouse_member else False),
+                "baptism_date": self._format_report_date(spouse_member.baptism_date if spouse_member else False),
+                "alive": "",
+            },
+        ] + [
+            {
+                "label": f"Hijo{index}",
+                "name": partner.name or "",
+                "birth_date": self._format_report_date(child_members.get(partner.id).birth_date if child_members.get(partner.id) else False),
+                "baptism_date": self._format_report_date(child_members.get(partner.id).baptism_date if child_members.get(partner.id) else False),
+                "alive": "",
+            }
+            for index, partner in enumerate(child_list, start=1)
+        ] + [
+            {
+                "label": f"Hijo{index}",
+                "name": "",
+                "birth_date": "",
+                "baptism_date": "",
+                "alive": "",
+            }
+            for index in range(len(child_list) + 1, 5)
+        ]
+
     @api.model
     def _export_basic_list_xlsx(self, members, filename=None, extra_headers=None, extra_values_by_member=None):
         members = members.sorted(
