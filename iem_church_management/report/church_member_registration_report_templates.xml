@@ -94,17 +94,19 @@
                     width: 150px;
                     border: 1px solid #777777;
                     text-align: center;
-                    vertical-align: middle;
                     overflow: hidden;
                     margin-left: auto;
                     margin-right: auto;
                     padding: 4px;
+                    line-height: 140px;
                 }
                 .photo-img {
-                    width: 140px;
-                    height: 140px;
-                    display: block;
-                    margin: 0 auto;
+                    max-width: 140px;
+                    max-height: 140px;
+                    width: auto;
+                    height: auto;
+                    display: inline-block;
+                    vertical-align: middle;
                 }
                 .report-no {
                     margin-left: 16px;
