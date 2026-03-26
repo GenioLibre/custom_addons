@@ -1,7 +1,8 @@
 import json
+import re
 import requests
 import pytz
-from odoo import models, fields
+from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 from datetime import datetime
 from datetime import timedelta
@@ -11,6 +12,7 @@ class GeneradorContenidoPropuesta(models.Model):
     _name = "gl.contenido.propuesta"
     _description = "Publicación generada desde IA"
     _rec_name = "titulo"
+    _order = "fecha_publicacion asc, id asc"
 
     flujo_id = fields.Many2one("gl.contenido.flujo", string="Flujo Relacionado", ondelete="cascade")
 
@@ -29,6 +31,7 @@ class GeneradorContenidoPropuesta(models.Model):
     recomendaciones = fields.Text("Recomendaciones de Diseño")
     cambios = fields.Text("Modificaciones")
     aprobado = fields.Boolean("Aprobado", default=False)
+    es_historia = fields.Boolean("Es Historia", default=False)
 
 
 class GeneradorContenidoFlujo(models.Model):
@@ -104,8 +107,21 @@ class GeneradorContenidoFlujo(models.Model):
 
     # Etapa: Publicaciones
     project_id = fields.Many2one("project.project", string="Proyecto Relacionado", domain="[('partner_id', '=', partner_id), ('project_type','=','marketing')]", tracking=True, )
+    user_ids = fields.Many2many("res.users", string="Responsables")
 
     metricas = fields.Text("Métricas (JSON)")
+
+    _CONTENT_TYPE_ALIASES = {
+        "post": "post",
+        "feed": "post",
+        "reel": "reel",
+        "video_reels": "reel",
+        "story": "story",
+        "historia": "story",
+        "video_stories": "story",
+        "carrusel": "carrusel",
+        "carousel": "carrusel",
+    }
 
     def ver_calendario(self):
         """Abre las propuestas del flujo actual en vista calendario"""
@@ -132,6 +148,204 @@ class GeneradorContenidoFlujo(models.Model):
             "publicaciones"
         ]
 
+    @api.constrains("date_start", "date")
+    def _check_date_range(self):
+        for record in self:
+            if record.date_start and record.date and record.date_start > record.date:
+                raise ValidationError("La fecha de inicio no puede ser mayor que la fecha final.")
+
+    @api.constrains("project_id", "partner_id")
+    def _check_project_partner_consistency(self):
+        for record in self:
+            if not record.project_id:
+                continue
+            if record.project_id.partner_id and record.partner_id and record.project_id.partner_id != record.partner_id:
+                raise ValidationError("El proyecto seleccionado no pertenece al mismo cliente del flujo.")
+            if getattr(record.project_id, "project_type", False) and record.project_id.project_type != "marketing":
+                raise ValidationError("El proyecto relacionado del flujo debe ser de tipo marketing.")
+
+    def _get_openai_client_config(self):
+        icp = self.env["ir.config_parameter"].sudo()
+        api_key = icp.get_param("chatgpt.api_key")
+        base_url = icp.get_param("chatgpt.base_url", "https://api.openai.com/v1")
+        model = icp.get_param("chatgpt.model", "gpt-4.1-mini")
+
+        if not api_key:
+            raise ValidationError("No se ha configurado la API Key de ChatGPT en Ajustes del sistema.")
+
+        return api_key, base_url.rstrip("/"), model
+
+    def _call_openai_chat_completion(self, *, prompt, system_prompt, temperature=0.2, timeout=60):
+        api_key, base_url, model = self._get_openai_client_config()
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": temperature,
+        }
+
+        try:
+            response = requests.post(
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            raw = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+        except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+            raise ValidationError(f"Error al consultar ChatGPT: {e}")
+
+        if not raw:
+            raise ValidationError("ChatGPT no devolvió contenido.")
+
+        return raw
+
+    def _normalize_content_type(self, tipo, *, field_name="tipo"):
+        tipo_raw = (tipo or "").strip().lower()
+        normalized = self._CONTENT_TYPE_ALIASES.get(tipo_raw)
+        if not normalized:
+            raise ValidationError(
+                f"Tipo de contenido inválido en '{field_name}': {tipo!r}. "
+                "Usa uno de: post, reel, story, carrusel."
+            )
+        return normalized
+
+    def _parse_json_list_field(self, raw_value, *, field_name):
+        if not raw_value:
+            raise ValidationError(f"El campo '{field_name}' está vacío. Debes pegar un JSON válido.")
+
+        try:
+            data = json.loads(raw_value)
+        except json.JSONDecodeError as e:
+            raise ValidationError(f"El campo '{field_name}' no contiene un JSON válido:\n{e}")
+
+        if not isinstance(data, list):
+            raise ValidationError(f"El campo '{field_name}' debe contener una lista JSON de objetos.")
+
+        return data
+
+    def _normalize_hashtags(self, hashtags):
+        if not hashtags:
+            return ""
+        if isinstance(hashtags, list):
+            cleaned = []
+            seen = set()
+            for hashtag in hashtags:
+                tag = str(hashtag or "").strip()
+                if not tag:
+                    continue
+                if not tag.startswith("#"):
+                    tag = f"#{tag}"
+                tag = tag.lower()
+                if tag not in seen:
+                    seen.add(tag)
+                    cleaned.append(tag)
+            return " ".join(cleaned)
+
+        if isinstance(hashtags, str):
+            parts = hashtags.replace(",", " ").split()
+            return self._normalize_hashtags(parts)
+
+        raise ValidationError("El campo 'hashtags' debe ser una lista o un texto.")
+
+    def _validate_publication_date_in_range(self, record, fecha_publicacion, *, item_index):
+        if not fecha_publicacion or not record.date_start or not record.date:
+            return
+
+        fecha_local = fields.Datetime.context_timestamp(record, fecha_publicacion)
+        fecha_local_date = fecha_local.date()
+        if fecha_local_date < record.date_start or fecha_local_date > record.date:
+            raise ValidationError(
+                f"La publicación #{item_index} tiene fecha {fecha_local.strftime('%Y-%m-%d %H:%M:%S')} "
+                f"fuera del rango del flujo ({record.date_start} a {record.date})."
+            )
+
+    def _parse_publicacion_payload(self, record, item, *, item_index, tz):
+        if not isinstance(item, dict):
+            raise ValidationError(f"El elemento #{item_index} del JSON debe ser un objeto.")
+
+        titulo_base = (item.get("titulo") or "").strip()
+        if not titulo_base:
+            raise ValidationError(f"La publicación #{item_index} no tiene 'titulo'.")
+
+        tipo = self._normalize_content_type(item.get("tipo") or "post", field_name=f"tipo[{item_index}]")
+
+        fecha_publicacion_str = (item.get("fecha_publicacion") or "").strip()
+        if not fecha_publicacion_str:
+            raise ValidationError(f"La publicación '{titulo_base}' no tiene 'fecha_publicacion'.")
+
+        if len(fecha_publicacion_str) == 10:
+            fecha_publicacion_str = f"{fecha_publicacion_str} 08:00:00"
+
+        try:
+            fecha_local = datetime.strptime(fecha_publicacion_str, "%Y-%m-%d %H:%M:%S")
+            fecha_local = tz.localize(fecha_local)
+            fecha_utc = fecha_local.astimezone(pytz.UTC)
+            fecha_publicacion = fecha_utc.replace(tzinfo=None)
+        except (ValueError, TypeError, pytz.AmbiguousTimeError, pytz.NonExistentTimeError):
+            raise ValidationError(
+                f"Formato de fecha inválido en la publicación #{item_index}: {fecha_publicacion_str}. "
+                "Usa 'YYYY-MM-DD HH:MM:SS'."
+            )
+
+        self._validate_publication_date_in_range(record, fecha_publicacion, item_index=item_index)
+
+        for text_field in ("descripcion", "texto_en_diseno", "copy", "recomendaciones"):
+            value = item.get(text_field)
+            if value is not None and not isinstance(value, str):
+                raise ValidationError(
+                    f"El campo '{text_field}' de la publicación #{item_index} debe ser texto."
+                )
+
+        return {
+            "titulo_base": titulo_base,
+            "tipo": tipo,
+            "fecha_publicacion": fecha_publicacion,
+            "descripcion": item.get("descripcion"),
+            "texto_en_diseno": item.get("texto_en_diseno"),
+            "copy": item.get("copy"),
+            "hashtags": self._normalize_hashtags(item.get("hashtags")),
+            "recomendaciones": item.get("recomendaciones"),
+        }
+
+    def _validate_plan_counts(self, record, publicaciones):
+        counts = {
+            "post": sum(1 for item in publicaciones if item["tipo"] in ("post", "carrusel")),
+            "reel": sum(1 for item in publicaciones if item["tipo"] == "reel"),
+        }
+        expected = {
+            "post": int(record.plan_post or 0),
+            "reel": int(record.plan_reel or 0),
+        }
+
+        mismatches = []
+        for tipo, expected_count in expected.items():
+            if counts[tipo] != expected_count:
+                mismatches.append(f"{tipo}: esperado {expected_count}, recibido {counts[tipo]}")
+
+        if mismatches:
+            raise ValidationError(
+                "La respuesta JSON no coincide con el plan del cliente. "
+                + " | ".join(mismatches)
+            )
+
+    def _validate_story_selection(self, record):
+        expected = int(record.plan_historia or 0)
+        selected = len(record.publicacion_ids.filtered(lambda p: p.es_historia))
+        if selected != expected:
+            raise ValidationError(
+                f"Debes seleccionar exactamente {expected} publicaciones como historias en perfeccionamiento. "
+                f"Actualmente hay {selected} seleccionadas."
+            )
+
     def convertir_a_instrucciones(self):
         for record in self:
             feedback = (record.feedback_cliente or "").strip()
@@ -142,14 +356,6 @@ class GeneradorContenidoFlujo(models.Model):
             idioma = (partner.lang or "es_ES").split("_")[0]
             pais = partner.country_id.name or "Perú"
             ciudad = partner.city or "Lima"
-
-            icp = self.env["ir.config_parameter"].sudo()
-            api_key = icp.get_param("chatgpt.api_key")
-            base_url = icp.get_param("chatgpt.base_url", "https://api.openai.com/v1")
-            model = icp.get_param("chatgpt.model", "gpt-4.1-mini")
-
-            if not api_key:
-                raise ValidationError("No se ha configurado la API Key de ChatGPT en Ajustes del sistema.")
 
             prompt = (
                 "Analiza la transcripción de la reunión del cliente y conviértela en instrucciones claras, "
@@ -175,42 +381,16 @@ class GeneradorContenidoFlujo(models.Model):
                 f"Transcripción:\n{feedback}"
             )
 
-            try:
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                }
-                payload = {
-                    "model": model,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": (
-                                "Eres un analista de reuniones experto en extraer requisitos y convertirlos en "
-                                "instrucciones precisas para producción de contenido. Respondes solo texto plano "
-                                "con el formato solicitado."
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt,
-                        },
-                    ],
-                    "temperature": 0.2,
-                }
-
-                response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=60)
-                response.raise_for_status()
-                data = response.json()
-
-                raw = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
-                if not raw:
-                    raise ValidationError("ChatGPT no devolvió contenido.")
-
-                record.anotaciones_cliente = raw
-
-            except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
-                raise ValidationError(f"Error al convertir a instrucciones: {e}")
+            record.anotaciones_cliente = self._call_openai_chat_completion(
+                prompt=prompt,
+                system_prompt=(
+                    "Eres un analista de reuniones experto en extraer requisitos y convertirlos en "
+                    "instrucciones precisas para producción de contenido. Respondes solo texto plano "
+                    "con el formato solicitado."
+                ),
+                temperature=0.2,
+                timeout=60,
+            )
 
         return {
             "type": "ir.actions.client",
@@ -233,16 +413,15 @@ class GeneradorContenidoFlujo(models.Model):
             except pytz.UnknownTimeZoneError:
                 tz = pytz.UTC
 
-            if not record.promtp_respuesta:
-                raise ValidationError("⚠️ El campo 'promtp_respuesta' está vacío. Debes pegar un JSON válido.")
+            data = self._parse_json_list_field(record.promtp_respuesta, field_name="promtp_respuesta")
 
-            try:
-                data = json.loads(record.promtp_respuesta)
-            except json.JSONDecodeError as e:
-                raise ValidationError(f"❌ El contenido no es un JSON válido:\n{e}")
+            publicaciones_preparadas = []
+            for item_index, item in enumerate(data, start=1):
+                publicaciones_preparadas.append(
+                    self._parse_publicacion_payload(record, item, item_index=item_index, tz=tz)
+                )
 
-            if not isinstance(data, list):
-                raise ValidationError("❌ El JSON debe ser una lista de objetos.")
+            self._validate_plan_counts(record, publicaciones_preparadas)
 
             record.publicacion_ids.unlink()
 
@@ -251,52 +430,31 @@ class GeneradorContenidoFlujo(models.Model):
                 "reel": 0,
             }
 
-            for item in data:
-                if not isinstance(item, dict):
-                    raise ValidationError("Cada elemento del JSON debe ser un objeto.")
-
-                tipo = (item.get("tipo") or "post").lower()
-                if tipo not in ("post", "reel", "carrusel"):
-                    tipo = "post"  # fallback seguro
-
+            for item in publicaciones_preparadas:
+                tipo = item["tipo"]
                 contador_key = "post" if tipo == "carrusel" else tipo
                 contadores[contador_key] += 1
                 numero = f"{contadores[contador_key]:02d}"
 
-                titulo_base = (item.get("titulo") or "Sin título").strip()
+                titulo_base = item["titulo_base"]
 
                 if tipo == "carrusel":
                     titulo_final = f"Post {numero} (Carrusel) - {titulo_base}"
                 else:
                     titulo_final = f"{tipo.capitalize()} {numero} - {titulo_base}"
 
-                fecha_publicacion_str = item.get("fecha_publicacion")
-                fecha_publicacion = False
-
-                if fecha_publicacion_str:
-                    if len(fecha_publicacion_str) == 10:
-                        fecha_publicacion_str = f"{fecha_publicacion_str} 08:00:00"
-
-                    try:
-                        fecha_local = datetime.strptime(fecha_publicacion_str, "%Y-%m-%d %H:%M:%S")
-                        fecha_local = tz.localize(fecha_local)
-                        fecha_utc = fecha_local.astimezone(pytz.UTC)
-                        fecha_publicacion = fecha_utc.replace(tzinfo=None)
-                    except (ValueError, TypeError, pytz.AmbiguousTimeError, pytz.NonExistentTimeError):
-                        raise ValidationError(f"Formato de fecha inválido: {fecha_publicacion_str}. Usa 'YYYY-MM-DD HH:MM:SS'")
-
                 vals = {
                     "flujo_id": record.id,
                     "titulo": titulo_final,
-                    "fecha_publicacion": fecha_publicacion,
+                    "fecha_publicacion": item["fecha_publicacion"],
                     "tipo": tipo,
-                    "descripcion": item.get("descripcion"),
-                    "texto_en_diseno": item.get("texto_en_diseno"),
-                    "copy": item.get("copy"),
-                    "hashtags": (
-                        ", ".join(item.get("hashtags", [])) if isinstance(item.get("hashtags"), list) else item.get("hashtags")),
-                    "recomendaciones": item.get("recomendaciones"),
+                    "descripcion": item["descripcion"],
+                    "texto_en_diseno": item["texto_en_diseno"],
+                    "copy": item["copy"],
+                    "hashtags": item["hashtags"],
+                    "recomendaciones": item["recomendaciones"],
                     "aprobado": False,
+                    "es_historia": False,
                 }
 
                 self.env["gl.contenido.propuesta"].create(vals)
@@ -315,69 +473,96 @@ class GeneradorContenidoFlujo(models.Model):
         # --- Cambiar la etapa del flujo ---
         for record in self:
             record.etapa = "refinar"
-            return {
-                "effect": {
-                    "fadeout": "slow",
-                    "message": "✅ Propuestas creadas correctamente desde JSON.",
-                    "type": "rainbow_man",
-                }
+        return {
+            "effect": {
+                "fadeout": "slow",
+                "message": "✅ Flujo movido a refinamiento.",
+                "type": "rainbow_man",
             }
+        }
 
     def aceptar_refinamiento(self):
 
         for record in self:
-            # --- Validar existencia de resultado ---
-            if not record.promtp_respuesta_refinamiento:
-                raise ValidationError("No se encontró ningún resultado de refinamiento para aplicar.")
+            data = self._parse_json_list_field(
+                record.promtp_respuesta_refinamiento,
+                field_name="promtp_respuesta_refinamiento",
+            )
 
-            # --- Intentar parsear el JSON ---
-            try:
-                data = json.loads(record.promtp_respuesta_refinamiento)
-                if not isinstance(data, list):
-                    raise ValidationError("El resultado del refinamiento debe ser una lista JSON.")
-            except (json.JSONDecodeError, TypeError, ValidationError) as e:
-                raise ValidationError(f"Error al interpretar el JSON del refinamiento: {e}")
-
-            # --- Validar que existan publicaciones ---
             if not record.publicacion_ids:
                 raise ValidationError("No hay publicaciones asociadas a este flujo.")
 
-            # --- Aplicar actualizaciones ---
-            for item in data:
+            publicaciones_actuales = {pub.id: pub for pub in record.publicacion_ids}
+            publicaciones_reemplazo = []
+
+            for item_index, item in enumerate(data, start=1):
+                if not isinstance(item, dict):
+                    raise ValidationError(f"El elemento #{item_index} del refinamiento debe ser un objeto.")
+
                 pub_id = item.get("id")
                 if not pub_id:
-                    raise ValidationError("Una de las entradas del JSON no contiene el campo 'id'.")
+                    raise ValidationError(f"La entrada #{item_index} del refinamiento no contiene el campo 'id'.")
 
-                publicacion = record.publicacion_ids.filtered(lambda p: p.id == pub_id)
+                publicacion = publicaciones_actuales.get(pub_id)
                 if not publicacion:
                     raise ValidationError(f"No se encontró la publicación con ID {pub_id} dentro de este flujo.")
 
-                # Campos actualizables
-                campos_validos = [
-                    "titulo",
-                    "tipo",
-                    "descripcion",
-                    "texto_en_diseno",
-                    "copy",
-                    "recomendaciones",
-                ]
+                titulo = item.get("titulo", publicacion.titulo)
+                if titulo is not None and not isinstance(titulo, str):
+                    raise ValidationError(f"El campo 'titulo' en el refinamiento #{item_index} debe ser texto.")
+                titulo = (titulo or "").strip()
+                if not titulo:
+                    raise ValidationError(f"La publicación refinada #{item_index} no tiene 'titulo'.")
 
-                valores_actualizados = {campo: item[campo] for campo in campos_validos if
-                                        campo in item and isinstance(item[campo], str)}
+                tipo = self._normalize_content_type(
+                    item.get("tipo", publicacion.tipo),
+                    field_name=f"tipo[{item_index}]",
+                )
 
-                # Procesar hashtags
-                if "hashtags" in item:
-                    hashtags = item["hashtags"]
-                    if isinstance(hashtags, list):
-                        valores_actualizados["hashtags"] = " ".join(hashtags)
-                    elif isinstance(hashtags, str):
-                        valores_actualizados["hashtags"] = hashtags
+                valores_reemplazo = {
+                    "flujo_id": record.id,
+                    "titulo": titulo,
+                    "fecha_publicacion": publicacion.fecha_publicacion,
+                    "tipo": tipo,
+                    "descripcion": item.get("descripcion", publicacion.descripcion),
+                    "texto_en_diseno": item.get("texto_en_diseno", publicacion.texto_en_diseno),
+                    "copy": item.get("copy", publicacion.copy),
+                    "hashtags": self._normalize_hashtags(item.get("hashtags", publicacion.hashtags)),
+                    "recomendaciones": item.get("recomendaciones", publicacion.recomendaciones),
+                    "cambios": publicacion.cambios,
+                    "aprobado": publicacion.aprobado,
+                    "es_historia": publicacion.es_historia,
+                }
 
-                # Aplicar actualización
-                if valores_actualizados:
-                    publicacion.write(valores_actualizados)
-                else:
-                    raise ValidationError(f"No se encontró ningún campo válido para actualizar en la publicación ID {pub_id}.")
+                for text_field in ("descripcion", "texto_en_diseno", "copy", "recomendaciones"):
+                    value = valores_reemplazo[text_field]
+                    if value is not None and not isinstance(value, str):
+                        raise ValidationError(
+                            f"El campo '{text_field}' en el refinamiento #{item_index} debe ser texto."
+                        )
+
+                publicaciones_reemplazo.append(valores_reemplazo)
+
+            if len(publicaciones_reemplazo) != len(record.publicacion_ids):
+                raise ValidationError(
+                    "La respuesta IA de refinamiento debe incluir exactamente todas las publicaciones actuales del flujo."
+                )
+
+            record.publicacion_ids.unlink()
+            for vals in publicaciones_reemplazo:
+                self.env["gl.contenido.propuesta"].create(vals)
+
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Cambios aplicados",
+                "message": "Las publicaciones del flujo fueron reemplazadas con el contenido refinado de IA.",
+                "type": "success",
+                "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
+            },
+        }
 
     def generate_prompt_reunion(self):
         for record in self:
@@ -445,7 +630,7 @@ class GeneradorContenidoFlujo(models.Model):
                       "  {\n"
                       "    \"id\": int,\n"
                       "    \"titulo\": \"string\",\n"
-                      "    \"tipo\": \"post | reel | historia | carrusel\",\n"
+                      "    \"tipo\": \"post | reel | story | carrusel\",\n"
                       "    \"descripcion\": \"Texto mejorado y más claro\",\n"
                       "    \"texto_en_diseno\": \"Frase optimizada para diseño\",\n"
                       "    \"copy\": \"Copy refinado en formato AIDA (sin marcadores)\",\n"
@@ -468,21 +653,20 @@ class GeneradorContenidoFlujo(models.Model):
                       "- Devuelve solo el JSON final, sin explicaciones.")
 
             record.promtp_refinamiento = prompt
-
-            return {
-                "type": "ir.actions.client",
-                "tag": "display_notification",
-                "params": {
-                    "title": "✅ Refinamiento generado",
-                    "message": "Prompt optimizado usando feedback y cambios específicos. Actualizando vista...",
-                    "sticky": True,
-                    "type": "success",
-                    "next": {
-                        "type": "ir.actions.client",
-                        "tag": "reload",
-                    },
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "✅ Refinamiento generado",
+                "message": "Prompt optimizado usando feedback y cambios específicos. Actualizando vista...",
+                "sticky": True,
+                "type": "success",
+                "next": {
+                    "type": "ir.actions.client",
+                    "tag": "reload",
                 },
-            }
+            },
+        }
 
     def generar_tareas(self):
 
@@ -492,6 +676,24 @@ class GeneradorContenidoFlujo(models.Model):
             if isinstance(hashtags, list):
                 return " ".join(h.strip() for h in hashtags if h)
             return str(hashtags).strip()
+
+        def _extract_base_title(title):
+            title = (title or "").strip()
+            if not title:
+                return "Sin título"
+            return re.sub(r"^(Post|Reel|Story|Historia)\s+\d+(?:\s+\(Carrusel\))?\s*-\s*", "", title, flags=re.IGNORECASE)
+
+        def _build_task_name(prop, index_by_type):
+            base_title = _extract_base_title(prop.titulo)
+            tipo = (prop.tipo or "").strip().lower()
+
+            if tipo == "reel":
+                return f"Reel {index_by_type:02d} - {base_title}"
+            if tipo == "carrusel":
+                return f"Post {index_by_type:02d} (Carrusel) - {base_title}"
+            if tipo == "story":
+                return f"Historia {index_by_type:02d} - {base_title}"
+            return f"Post {index_by_type:02d} - {base_title}"
 
         TIPO_MAP = {
             "post": "feed",
@@ -508,29 +710,45 @@ class GeneradorContenidoFlujo(models.Model):
             if not record.project_id:
                 raise ValidationError("Debes seleccionar un Proyecto antes de generar tareas.")
 
-            propuestas = getattr(record, "propuestas_ids", False) or record.publicacion_ids
+            propuestas = record.publicacion_ids.sorted(
+                key=lambda p: (
+                    p.fecha_publicacion or fields.Datetime.now(),
+                    p.id,
+                )
+            )
             if not propuestas:
                 raise ValidationError("No hay propuestas/publicaciones para generar tareas.")
 
+            self._validate_story_selection(record)
+
             no_aprobadas = propuestas.filtered(lambda p: not getattr(p, "aprobado", False))
             if no_aprobadas:
-                return {
-                    "type": "ir.actions.client",
-                    "tag": "display_notification",
-                    "params": {
-                        "title": "⚠️ Publicaciones sin aprobar",
-                        "message": f"Hay {len(no_aprobadas)} publicaciones sin aprobar.",
-                        "type": "warning",
-                        "sticky": True,
-                    },
-                }
+                raise ValidationError(
+                    f"Hay {len(no_aprobadas)} publicaciones sin aprobar en el flujo '{record.name}'."
+                )
 
             partner_id = record.partner_id.id if record.partner_id else False
             redes_ids = record.redes_ids.ids if getattr(record, "redes_ids", False) else []
             asignados_ids = record.user_ids.ids if getattr(record, "user_ids", False) else []
 
             Task = self.env["project.task"]
-            created_count = 0
+            primary_name_map = {}
+            story_name_map = {}
+            counters = {
+                "post": 0,
+                "reel": 0,
+                "story": 0,
+            }
+
+            for prop in propuestas:
+                tipo = (prop.tipo or "").strip().lower()
+                counter_key = "reel" if tipo == "reel" else "story" if tipo == "story" else "post"
+                counters[counter_key] += 1
+                primary_name_map[prop.id] = _build_task_name(prop, counters[counter_key])
+
+            story_props = propuestas.filtered(lambda p: p.es_historia)
+            for index, story_prop in enumerate(story_props, start=1):
+                story_name_map[story_prop.id] = f"Historia {index:02d} - {_extract_base_title(story_prop.titulo)}"
 
             for prop in propuestas:
                 if not prop.fecha_publicacion:
@@ -548,7 +766,7 @@ class GeneradorContenidoFlujo(models.Model):
                 description = (prop.copy or "").strip().replace("\n", "<br/>")
                 objetivo = (prop.descripcion or "")
                 vals = {
-                    "name": (prop.titulo or f"Publicación #{prop.id}").strip(),
+                    "name": primary_name_map[prop.id],
                     "project_id": record.project_id.id,
                     "user_ids": [
                         (6, 0, asignados_ids)
@@ -568,23 +786,29 @@ class GeneradorContenidoFlujo(models.Model):
                 }
 
                 Task.create(vals)
-                created_count += 1
+
+                if prop.es_historia:
+                    historia_vals = dict(vals)
+                    historia_vals.update({
+                        "name": story_name_map[prop.id],
+                        "tipo": "video_stories",
+                    })
+                    Task.create(historia_vals)
 
             record.etapa = "publicaciones"
 
-            return {
-                "type": "ir.actions.act_window",
-                "res_model": "project.task",
-                "view_mode": "kanban,list,form",
-                "domain": [
-                    ("project_id", "=", record.project_id.id)
-                ],
-                "name": "Tareas del Proyecto",
-                "context": {
-                    "default_project_id": record.project_id.id,
-                    "search_default_project_id": record.project_id.id,
-                },
-            }
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "project.task",
+            "view_mode": "kanban,list,form",
+            "domain": [
+                ("project_id", "in", self.mapped("project_id").ids)
+            ],
+            "name": "Tareas del Proyecto",
+            "context": {
+                "search_default_project_id": self[:1].project_id.id if self[:1].project_id else False,
+            },
+        }
 
     def previous_stage(self):
         etapa_order = [
@@ -612,15 +836,6 @@ class GeneradorContenidoFlujo(models.Model):
             pais = partner.country_id.name or "Perú"
             ciudad = partner.city or "Lima"
 
-            # 🧭 Configuración ChatGPT
-            icp = self.env["ir.config_parameter"].sudo()
-            api_key = icp.get_param("chatgpt.api_key")
-            base_url = icp.get_param("chatgpt.base_url", "https://api.openai.com/v1")
-            model = icp.get_param("chatgpt.model", "gpt-4.1-mini")
-
-            if not api_key:
-                raise ValidationError("No se ha configurado la API Key de ChatGPT en Ajustes del sistema.")
-
             rango_texto = f"entre {record.date_start.strftime('%d/%m/%Y')} y {record.date.strftime('%d/%m/%Y')}"
             prompt = (f"Industria: {record.industria}\n"
                       f"Ubicación: {ciudad}, {pais}\n"
@@ -631,37 +846,15 @@ class GeneradorContenidoFlujo(models.Model):
                       f"- Días COMERCIALES o de marketing (como Black Friday, CyberDay, Día del Padre, etc.).\n\n"
                       f"Devuelve una lista corta en texto, con cada día en una línea separada, incluyendo el nombre y la fecha aproximada.")
 
-            try:
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                }
-                payload = {
-                    "model": model,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": (
-                                "Eres un asistente de marketing experto en planificación de contenidos y efemérides. "
-                                "Responde de forma breve y estructurada."),
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        },
-                    ],
-                    "temperature": 0.5,
-                }
-
-                response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=40)
-                response.raise_for_status()
-                data = response.json()
-
-                suggestion = data["choices"][0]["message"]["content"].strip()
-                record.dias_festivos_referencia = suggestion
-
-            except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
-                raise ValidationError(f"Error al obtener sugerencias: {e}")
+            record.dias_festivos_referencia = self._call_openai_chat_completion(
+                prompt=prompt,
+                system_prompt=(
+                    "Eres un asistente de marketing experto en planificación de contenidos y efemérides. "
+                    "Responde de forma breve y estructurada."
+                ),
+                temperature=0.5,
+                timeout=40,
+            )
 
         # 🟩 Notificación + recargar vista
         return {
@@ -718,6 +911,12 @@ class GeneradorContenidoFlujo(models.Model):
         for record in self:
             if not record.partner_id:
                 raise ValidationError("Debes seleccionar un Cliente/Partner antes de generar el prompt.")
+            if not record.industria:
+                raise ValidationError("Debes definir la industria del cliente antes de generar el prompt.")
+            if not record.date_start or not record.date:
+                raise ValidationError("Debes definir el rango de fechas antes de generar el prompt.")
+            if record.date_start > record.date:
+                raise ValidationError("La fecha de inicio no puede ser mayor que la fecha final.")
 
             partner = record.partner_id
             redes = [r.name for r in record.redes_ids] if record.redes_ids else []
@@ -771,8 +970,8 @@ class GeneradorContenidoFlujo(models.Model):
                     "tipo": (
                         "ideas_iniciales" if record.etapa == "ideas" else "refinamiento" if record.etapa == "refinar" else "publicaciones"),
                     "descripcion": (
-                        "Generar contenido alineado al contexto creativo (tono, orientación, idioma, público, fechas), "
-                        "apoyado en métricas previas y con foco en la industria del cliente ({record.industria})."),
+                        f"Generar contenido alineado al contexto creativo (tono, orientación, idioma, público, fechas), "
+                        f"apoyado en métricas previas y con foco en la industria del cliente ({record.industria})."),
                 },
             }
 
@@ -789,7 +988,7 @@ class GeneradorContenidoFlujo(models.Model):
                       "  {\n"
                       "    \"titulo\": \"string\",\n"
                       "    \"fecha_publicacion\": \"YYYY-MM-DD HH:MM:SS\",\n"
-                      "    \"tipo\": \"post | reel | historia | carrusel\",\n"
+                      "    \"tipo\": \"post | reel | story | carrusel\",\n"
                       "    \"descripcion\": \"Breve resumen del contenido y su objetivo comunicacional.\",\n"
                       "    \"texto_en_diseno\": \"Frase principal que aparecerá en la pieza gráfica o portada del video.\",\n"
                       "    \"copy\": \"Copy AIDA (sin etiquetas ni marcadores).\",\n"
@@ -799,6 +998,8 @@ class GeneradorContenidoFlujo(models.Model):
                       "]\n\n"
                       "Condiciones obligatorias (NO opcionales):\n"
                       f"- Genera exactamente {int(record.plan_post or 0)} posts y {int(record.plan_reel or 0)} reels.\n"
+                      "- Cada elemento debe incluir obligatoriamente: titulo, fecha_publicacion, tipo, descripcion, texto_en_diseno, copy, hashtags y recomendaciones.\n"
+                      "- La `fecha_publicacion` debe caer dentro del rango indicado en `contexto_creativo.rango_fechas`.\n"
                       "- Respeta estrictamente TODO lo definido en `contexto_creativo` (usar/evitar, tono, orientación, idioma, público, fechas, ubicación).\n"
                       "- AIDA obligatorio en `copy` SIN escribir las palabras Atención, Interés, Deseo o Acción.\n"
                       "- El campo `copy` está PROHIBIDO entregarlo en una sola linea.\n"
@@ -806,9 +1007,9 @@ class GeneradorContenidoFlujo(models.Model):
                       "- Usa `cantidad_contenido` y `guia_cantidad_contenido` para definir profundidad del texto.\n"
                       "- Aplica `usar` y `evitar` como INSTRUCCIONES DIRECTAS.\n"
                       "- Hashtags en minúsculas, sin duplicados.\n"
-                      "- El campo `titulo` NO debe incluir el tipo de contenido (reel, post, carrusel, historia).\n"
+                      "- El campo `titulo` NO debe incluir el tipo de contenido (reel, post, carrusel, story).\n"
                       "- Todo contenido con `tipo = reel` DEBE estructurarse así: 1. Hook 2. Problema 3. Valor 4. Autoridad 5. CTA, que el contenido esté etiquetado.\n"
-                      "- Usa siempre un solo salto de linea no doble n n \n"
+                      "- Usa solo saltos de línea simples dentro de `copy`; no uses líneas en blanco dobles.\n"
                       "- Devuelve SOLO el JSON final. No agregues explicaciones ni texto fuera del JSON.")
 
             # --- Guardar el prompt completo ---

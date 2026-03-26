@@ -23,6 +23,13 @@
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button
+                            name="action_print_member_registration_forms"
+                            string="Imprimir fichas"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-print"
+                        />
+                        <button
                             name="action_export_member_list_xlsx"
                             string="Exportar lista (Excel)"
                             type="object"

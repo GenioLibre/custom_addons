@@ -245,11 +245,6 @@
                         <page string="Reunión con Cliente">
                             <group>
                                 <field name="feedback_cliente"/>
-                                <button name="convertir_a_instrucciones"
-                                        type="object"
-                                        string="Analizar"
-                                        class="btn-secondary"
-                                        icon="fa-android"/>
                                 <field name="anotaciones_cliente"/>
                                 <separator string="Propuestas de Publicaciones"/>
                                 <field name="publicacion_ids"/>
@@ -360,6 +355,7 @@
                 <field name="tipo"/>
                 <field name="fecha_publicacion"/>
                 <field name="aprobado"/>
+                <field name="es_historia"/>
             </list>
         </field>
     </record>
@@ -385,6 +381,7 @@
                         <field name="fecha_publicacion"/>
                         <field name="flujo_id" readonly="1"/>
                         <field name="aprobado" widget="boolean_toggle"/>
+                        <field name="es_historia" widget="boolean_toggle"/>
                     </group>
 
                     <notebook>
@@ -428,6 +425,7 @@
                 <field name="recomendaciones"/>
                 <field name="cambios"/>
                 <field name="aprobado"/>
+                <field name="es_historia"/>
             </calendar>
         </field>
     </record>

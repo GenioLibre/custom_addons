@@ -9,5 +9,5 @@
     src: url(/gl_geniolibre/static/src/fonts/NotoColorEmoji-Regular.ttf) format('truetype');
 }
 .emojis {
-    font-family: 'Lato','Noto',,'Noto_Color';
+    font-family: 'Lato', 'Noto', 'Noto_Color', sans-serif;
 }

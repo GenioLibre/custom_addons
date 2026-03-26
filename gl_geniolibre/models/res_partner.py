@@ -68,6 +68,7 @@ class Partner(models.Model):
     tiktok_refresh_expires_in = fields.Integer()
     tiktok_issued_at = fields.Integer()
     tiktok_nickname = fields.Char(string='TikTok Nickname')
+    tiktok_username = fields.Char(string='TikTok Username')
     tiktok_avatar_url = fields.Char(string='TikTok Avatar URL')
     tiktok_open_id = fields.Char(string='TikTok Open ID')
     tiktok_oauth_state = fields.Char(copy=False)

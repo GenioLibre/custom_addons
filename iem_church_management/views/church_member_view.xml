@@ -21,6 +21,12 @@
             <form string="Miembro">
                 <header>
                     <button
+                        name="%(iem_church_management.action_report_church_member_registration)d"
+                        type="action"
+                        string="Ficha de Registro"
+                        class="btn-secondary"
+                    />
+                    <button
                         name="action_grant_access"
                         type="object"
                         string="Otorgar acceso"

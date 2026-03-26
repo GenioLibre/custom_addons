@@ -25,6 +25,12 @@ class ResConfigSettings(models.TransientModel):
 
     aws_access_key = fields.Char(string="AWS Clave de acceso", config_parameter="gl_aws.api_key")
     aws_secret = fields.Char(string="AWS Clave de acceso secreta", config_parameter="gl_aws.secret")
+    aws_bucket = fields.Char(string="AWS Bucket", config_parameter="gl_aws.bucket", default="odoo-geniolibre")
+    aws_public_domain = fields.Char(
+        string="AWS Dominio publico",
+        config_parameter="gl_aws.public_domain",
+        default="https://s3.geniolibredev.com",
+    )
 
     tiktok_client = fields.Char(string="TikTok Clave de cliente", config_parameter="tiktok_key")
     tiktok_secret = fields.Char(string="TikTok Clave secreta", config_parameter="tiktok_secret")

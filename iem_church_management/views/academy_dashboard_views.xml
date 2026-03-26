@@ -54,7 +54,7 @@
                                 class="btn btn-primary dropdown-toggle iem_academy_action_button"
                                 data-bs-toggle="dropdown"
                             >Reportes</button>
-                            <div class="dropdown-menu">
+                            <div class="dropdown-menu" role="menu">
                                 <button
                                     name="action_report_attendance_placeholder"
                                     type="object"

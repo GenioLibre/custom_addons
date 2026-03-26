@@ -56,40 +56,88 @@
                     <page string="Publicar en TikTok"
                           name="tiktok_publish_page"
                           invisible="tipo == 'otro' or not has_tiktok">
-                        <!-- INFORMACIÓN DEL CREADOR TIKTOK -->
-                        <group string="Información del Creador TikTok">
+                        <group>
                             <group>
-
-                                <!-- NICKNAME -->
-                                <field name="tiktok_nickname" readonly="1"/>
-
-                                <!-- AVATAR URL -->
-                                <field name="tiktok_avatar_url" string="TikTok Avatar"
-                                       widget="image_url"
-                                       options="{'size': [50, 50]}"/>
-                                <field
-                                        name="tiktok_creator_status_info"
-                                        widget="text"
-                                        readonly="1"
-                                        placeholder="Aquí aparecerán los mensajes devueltos por TikTok Creator Info (límites de publicación, duración permitida, restricciones, etc.)"
-                                />
+                                <button string="Actualizar"
+                                        type="object"
+                                        name="action_refresh_tiktok_tab"
+                                        class="btn-primary"
+                                        icon="fa-refresh"/>
                             </group>
-
                             <group>
-
-                                <!-- MENSAJES DEL CREADOR (LÍMITES, DURACIÓN, ALERTAS) -->
-                                <field
-                                        name="tiktok_creator_status_info"
-                                        widget="text"
-                                        readonly="1"
-                                        placeholder="Aquí aparecerán los mensajes devueltos por TikTok Creator Info (límites de publicación, duración permitida, restricciones, etc.)"
-                                />
-
                             </group>
                         </group>
-
+                        <group string="Cuenta TikTok">
+                            <group>
+                                <field name="tiktok_nickname" readonly="1" force_save="1"/>
+                                <field name="tiktok_creator_username" readonly="1" force_save="1"/>
+                                <field name="tiktok_avatar_url" string="TikTok Avatar"
+                                       widget="image_url"
+                                       force_save="1"
+                                       options="{'size': [50, 50]}"/>
+                                <field name="tiktok_can_publish" readonly="1" force_save="1"/>
+                                <field name="tiktok_can_publish_reason" readonly="1" force_save="1"/>
+                            </group>
+                            <group>
+                                <field name="tiktok_max_video_post_duration_sec" readonly="1" force_save="1"/>
+                                <field name="tiktok_video_duration" readonly="1"/>
+                            </group>
+                        </group>
+                        <group string="Contenido para TikTok">
+                            <group>
+                                <field name="tiktok_title"
+                                       readonly="1"
+                                       help="TikTok tomara como titulo base el nombre actual de la tarea."/>
+                                <field name="tiktok_is_aigc"/>
+                                <field name="tiktok_creator_status_info"
+                                       widget="text"
+                                       readonly="1"
+                                       force_save="1"
+                                       placeholder="El caption que se enviara a TikTok se toma de Descripcion + Hashtags. Editalo desde la pestana principal del post."/>
+                            </group>
+                        </group>
+                        <group string="Privacidad TikTok">
+                            <group>
+                                <field name="tiktok_privacy_level_options" widget="text" readonly="1" force_save="1"
+                                       placeholder="Aqui se mostraran las opciones de privacidad devueltas por TikTok."/>
+                                <field name="tiktok_allowed_privacy_option_ids" invisible="1"/>
+                                <field name="tiktok_privacy_level" invisible="1"/>
+                                <field name="tiktok_privacy_option_id"
+                                       readonly="not tiktok_can_publish"
+                                       placeholder="Selecciona manualmente la privacidad para este post."/>
+                                <field name="tiktok_privacy_note" widget="text" readonly="1" force_save="1"/>
+                            </group>
+                            <group>
+                                <field name="tiktok_allow_comments" readonly="tiktok_comment_disabled"/>
+                                <field name="tiktok_allow_duet" readonly="tiktok_duet_disabled"/>
+                                <field name="tiktok_allow_stitch" readonly="tiktok_stitch_disabled"/>
+                            </group>
+                        </group>
+                        <group string="Disclosure Comercial">
+                            <group>
+                                <field name="tiktok_is_commercial"/>
+                                <field name="tiktok_commercial_your_brand" readonly="not tiktok_is_commercial"/>
+                                <field name="tiktok_commercial_branded"
+                                       readonly="not tiktok_is_commercial or tiktok_privacy_level == 'SELF_ONLY'"/>
+                                <field name="tiktok_commercial_label_preview" readonly="1" force_save="1"/>
+                            </group>
+                            <group>
+                                <field name="tiktok_comment_disabled" readonly="1" force_save="1"/>
+                                <field name="tiktok_duet_disabled" readonly="1" force_save="1"/>
+                                <field name="tiktok_stitch_disabled" readonly="1" force_save="1"/>
+                            </group>
+                        </group>
+                        <group string="Confirmacion TikTok">
+                            <group>
+                                <field name="tiktok_declaration_text" widget="text" readonly="1" force_save="1"
+                                       placeholder="Aqui se mostrara la declaracion legal de TikTok."/>
+                            </group>
+                            <group>
+                                <field name="tiktok_legal_text" widget="text" readonly="1" force_save="1"/>
+                                <field name="tiktok_commercial_label_info" readonly="1" force_save="1"/>
+                            </group>
+                        </group>
                     </page>
-
                 </xpath>
                 <xpath expr="//page[@name='description_page']" position="after">
                     <page string="Archivos de la Tarea" invisible="tipo == 'otro' ">
@@ -119,8 +167,7 @@
                                     invisible="post_estado != 'Pendiente' or tipo =='otro' or state!= '03_approved'"/>
                             <button string="Publicar" icon="fa-check" type="object" name="publicar_post"
                                     class="btn-success mr4"
-                                    invisible="post_estado != 'Pendiente' or tipo =='otro' or state!= '03_approved'"
-                                    confirm="¿Estas seguro de Publicar este Post?"/>
+                                    invisible="post_estado != 'Pendiente' or tipo =='otro' or state!= '03_approved'"/>
                             <button string="Cancelar" icon="fa-trash-o" type="object" name="cancelar_post"
                                     class="btn-danger mr4"
                                     invisible="post_estado == 'Pendiente' or post_estado == 'Publicado' or post_estado == 'Procesando' or tipo =='otro'"/>

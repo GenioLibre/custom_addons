@@ -200,13 +200,13 @@ class IemChurchWebsite(http.Controller):
             )
 
         try:
-            response = requests.post(
-                "https://api.json.pe/api/dni",
+            response = requests.get(
+                "https://api.decolecta.com/v1/reniec/dni",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
                 },
-                json={"dni": vat},
+                params={"numero": vat},
                 timeout=10,
             )
             response.raise_for_status()
@@ -216,10 +216,9 @@ class IemChurchWebsite(http.Controller):
                 {"ok": False, "message": f"Error consultando API DNI: {exc}"}
             )
 
-        data = payload.get("data") or {}
-        names = (data.get("nombres") or "").strip()
-        ap_pat = (data.get("apellido_paterno") or "").strip()
-        ap_mat = (data.get("apellido_materno") or "").strip()
+        names = (payload.get("first_name") or "").strip()
+        ap_pat = (payload.get("first_last_name") or "").strip()
+        ap_mat = (payload.get("second_last_name") or "").strip()
         if not (names or ap_pat or ap_mat):
             return request.make_json_response(
                 {"ok": False, "message": "No se encontraron datos para el DNI ingresado."}

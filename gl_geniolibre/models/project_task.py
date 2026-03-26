@@ -20,6 +20,12 @@ _logger = logging.getLogger(__name__)
 API_VERSION = None
 LinkedIn_Version = "202505"
 CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB recomendado para vídeos
+TIKTOK_PRIVACY_SELECTION = [
+    ('PUBLIC_TO_EVERYONE', 'Publico'),
+    ('MUTUAL_FOLLOW_FRIENDS', 'Amigos mutuos'),
+    ('FOLLOWER_OF_CREATOR', 'Seguidores del creador'),
+    ('SELF_ONLY', 'Solo yo'),
+]
 
 
 class red_social(models.Model):
@@ -49,6 +55,29 @@ class red_social(models.Model):
 
         if redes_a_crear:
             self.create(redes_a_crear)
+
+        return res
+
+
+class TikTokPrivacyOption(models.Model):
+    _name = 'gl.tiktok.privacy.option'
+    _description = 'TikTok Privacy Option'
+
+    code = fields.Char(string='Codigo', required=True)
+    name = fields.Char(string='Nombre', required=True)
+
+    @api.model
+    def _auto_init(self):
+        res = super()._auto_init()
+
+        existing_codes = set(self.search([]).mapped('code'))
+        values_to_create = [
+            {'code': code, 'name': label}
+            for code, label in TIKTOK_PRIVACY_SELECTION
+            if code not in existing_codes
+        ]
+        if values_to_create:
+            self.create(values_to_create)
 
         return res
 
@@ -104,16 +133,44 @@ class project_task(models.Model):
 
     # ====================================================================================== Tiktok Requisitos#
     # PRIVACIDAD (obligatorio por API)
-    tiktok_privacy_level = fields.Selection([
-        ('PUBLIC', 'Público'),
-        ('FRIENDS', 'Amigos'),
-        ('SELF_ONLY', 'Solo yo'),
-    ], string="Privacidad TikTok", required=True, default='PUBLIC')
+    tiktok_title = fields.Char(
+        related='name',
+        string='Titulo TikTok',
+        readonly=True,
+        help="TikTok usara el titulo actual de la tarea como referencia para la publicacion."
+    )
+    tiktok_creator_username = fields.Char(string="TikTok Username", readonly=True)
+    tiktok_can_publish = fields.Boolean(string="Puede publicar en TikTok", readonly=True)
+    tiktok_can_publish_reason = fields.Char(string="Motivo estado TikTok", readonly=True)
+    tiktok_privacy_level_options = fields.Text(string="Opciones de privacidad TikTok", readonly=True)
+    tiktok_comment_disabled = fields.Boolean(string="Comentarios deshabilitados por TikTok", readonly=True)
+    tiktok_duet_disabled = fields.Boolean(string="Duet deshabilitado por TikTok", readonly=True)
+    tiktok_stitch_disabled = fields.Boolean(string="Stitch deshabilitado por TikTok", readonly=True)
+    tiktok_max_video_post_duration_sec = fields.Integer(string="Duracion maxima permitida TikTok", readonly=True)
+    tiktok_declaration_text = fields.Text(string="Declaracion legal TikTok", readonly=True)
+    tiktok_commercial_label_preview = fields.Char(string="Vista previa etiqueta comercial", readonly=True)
+    tiktok_is_aigc = fields.Boolean(
+        string="Contenido generado con IA",
+        help="Marca este campo cuando el contenido compartido en TikTok haya sido generado o alterado con IA."
+    )
+
+    tiktok_privacy_level = fields.Selection(TIKTOK_PRIVACY_SELECTION, string="Privacidad TikTok")
+    tiktok_allowed_privacy_option_ids = fields.Many2many(
+        'gl.tiktok.privacy.option',
+        string='Opciones de privacidad permitidas',
+        compute='_compute_tiktok_allowed_privacy_option_ids',
+        readonly=True,
+    )
+    tiktok_privacy_option_id = fields.Many2one(
+        'gl.tiktok.privacy.option',
+        string='Privacidad TikTok',
+        domain="[('id', 'in', tiktok_allowed_privacy_option_ids)]",
+    )
 
     # INTERACCIONES
-    tiktok_allow_comments = fields.Boolean(string="Permitir comentarios", default=True)
-    tiktok_allow_duet = fields.Boolean(string="Permitir duet", default=True)
-    tiktok_allow_stitch = fields.Boolean(string="Permitir stitch", default=True)
+    tiktok_allow_comments = fields.Boolean(string="Permitir comentarios", default=False)
+    tiktok_allow_duet = fields.Boolean(string="Permitir duet", default=False)
+    tiktok_allow_stitch = fields.Boolean(string="Permitir stitch", default=False)
 
     # TOGGLE PRINCIPAL (off por defecto según TikTok)
     tiktok_is_commercial = fields.Boolean(string="¿Es contenido comercial?", default=False,
@@ -123,13 +180,19 @@ class project_task(models.Model):
     tiktok_commercial_your_brand = fields.Boolean(string="Your Brand", help="Estás promocionando tu propia marca o negocio")
     tiktok_commercial_branded = fields.Boolean(string="Branded Content", help="Estás promocionando otra marca o tercero")
     tiktok_commercial_label_info = fields.Char(string="Etiqueta Comercial", readonly=True,help="Información sobre cómo se etiquetará el contenido")
-    tiktok_privacy_note = fields.Char(string="Nota Privacidad", readonly=True,help="Información sobre restricciones de privacidad")
-    tiktok_legal_text = fields.Char(string="Texto Legal", readonly=True,
+    tiktok_privacy_note = fields.Text(string="Nota Privacidad", readonly=True,help="Información sobre restricciones de privacidad")
+    tiktok_legal_text = fields.Text(string="Texto Legal", readonly=True,
                                     help="Texto de conformidad legal requerido por TikTok")
 
     # Traer los campos del partner (solo lectura)
     tiktok_nickname = fields.Char(related='partner_id.tiktok_nickname', string='TikTok Nickname', readonly=True,
                                   store=False)
+    tiktok_partner_username = fields.Char(
+        related='partner_id.tiktok_username',
+        string='TikTok Username (Partner)',
+        readonly=True,
+        store=False,
+    )
     tiktok_avatar_url = fields.Char(related='partner_id.tiktok_avatar_url', string='TikTok Avatar URL', readonly=True,
                                     store=False)
 
@@ -145,6 +208,55 @@ class project_task(models.Model):
     ig_error = fields.Text(string="Error Instagram", copy=False, tracking=True)
     tt_error = fields.Text(string="Error TikTok", copy=False, tracking=True)
     li_error = fields.Text(string="Error LinkedIn", copy=False, tracking=True)
+
+    @api.depends('tiktok_privacy_level_options')
+    def _compute_tiktok_allowed_privacy_option_ids(self):
+        privacy_model = self.env['gl.tiktok.privacy.option']
+        for rec in self:
+            codes = rec._get_tiktok_privacy_options_list()
+            if codes:
+                rec.tiktok_allowed_privacy_option_ids = privacy_model.search([('code', 'in', codes)])
+            else:
+                rec.tiktok_allowed_privacy_option_ids = privacy_model.search([])
+
+    @api.model
+    def _get_tiktok_privacy_selection_map(self):
+        return dict(TIKTOK_PRIVACY_SELECTION)
+
+    @api.model
+    def _get_dynamic_tiktok_privacy_selection(self, record=None):
+        selection_map = self._get_tiktok_privacy_selection_map()
+        if not record:
+            return TIKTOK_PRIVACY_SELECTION
+
+        privacy_options = [
+            item for item in (record.tiktok_privacy_level_options or "").split(",") if item and item.strip()
+        ]
+        privacy_options = [item.strip() for item in privacy_options]
+        if not privacy_options:
+            return TIKTOK_PRIVACY_SELECTION
+
+        return [(value, selection_map[value]) for value in privacy_options if value in selection_map]
+
+    @api.model
+    def fields_get(self, allfields=None, attributes=None):
+        result = super().fields_get(allfields=allfields, attributes=attributes)
+        if allfields and "tiktok_privacy_level" not in allfields:
+            return result
+        if "tiktok_privacy_level" not in result:
+            return result
+
+        record = self.browse()
+        active_id = self.env.context.get("active_id")
+        params = self.env.context.get("params") or {}
+        if not active_id and params.get("model") == "project.task":
+            active_id = params.get("id")
+
+        if active_id:
+            record = self.browse(active_id).exists()
+
+        result["tiktok_privacy_level"]["selection"] = self._get_dynamic_tiktok_privacy_selection(record)
+        return result
 
     @api.depends("fb_estado", "ig_estado", "tt_estado", "li_estado")
     def _compute_post_estado_global(self):
@@ -166,18 +278,553 @@ class project_task(models.Model):
             else:
                 rec.post_estado_global = "Programado"
 
-    @api.onchange('red_social_ids')
+    @api.onchange('red_social_ids', 'partner_id')
     def _onchange_red_social_ids_check_tiktok(self):
-        """Ejecutar la validación SOLO si el usuario selecciona TikTok dentro de la lista."""
+        """Sincroniza datos de TikTok al seleccionar la red social o cambiar el partner."""
         if not self.red_social_ids:
+            self._clear_tiktok_account_data()
             return
 
-        # Normalizamos a string (ejemeplo: campos name)
         selected_networks = self.red_social_ids.mapped('name')
 
-        # Si TikTok está seleccionado, ejecutamos validación
         if 'TikTok' in selected_networks:
-            self.check_tiktok_creator_status()
+            self.sync_tiktok_account_data()
+        else:
+            self._clear_tiktok_account_data()
+
+    @api.onchange(
+        'tiktok_is_commercial',
+        'tiktok_commercial_your_brand',
+        'tiktok_commercial_branded',
+        'tiktok_is_aigc',
+        'tiktok_privacy_level',
+        'tiktok_privacy_level_options',
+        'tiktok_comment_disabled',
+        'tiktok_duet_disabled',
+        'tiktok_stitch_disabled',
+    )
+    def _onchange_tiktok_guideline_fields(self):
+        if self.has_tiktok or 'TikTok' in (self.red_social_ids.mapped('name') or []):
+            if not self.tiktok_is_commercial:
+                self.tiktok_commercial_your_brand = False
+                self.tiktok_commercial_branded = False
+            elif self.tiktok_privacy_level == 'SELF_ONLY' and self.tiktok_commercial_branded:
+                self.tiktok_commercial_branded = False
+            self._refresh_tiktok_guideline_fields()
+
+    @api.onchange('tiktok_privacy_option_id')
+    def _onchange_tiktok_privacy_option_id(self):
+        for rec in self:
+            rec.tiktok_privacy_level = rec.tiktok_privacy_option_id.code if rec.tiktok_privacy_option_id else False
+
+    @api.onchange('tiktok_privacy_level')
+    def _onchange_tiktok_privacy_level_sync_option(self):
+        privacy_model = self.env['gl.tiktok.privacy.option']
+        for rec in self:
+            if rec.tiktok_privacy_level:
+                rec.tiktok_privacy_option_id = privacy_model.search(
+                    [('code', '=', rec.tiktok_privacy_level)], limit=1
+                )
+            else:
+                rec.tiktok_privacy_option_id = False
+
+    @api.onchange('tiktok_is_commercial')
+    def _onchange_tiktok_is_commercial_clear_flags(self):
+        for rec in self:
+            if not rec.tiktok_is_commercial:
+                rec.tiktok_commercial_your_brand = False
+                rec.tiktok_commercial_branded = False
+
+    def _clear_tiktok_account_data(self):
+        self.tiktok_privacy_option_id = False
+        self.tiktok_creator_username = False
+        self.tiktok_can_publish = False
+        self.tiktok_can_publish_reason = False
+        self.tiktok_privacy_level_options = False
+        self.tiktok_comment_disabled = False
+        self.tiktok_duet_disabled = False
+        self.tiktok_stitch_disabled = False
+        self.tiktok_max_video_post_duration_sec = 0
+        self.tiktok_declaration_text = False
+        self.tiktok_commercial_label_preview = False
+        self.tiktok_privacy_note = False
+        self.tiktok_legal_text = False
+        self.tiktok_commercial_label_info = False
+        self.tiktok_creator_status_info = False
+
+    def _get_tiktok_account_clear_vals(self):
+        return {
+            "tiktok_privacy_option_id": False,
+            "tiktok_creator_username": False,
+            "tiktok_can_publish": False,
+            "tiktok_can_publish_reason": False,
+            "tiktok_privacy_level_options": False,
+            "tiktok_comment_disabled": False,
+            "tiktok_duet_disabled": False,
+            "tiktok_stitch_disabled": False,
+            "tiktok_max_video_post_duration_sec": 0,
+            "tiktok_declaration_text": False,
+            "tiktok_commercial_label_preview": False,
+            "tiktok_privacy_note": False,
+            "tiktok_legal_text": False,
+            "tiktok_commercial_label_info": False,
+            "tiktok_creator_status_info": False,
+        }
+
+    def _compute_tiktok_commercial_label_preview(self):
+        self.ensure_one()
+        if self.tiktok_commercial_branded:
+            return "Paid partnership"
+        if self.tiktok_commercial_your_brand:
+            return "Promotional content"
+        return False
+
+    def _compute_tiktok_declaration_text(self):
+        self.ensure_one()
+        if self.tiktok_commercial_branded:
+            return "By posting, you agree to TikTok's Branded Content Policy and Music Usage Confirmation."
+        return "By posting, you agree to TikTok's Music Usage Confirmation."
+
+    def _compute_tiktok_privacy_note(self):
+        self.ensure_one()
+
+        notes = []
+        privacy_options = [
+            item.strip() for item in (self.tiktok_privacy_level_options or "").split(",") if item.strip()
+        ]
+
+        if privacy_options:
+            notes.append(f"Visibilidades disponibles para esta cuenta: {', '.join(privacy_options)}.")
+        if self.tiktok_privacy_level == "SELF_ONLY":
+            notes.append("Con visibilidad 'Solo yo', la opcion 'Branded Content' no esta disponible.")
+        if self.tiktok_commercial_branded:
+            notes.append("Branded Content solo puede configurarse con visibilidad publica o amigos.")
+        if self.tiktok_comment_disabled:
+            notes.append("TikTok deshabilito comentarios para esta cuenta.")
+        if self.tiktok_duet_disabled:
+            notes.append("TikTok deshabilito Duet para esta cuenta.")
+        if self.tiktok_stitch_disabled:
+            notes.append("TikTok deshabilito Stitch para esta cuenta.")
+
+        return "\n".join(notes) if notes else False
+
+    def _refresh_tiktok_guideline_fields(self):
+        self.ensure_one()
+
+        if self.tiktok_privacy_level == "SELF_ONLY" and self.tiktok_commercial_branded:
+            self.tiktok_commercial_branded = False
+
+        declaration_text = self._compute_tiktok_declaration_text()
+        commercial_label = self._compute_tiktok_commercial_label_preview()
+        privacy_note = self._compute_tiktok_privacy_note()
+
+        legal_lines = [declaration_text]
+        if commercial_label:
+            legal_lines.append(f"Etiqueta comercial visible en TikTok: {commercial_label}.")
+        if self.tiktok_is_aigc:
+            legal_lines.append("Este contenido se marcara como AI-generated en TikTok.")
+
+        self.update({
+            "tiktok_declaration_text": declaration_text,
+            "tiktok_legal_text": "\n".join(legal_lines),
+            "tiktok_privacy_note": privacy_note,
+            "tiktok_commercial_label_preview": commercial_label,
+            "tiktok_commercial_label_info": commercial_label or False,
+        })
+
+    def _calculate_video_duration_from_attachments(self, attachments=None):
+        self.ensure_one()
+
+        attachments = attachments if attachments is not None else self.adjuntos_ids
+        if not attachments or self.tipo not in ("video_stories", "video_reels"):
+            return 0
+
+        video_attachment = attachments[:1]
+        if not video_attachment:
+            return 0
+
+        attachment = video_attachment[0]
+        if attachment.mimetype != "video/mp4" or not attachment.datas:
+            return 0
+
+        return get_video_duration_ffprobe(attachment.datas)
+
+    @api.onchange('adjuntos_ids', 'tipo')
+    def _onchange_tiktok_video_duration(self):
+        for rec in self:
+            if rec.tipo in ("video_stories", "video_reels") and rec.adjuntos_ids:
+                rec.tiktok_video_duration = rec._calculate_video_duration_from_attachments()
+            elif rec.tipo not in ("video_stories", "video_reels"):
+                rec.tiktok_video_duration = 0
+
+    def _get_tiktok_privacy_options_list(self):
+        self.ensure_one()
+        return [item.strip() for item in (self.tiktok_privacy_level_options or "").split(",") if item.strip()]
+
+    def _get_tiktok_caption_to_publish(self):
+        self.ensure_one()
+        return (self._prepare_text() or "").strip()
+
+    @api.model
+    def _normalize_tiktok_commercial_vals(self, vals):
+        vals = dict(vals)
+        if vals.get("tiktok_is_commercial") is False:
+            vals["tiktok_commercial_your_brand"] = False
+            vals["tiktok_commercial_branded"] = False
+        return vals
+
+    @api.model
+    def _normalize_tiktok_privacy_vals(self, vals):
+        vals = dict(vals)
+        privacy_model = self.env['gl.tiktok.privacy.option']
+
+        if vals.get("tiktok_privacy_option_id"):
+            option = privacy_model.browse(vals["tiktok_privacy_option_id"]).exists()
+            vals["tiktok_privacy_level"] = option.code if option else False
+        elif "tiktok_privacy_option_id" in vals and not vals.get("tiktok_privacy_option_id"):
+            vals["tiktok_privacy_level"] = False
+        elif vals.get("tiktok_privacy_level") and "tiktok_privacy_option_id" not in vals:
+            option = privacy_model.search([("code", "=", vals["tiktok_privacy_level"])], limit=1)
+            vals["tiktok_privacy_option_id"] = option.id or False
+
+        return vals
+
+    def _get_tiktok_publish_state_from_error_code(self, error_code):
+        self.ensure_one()
+
+        mapping = {
+            "ok": (True, "Puede publicar"),
+            "spam_risk_user_banned_from_posting": (False, "No puede publicar por restriccion de cuenta"),
+            "spam_risk_too_many_posts": (False, "No puede publicar ahora por limite diario"),
+            "reached_active_user_cap": (False, "No puede publicar desde esta app por cupo del cliente"),
+        }
+        return mapping.get(error_code, (False, f"Estado TikTok no reconocido: {error_code}" if error_code else "Sin respuesta valida de TikTok"))
+
+    def _validate_tiktok_business_rules(self):
+        self.ensure_one()
+
+        errors = []
+        privacy_options = self._get_tiktok_privacy_options_list()
+
+        if self.tipo != "video_reels":
+            errors.append("TikTok solo esta habilitado para publicaciones tipo Reel.")
+
+        if not self.partner_id:
+            errors.append("Debes seleccionar un creador para publicar en TikTok.")
+        elif not self.partner_id.tiktok_access_token:
+            errors.append("El creador no tiene access token de TikTok configurado.")
+
+        if not self.tiktok_privacy_level:
+            errors.append("Debes seleccionar la privacidad de TikTok.")
+        elif privacy_options and self.tiktok_privacy_level not in privacy_options:
+            errors.append("La privacidad seleccionada no esta permitida por TikTok para esta cuenta.")
+
+        if self.tiktok_can_publish is False:
+            errors.append(self.tiktok_can_publish_reason or "TikTok indica que esta cuenta no puede publicar en este momento.")
+
+        if self.tiktok_max_video_post_duration_sec and self.tiktok_video_duration:
+            if self.tiktok_video_duration > self.tiktok_max_video_post_duration_sec:
+                errors.append(
+                    f"La duracion del video ({self.tiktok_video_duration}s) excede el maximo permitido por TikTok ({self.tiktok_max_video_post_duration_sec}s)."
+                )
+
+        if self.tiktok_comment_disabled and self.tiktok_allow_comments:
+            errors.append("TikTok deshabilito comentarios para esta cuenta; no puedes habilitarlos.")
+        if self.tiktok_duet_disabled and self.tiktok_allow_duet:
+            errors.append("TikTok deshabilito Duet para esta cuenta; no puedes habilitarlo.")
+        if self.tiktok_stitch_disabled and self.tiktok_allow_stitch:
+            errors.append("TikTok deshabilito Stitch para esta cuenta; no puedes habilitarlo.")
+
+        if not self.tiktok_is_commercial:
+            if self.tiktok_commercial_your_brand or self.tiktok_commercial_branded:
+                errors.append("Si marcas contenido comercial especifico, tambien debes activar 'Es contenido comercial'.")
+        else:
+            if not (self.tiktok_commercial_your_brand or self.tiktok_commercial_branded):
+                errors.append("Si el contenido es comercial, debes seleccionar al menos 'Your Brand' o 'Branded Content'.")
+
+        if self.tiktok_commercial_branded and self.tiktok_privacy_level == "SELF_ONLY":
+            errors.append("Branded Content no puede publicarse con privacidad 'Solo yo'.")
+
+        if errors:
+            raise ValidationError("No se puede publicar en TikTok por estas razones:\n- " + "\n- ".join(errors))
+
+    def _fetch_tiktok_creator_info(self, access_token):
+        url = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "fields": [
+                "creator_avatar_url",
+                "creator_nickname",
+                "creator_username",
+                "privacy_level_options",
+                "comment_disabled",
+                "duet_disabled",
+                "stitch_disabled",
+                "max_video_post_duration_sec",
+                "can_publish",
+            ]
+        }
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        response_json = response.json()
+        print("TikTok creator_info/query response:", response_json)
+        return response_json
+
+    def _fetch_tiktok_user_info(self, access_token):
+        url = "https://open.tiktokapis.com/v2/user/info/"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+        }
+        params = {
+            "fields": "open_id,display_name,avatar_url,username",
+        }
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response.raise_for_status()
+        return response.json().get("data", {}).get("user", {})
+
+    def _fetch_tiktok_video_share_url(self, access_token, video_id=None):
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        if video_id:
+            query_url = "https://open.tiktokapis.com/v2/video/query/?fields=id,share_url,create_time,title"
+            query_payload = {
+                "filters": {
+                    "video_ids": [video_id],
+                }
+            }
+            query_resp = requests.post(query_url, headers=headers, json=query_payload, timeout=20)
+            query_resp.raise_for_status()
+            query_data = query_resp.json()
+            print("TikTok video/query response:", query_data)
+            videos = query_data.get("data", {}).get("videos") or []
+            if videos and videos[0].get("share_url"):
+                return videos[0].get("share_url")
+
+        list_url = "https://open.tiktokapis.com/v2/video/list/?fields=id,share_url,create_time,title"
+        list_payload = {
+            "max_count": 10,
+        }
+        list_resp = requests.post(list_url, headers=headers, json=list_payload, timeout=20)
+        list_resp.raise_for_status()
+        list_data = list_resp.json()
+        print("TikTok video/list response:", list_data)
+
+        videos = list_data.get("data", {}).get("videos") or []
+        if not videos:
+            return False
+
+        task_title = (self._get_tiktok_caption_to_publish() or self.tiktok_title or self.name or "").strip().lower()
+        if task_title:
+            for video in videos:
+                if (video.get("title") or "").strip().lower() == task_title and video.get("share_url"):
+                    return video.get("share_url")
+
+        return videos[0].get("share_url") or False
+
+    def sync_tiktok_account_data(self):
+        self.ensure_one()
+        current_privacy_level = self.tiktok_privacy_level
+        privacy_model = self.env['gl.tiktok.privacy.option']
+
+        if not self.partner_id:
+            raise ValidationError("Debes seleccionar un creador antes de cargar los datos de TikTok.")
+
+        access_token = self.partner_id.tiktok_access_token
+        if not access_token:
+            raise ValidationError("No existe access_token de TikTok para este creador.")
+
+        creator_response = self._fetch_tiktok_creator_info(access_token)
+        creator_data = creator_response.get("data", {})
+        error_code = creator_response.get("error", {}).get("code")
+
+        user_data = {}
+        try:
+            user_data = self._fetch_tiktok_user_info(access_token)
+        except requests.exceptions.RequestException:
+            _logger.info("No se pudo obtener user.info de TikTok para el partner %s", self.partner_id.id)
+
+        privacy_options = creator_data.get("privacy_level_options") or []
+        can_publish, can_publish_reason = self._get_tiktok_publish_state_from_error_code(error_code)
+        comment_disabled = bool(creator_data.get("comment_disabled"))
+        duet_disabled = bool(creator_data.get("duet_disabled"))
+        stitch_disabled = bool(creator_data.get("stitch_disabled"))
+        max_duration = creator_data.get("max_video_post_duration_sec") or 0
+
+        creator_username = (
+            creator_data.get("creator_username")
+            or user_data.get("username")
+            or self.partner_id.tiktok_username
+            or False
+        )
+        creator_nickname = (
+            creator_data.get("creator_nickname")
+            or user_data.get("display_name")
+            or self.partner_id.tiktok_nickname
+            or False
+        )
+        creator_avatar = (
+            creator_data.get("creator_avatar_url")
+            or user_data.get("avatar_url")
+            or self.partner_id.tiktok_avatar_url
+            or False
+        )
+        declaration_lines = []
+        if comment_disabled:
+            declaration_lines.append("TikTok deshabilito los comentarios para esta cuenta.")
+        if duet_disabled:
+            declaration_lines.append("TikTok deshabilito Duet para esta cuenta.")
+        if stitch_disabled:
+            declaration_lines.append("TikTok deshabilito Stitch para esta cuenta.")
+
+        status_lines = [
+            f"Cuenta TikTok: {creator_nickname or 'Sin nickname'}",
+            f"Username: {creator_username or 'Sin username'}",
+            f"Puede publicar: {'Si' if can_publish else 'No'}",
+        ]
+        if can_publish_reason:
+            status_lines.append(f"Motivo estado TikTok: {can_publish_reason}")
+        if max_duration:
+            status_lines.append(f"Duracion maxima permitida: {max_duration} segundos")
+        if privacy_options:
+            status_lines.append(f"Privacidades disponibles: {', '.join(privacy_options)}")
+
+        self.update({
+            "tiktok_creator_username": creator_username,
+            "tiktok_can_publish": can_publish,
+            "tiktok_can_publish_reason": can_publish_reason,
+            "tiktok_privacy_level_options": ", ".join(privacy_options) if privacy_options else False,
+            "tiktok_comment_disabled": comment_disabled,
+            "tiktok_duet_disabled": duet_disabled,
+            "tiktok_stitch_disabled": stitch_disabled,
+            "tiktok_max_video_post_duration_sec": max_duration,
+            "tiktok_declaration_text": "\n".join(declaration_lines) if declaration_lines else False,
+            "tiktok_creator_status_info": "\n".join(status_lines),
+        })
+
+        if privacy_options:
+            if current_privacy_level in privacy_options:
+                self.tiktok_privacy_level = current_privacy_level
+            elif self.tiktok_privacy_level not in privacy_options:
+                self.tiktok_privacy_level = False
+        self.tiktok_privacy_option_id = privacy_model.search(
+            [('code', '=', self.tiktok_privacy_level)], limit=1
+        ) if self.tiktok_privacy_level else False
+
+        if comment_disabled:
+            self.tiktok_allow_comments = False
+        if duet_disabled:
+            self.tiktok_allow_duet = False
+        if stitch_disabled:
+            self.tiktok_allow_stitch = False
+
+        self._refresh_tiktok_guideline_fields()
+
+        partner_vals = {}
+        if creator_nickname and creator_nickname != self.partner_id.tiktok_nickname:
+            partner_vals["tiktok_nickname"] = creator_nickname
+        if creator_avatar and creator_avatar != self.partner_id.tiktok_avatar_url:
+            partner_vals["tiktok_avatar_url"] = creator_avatar
+        if creator_username and creator_username != self.partner_id.tiktok_username:
+            partner_vals["tiktok_username"] = creator_username
+        if user_data.get("open_id") and user_data.get("open_id") != self.partner_id.tiktok_open_id:
+            partner_vals["tiktok_open_id"] = user_data.get("open_id")
+        if partner_vals:
+            self.partner_id.sudo().write(partner_vals)
+
+    def _sync_tiktok_account_data_after_save(self):
+        if self.env.context.get("skip_tiktok_sync"):
+            return
+
+        for rec in self:
+            selected_networks = set(rec.red_social_ids.mapped('name') or [])
+
+            if 'TikTok' not in selected_networks:
+                rec.with_context(skip_tiktok_sync=True).write(rec._get_tiktok_account_clear_vals())
+                continue
+
+            if not rec.partner_id or not rec.partner_id.tiktok_access_token:
+                rec.with_context(skip_tiktok_sync=True).write({
+                    "tiktok_declaration_text": rec._compute_tiktok_declaration_text(),
+                    "tiktok_legal_text": rec._compute_tiktok_declaration_text(),
+                    "tiktok_privacy_note": False,
+                    "tiktok_commercial_label_preview": rec._compute_tiktok_commercial_label_preview(),
+                    "tiktok_commercial_label_info": rec._compute_tiktok_commercial_label_preview() or False,
+                })
+                continue
+
+            try:
+                rec.with_context(skip_tiktok_sync=True).sync_tiktok_account_data()
+            except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as err:
+                _logger.warning("No se pudo sincronizar TikTok despues de guardar la tarea %s: %s", rec.id, err)
+                rec.with_context(skip_tiktok_sync=True).write({
+                    "tiktok_declaration_text": rec._compute_tiktok_declaration_text(),
+                    "tiktok_legal_text": rec._compute_tiktok_declaration_text(),
+                    "tiktok_privacy_note": rec._compute_tiktok_privacy_note(),
+                    "tiktok_commercial_label_preview": rec._compute_tiktok_commercial_label_preview(),
+                    "tiktok_commercial_label_info": rec._compute_tiktok_commercial_label_preview() or False,
+                })
+
+    def action_refresh_tiktok_tab(self):
+        self.ensure_one()
+
+        if 'TikTok' not in (self.red_social_ids.mapped('name') or []):
+            raise ValidationError("Debes seleccionar TikTok en redes sociales antes de actualizar este tab.")
+
+        if self.partner_id and self.partner_id.tiktok_access_token:
+            self.sync_tiktok_account_data()
+        else:
+            self._refresh_tiktok_guideline_fields()
+            self.write({
+                "tiktok_declaration_text": self.tiktok_declaration_text,
+                "tiktok_legal_text": self.tiktok_legal_text,
+                "tiktok_privacy_note": self.tiktok_privacy_note,
+                "tiktok_commercial_label_preview": self.tiktok_commercial_label_preview,
+                "tiktok_commercial_label_info": self.tiktok_commercial_label_info,
+            })
+
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "TikTok actualizado",
+                "message": "Se recalcularon los datos y mensajes del tab de TikTok.",
+                "type": "success",
+                "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
+            },
+        }
+
+    def action_open_tiktok_confirmation(self, action_type="publish"):
+        self.ensure_one()
+
+        if 'TikTok' not in (self.red_social_ids.mapped('name') or []):
+            raise ValidationError("TikTok no esta seleccionado en redes sociales.")
+
+        if self.partner_id and self.partner_id.tiktok_access_token:
+            self.sync_tiktok_account_data()
+        else:
+            self._refresh_tiktok_guideline_fields()
+
+        wizard = self.env["gl.tiktok.publish.confirm.wizard"].create({
+            "task_id": self.id,
+            "action_type": action_type,
+        })
+
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Confirmar accion en TikTok",
+            "res_model": "gl.tiktok.publish.confirm.wizard",
+            "view_mode": "form",
+            "view_id": self.env.ref("gl_geniolibre.view_gl_tiktok_publish_confirm_wizard_form").id,
+            "res_id": wizard.id,
+            "target": "new",
+        }
 
     @api.depends('red_social_ids')
     def _compute_social_flags(self):
@@ -202,7 +849,23 @@ class project_task(models.Model):
         # Usar la sintaxis de super() preferida en Python 3
         return super().copy(default)
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        vals_list = [
+            self._normalize_tiktok_privacy_vals(self._normalize_tiktok_commercial_vals(vals))
+            for vals in vals_list
+        ]
+        records = super().create(vals_list)
+        for rec in records:
+            if rec.tipo in ("video_stories", "video_reels") and rec.adjuntos_ids:
+                rec.tiktok_video_duration = rec._calculate_video_duration_from_attachments()
+            elif rec.tipo not in ("video_stories", "video_reels"):
+                rec.tiktok_video_duration = 0
+        records._sync_tiktok_account_data_after_save()
+        return records
+
     def write(self, vals):  
+        vals = self._normalize_tiktok_privacy_vals(self._normalize_tiktok_commercial_vals(vals))
 
         for record in self:
             current_tipo = vals.get('tipo', record.tipo)
@@ -275,9 +938,32 @@ class project_task(models.Model):
                         if attachment.mimetype == "video/mp4":
                             raise ValidationError(
                                 "Solo se aceptan imágenes para publicaciones de tipo 'Feed'. No se permiten videos MP4.")
-        return super().write(vals)
+
+        result = super().write(vals)
+
+        if {'adjuntos_ids', 'tipo'} & set(vals.keys()):
+            for rec in self:
+                if rec.tipo in ("video_stories", "video_reels") and rec.adjuntos_ids:
+                    rec.with_context(skip_tiktok_sync=True).write({
+                        "tiktok_video_duration": rec._calculate_video_duration_from_attachments()
+                    })
+                elif rec.tipo not in ("video_stories", "video_reels"):
+                    rec.with_context(skip_tiktok_sync=True).write({
+                        "tiktok_video_duration": 0
+                    })
+
+        if {'red_social_ids', 'partner_id'} & set(vals.keys()):
+            self._sync_tiktok_account_data_after_save()
+
+        return result
 
     def programar_post(self):
+        if (
+            'TikTok' in self.red_social_ids.mapped('name')
+            and not self.env.context.get("skip_tiktok_confirmation")
+        ):
+            return self.action_open_tiktok_confirmation(action_type="schedule")
+
         try:
             self.ensure_one()  # Asegurar que operamos sobre un único registro al principio
 
@@ -676,13 +1362,23 @@ class project_task(models.Model):
 
     def _run_tiktok_flow(self, from_cron=False):
         try:
+            print(
+                "TikTok _run_tiktok_flow state:",
+                {
+                    "task_id": self.id,
+                    "tt_estado": self.tt_estado,
+                    "tiktok_post_id": self.tiktok_post_id,
+                    "tiktok_post_url": self.tiktok_post_url,
+                    "from_cron": from_cron,
+                }
+            )
             # PROCESANDO → REVISANDO
             if self.tt_estado == "Procesando":
                 self.tt_estado = "Revisando"
                 return True
 
-            # REVISANDO → consultar estado
-            if self.tt_estado == "Revisando" and self.tiktok_post_id and not self.tiktok_post_url:
+            # REVISANDO / PUBLICADO SIN URL → consultar estado
+            if self.tt_estado in ("Revisando", "Publicado") and self.tiktok_post_id and not self.tiktok_post_url:
                 status_url = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
                 headers = {
                     "Authorization": f"Bearer {self.partner_tiktok_access_token}",
@@ -692,6 +1388,7 @@ class project_task(models.Model):
                 resp = requests.post(status_url, headers=headers, json=payload, timeout=20)
                 resp.raise_for_status()
                 data = resp.json()
+                print("TikTok status/fetch response:", data)
 
                 status = data.get("data", {}).get("status")
 
@@ -721,18 +1418,24 @@ class project_task(models.Model):
                     video_id = data.get("data", {}).get("publicaly_available_post_id")
                     if not video_id:
                         video_id = data.get("data", {}).get("publicly_available_post_id")
-                    if video_id:
-                        self.tiktok_post_url = f"https://www.tiktok.com/@_/video/{video_id}"
-                    self.tt_estado = "Publicado"
-                    self.tt_error = False
+                    if not video_id:
+                        video_id = data.get("data", {}).get("post_id")
+                    share_url = self._fetch_tiktok_video_share_url(self.partner_tiktok_access_token, video_id)
+                    if share_url:
+                        self.tiktok_post_url = share_url
+                        self.tt_estado = "Publicado"
+                        self.tt_error = False
+                    else:
+                        self.tt_estado = "Revisando"
+                        self.tt_error = "TikTok publico el contenido, pero aun no devolvio un share_url para la URL final."
 
                     return True if from_cron else {
                         "type": "ir.actions.client",
                         "tag": "display_notification",
                         "params": {
-                            "title": "Publicado",
-                            "message": "TikTok publicado correctamente.",
-                            "type": "success",
+                            "title": "Publicado" if self.tiktok_post_url else "Procesando",
+                            "message": "TikTok publicado correctamente." if self.tiktok_post_url else "TikTok aun no devolvio la URL final. Se seguira revisando.",
+                            "type": "success" if self.tiktok_post_url else "warning",
                             "next": {"type": "ir.actions.client", "tag": "reload"},
                         },
                     }
@@ -1046,6 +1749,7 @@ class project_task(models.Model):
 
     def publish_on_tiktok(self, media_urls, combined_text, cover_url=None):
         url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+        tiktok_caption = self._get_tiktok_caption_to_publish()
     
         headers = {
             "Authorization": f"Bearer {self.partner_tiktok_access_token}",
@@ -1054,7 +1758,7 @@ class project_task(models.Model):
     
         data = {
             "post_info": {
-                "title": combined_text,
+                "title": tiktok_caption,
                 "privacy_level": "SELF_ONLY",
                 "disable_duet": False,
                 "disable_comment": False,
@@ -1300,6 +2004,15 @@ class project_task(models.Model):
             raise ValidationError(f"Error inesperado: {str(e)}") from e
 
     def publicar_post(self):
+        self.ensure_one()
+
+        if (
+            'TikTok' in self.red_social_ids.mapped('name')
+            and not self.env.context.get("from_cron")
+            and not self.env.context.get("skip_tiktok_confirmation")
+        ):
+            return self.action_open_tiktok_confirmation(action_type="publish")
+
         API_VERSION = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_version')
         BASE_URL = f'https://graph.facebook.com/{API_VERSION}'
         from_cron = bool(self.env.context.get("from_cron"))
@@ -1336,11 +2049,16 @@ class project_task(models.Model):
         if not self.red_social_ids:
             raise ValidationError("Debe seleccionar al menos una red social")
 
+        if 'TikTok' in self.red_social_ids.mapped('name') and self.tipo != "video_reels":
+            raise ValidationError("TikTok solo admite publicaciones tipo Reel en este flujo.")
+
         try:
             # Configuración inicial
             parametros = self.env['ir.config_parameter'].sudo()
             aws_api = parametros.get_param('gl_aws.api_key')
             aws_secret = parametros.get_param('gl_aws.secret')
+            aws_bucket = parametros.get_param('gl_aws.bucket') or 'odoo-geniolibre'
+            aws_public_domain = parametros.get_param('gl_aws.public_domain') or 'https://s3.geniolibredev.com'
 
             combined_text = self._prepare_text()
 
@@ -1360,7 +2078,7 @@ class project_task(models.Model):
                     f"Los datos de acceso no fueron configurados para: {', '.join(credential_errors)}")
 
             # Subir archivos a S3 (única operación que debe fallar completamente si hay error)
-            media_urls = upload_files_to_s3(self.adjuntos_ids, aws_api, aws_secret)
+            media_urls = upload_files_to_s3(self.adjuntos_ids, aws_api, aws_secret, aws_bucket, aws_public_domain)
             media_ids = []
             _logger.info(f"Archivos subidos a S3. URLs obtenidas: {media_urls}")
             # Publicación en redes sociales con gestión de errores individual
@@ -1370,7 +2088,13 @@ class project_task(models.Model):
 
             cover_url = None
             if self.imagen_portada and self.tipo == "video_reels":
-                cover_url = upload_files_to_s3([("portada.jpg", self.imagen_portada)], aws_api, aws_secret)[0]
+                cover_url = upload_files_to_s3(
+                    [("portada.jpg", self.imagen_portada)],
+                    aws_api,
+                    aws_secret,
+                    aws_bucket,
+                    aws_public_domain,
+                )[0]
 
             procesando = False
             # Facebook
@@ -1400,6 +2124,8 @@ class project_task(models.Model):
             # TikTok
             if 'TikTok' in self.red_social_ids.mapped('name') and self.tipo == "video_reels":
                 try:
+                    self._refresh_tiktok_guideline_fields()
+                    self._validate_tiktok_business_rules()
                     self.write({"tt_estado": "Procesando", "tt_error": False})
                     tik_response = self.publish_on_tiktok(media_urls, combined_text)
                     if tik_response:
@@ -1445,20 +2171,6 @@ class project_task(models.Model):
                     # Publicación parcialmente exitosa
                     error_detalle = "\n".join(errors)
                     _logger.error("Error en publicar_post: %s", error_detalle)
-
-                    if from_cron:
-                        self.env['mail.mail'].create({
-                            'subject': 'SERVER GL - Error en el Sistema',
-                            'body_html': f"""
-                                <p><strong>Ocurrió un error en la automatización</strong></p>
-                                <p><b>Proceso:</b> publicar_post</p>
-                                <p><b>Tarea:</b> {self.display_name}</p>
-                                <p><b>ID:</b> {self.id}</p>
-                                <p><b>Error:</b></p>
-                                <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                            """,
-                            'email_to': self.env.ref('base.user_admin').email,
-                        }).send()
 
                     return {
                         "type": "ir.actions.client",
@@ -1514,20 +2226,6 @@ class project_task(models.Model):
                 if update_vals:
                     self.write(update_vals)
 
-                if from_cron:
-                    self.env['mail.mail'].create({
-                        'subject': 'SERVER GL - Error en el Sistema',
-                        'body_html': f"""
-                            <p><strong>Ocurrió un error en la automatización</strong></p>
-                            <p><b>Proceso:</b> publicar_post</p>
-                            <p><b>Tarea:</b> {self.display_name}</p>
-                            <p><b>ID:</b> {self.id}</p>
-                            <p><b>Error:</b></p>
-                            <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                        """,
-                        'email_to': self.env.ref('base.user_admin').email,
-                    }).send()
-
                 raise ValidationError("No se pudo iniciar el proceso en ninguna red social:\n" + error_detalle)
 
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
@@ -1543,98 +2241,61 @@ class project_task(models.Model):
                 update_vals.update({"tt_estado": "Error", "tt_error": error_detalle})
             if update_vals:
                 self.write(update_vals)
-            if from_cron:
-                self.env['mail.mail'].create({
-                    'subject': 'SERVER GL - Error en el Sistema',
-                    'body_html': f"""
-                        <p><strong>Ocurrió un error en la automatización</strong></p>
-                        <p><b>Proceso:</b> publicar_post</p>
-                        <p><b>Tarea:</b> {self.display_name}</p>
-                        <p><b>ID:</b> {self.id}</p>
-                        <p><b>Error:</b></p>
-                            <pre style="background:#f6f6f6;padding:10px;border:1px solid #ddd;">{error_detalle}</pre>
-                        """,
-                    'email_to': self.env.ref('base.user_admin').email,
-                }).send()
             raise ValidationError(f"Error en el proceso de publicación: {str(e)}")
 
 
     def check_tiktok_creator_status(self):
         self.ensure_one()
-
-        # Token del creador (ajústalo a donde lo guardes)
-        access_token = self.partner_id.tiktok_access_token
-        if not access_token:
-            raise ValidationError("No existe access_token de TikTok para este creador.")
-
-        url = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
-
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "fields": [
-                "can_publish",
-                "max_video_post_duration_sec"
-            ]
-        }
-
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-
-        if response.status_code != 200:
-            msg = f"Error consultando TikTok Creator Info: {response.text}"
-            self.tiktok_creator_status_info = msg
-            raise ValidationError(msg)
-
-        data = response.json()
+        self.sync_tiktok_account_data()
 
         # ----------------------------
         # 1) VERIFICAR SI PUEDE PUBLICAR
         # ----------------------------
-        can_publish = data.get("data", {}).get("can_publish", None)
+        can_publish = self.tiktok_can_publish
 
         if can_publish is False:
-            msg = "❌ El creador ha alcanzado el límite de publicaciones. No puede publicar en este momento."
+            msg = "El creador ha alcanzado el limite de publicaciones. No puede publicar en este momento."
             self.tiktok_creator_status_info = msg
             raise ValidationError(msg)
 
         # ----------------------------
         # 2) VERIFICAR DURACIÓN PERMITIDA
         # ----------------------------
-        max_duration = data.get("data", {}).get("max_video_post_duration_sec", None)
+        max_duration = self.tiktok_max_video_post_duration_sec
 
         if max_duration and self.tiktok_video_duration:
             if self.tiktok_video_duration > max_duration:
-                msg = (f"⛔ El video excede la duración máxima permitida.\n"
+                msg = (f"El video excede la duracion maxima permitida.\n"
                        f"Duración del video: {self.tiktok_video_duration} s\n"
-                       f"Máximo permitido por TikTok: {max_duration} s")
+                       f"Maximo permitido por TikTok: {max_duration} s")
                 self.tiktok_creator_status_info = msg
                 raise ValidationError(msg)
 
         # ----------------------------
         # SI TODO OK → MENSAJE POSITIVO
         # ----------------------------
-        ok_msg = (f"✔ El creador puede publicar.\n"
-                  f"Duración máxima permitida: {max_duration} segundos.\n"
-                  f"Duración del video a publicar: {self.tiktok_video_duration} segundos.")
+        ok_msg = (f"El creador puede publicar.\n"
+                  f"Duracion maxima permitida: {max_duration} segundos.\n"
+                  f"Duracion del video a publicar: {self.tiktok_video_duration} segundos.")
         self.tiktok_creator_status_info = ok_msg
 
         return True
 
 
-def upload_files_to_s3(files, aws_api, aws_secret):
+def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain):
     """Sube archivos (imágenes o videos) a AWS S3 y devuelve sus URLs públicas."""
     aws_access_key_id = aws_api
     aws_secret_access_key = aws_secret
-    bucket_name = 'odoo-geniolibre'
+    bucket_name = aws_bucket or 'odoo-geniolibre'
+    public_domain = (aws_public_domain or 'https://s3.geniolibredev.com').rstrip('/')
     region_name = 'us-east-2'
 
     _logger.info("AWS S3 configuración inicial")
 
     if not aws_access_key_id or not aws_secret_access_key:
         raise ValidationError("No se configuró correctamente el servicio de AWS.")
+    if not bucket_name:
+        raise ValidationError("No se configuró correctamente el bucket de AWS.")
 
     # Crear cliente con timeout seguro
     try:
@@ -1702,7 +2363,7 @@ def upload_files_to_s3(files, aws_api, aws_secret):
                                      'jpeg'
                                  ] else 'video/mp4', )
 
-            file_url = f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{file_name}"
+            file_url = f"{public_domain}/{file_name}"
             uploaded_urls.append(file_url)
 
             _logger.info(f"Archivo subido correctamente: {file_url}")

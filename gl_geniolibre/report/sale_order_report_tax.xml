@@ -83,7 +83,7 @@
         </xpath>
 
         <!-- 💵 Reemplazar la tabla de totales (alineada a la derecha) -->
-        <xpath expr="//div[@name='so_total_summary']//table[contains(@class,'o_total_table')]" position="replace">
+        <xpath expr="//div[@name='so_total_summary']//table[hasclass('o_total_table')]" position="replace">
             <div id="total" class="row mt-n3" name="total">
                 <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ms-auto">
                     <table class="o_total_table table table-borderless">

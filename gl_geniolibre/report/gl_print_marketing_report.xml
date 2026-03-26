@@ -60,11 +60,29 @@
                     color: #555;
                     }
                     body {
-                    font-family: 'NotoSans', 'Roboto', 'Helvetica', 'Arial', 'Noto Color Emoji', 'Twitter Color Emoji',
-                    sans-serif;
+                    font-family: 'Lato', 'Noto', 'Noto_Color', 'Roboto', 'Helvetica', 'Arial', sans-serif;
                     -webkit-print-color-adjust: exact !important;
                     color: #333;
                     line-height: 1.5;
+                    }
+
+                    .emoji-text {
+                    font-family: 'Lato', 'Noto', 'Noto_Color', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+                    }
+
+                    .report-icon {
+                    width: 12px;
+                    height: 12px;
+                    object-fit: contain;
+                    vertical-align: middle;
+                    margin-right: 4px;
+                    }
+
+                    .report-icon-label {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    justify-content: center;
                     }
 
                     .header {
@@ -406,20 +424,35 @@
                                 <tbody>
                                     <t t-foreach="data['facebook_data']['post_type_summary'].items()" t-as="item">
                                         <t t-set="tipo_publicacion" t-value="{
-                            'video_inline': '🎥 Video',
-                            'video_direct_response': '🎥 Video con CTA',
-                            'video': '🎥 Video',
-                            'photo': '🖼️ Foto',
-                            'album': '🖼️ Album',
-                            'status': '💬 Estado',
-                            'link': '🔗 Enlace',
-                            'event': '📅 Evento',
-                            'offer': '🏷️ Oferta'
+                            'video_inline': 'Video',
+                            'video_direct_response': 'Video con CTA',
+                            'video': 'Video',
+                            'photo': 'Foto',
+                            'album': 'Album',
+                            'status': 'Estado',
+                            'link': 'Enlace',
+                            'event': 'Evento',
+                            'offer': 'Oferta'
                         }.get(item[0], item[0].replace('_', ' ').capitalize())"/>
+                                        <t t-set="tipo_publicacion_icon" t-value="{
+                            'video_inline': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                            'video_direct_response': '/gl_geniolibre/static/src/img/iconos/icon_video_cta.png',
+                            'video': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                            'photo': '/gl_geniolibre/static/src/img/iconos/icon_photo.png',
+                            'album': '/gl_geniolibre/static/src/img/iconos/icon_album.png',
+                            'status': '/gl_geniolibre/static/src/img/iconos/icon_status.png',
+                            'link': '/gl_geniolibre/static/src/img/iconos/icon_link.png',
+                            'event': '/gl_geniolibre/static/src/img/iconos/icon_event.png',
+                            'offer': '/gl_geniolibre/static/src/img/iconos/icon_offer.png'
+                        }.get(item[0])"/>
 
                                         <tr class="text-center">
                                             <td>
-                                                <t t-esc="tipo_publicacion"/>
+                                                <span class="report-icon-label">
+                                                    <img t-if="tipo_publicacion_icon" t-att-src="tipo_publicacion_icon"
+                                                         t-att-alt="tipo_publicacion" class="report-icon"/>
+                                                    <span t-esc="tipo_publicacion"/>
+                                                </span>
                                             </td>
                                             <td>
                                                 <t t-esc="item[1]['posts']"/>
@@ -459,16 +492,27 @@
                                 <tbody>
                                     <t t-foreach="data['facebook_data']['top_posts']" t-as="post">
                                         <t t-set="tipo_post" t-value="{
-                            'video': '📹 Video',
-                            'video_direct_response': '📹 Video con CTA',
-                            'video_inline': '📹 Video',
-                            'photo': '🖼️ Foto',
-                            'status': '✍️ Estado',
-                            'link': '🔍 Enlace',
-                            'event': '🗓️ Evento',
-                            'album': '🖼️ Album',
-                            'offer': '💰 Oferta'
+                            'video': 'Video',
+                            'video_direct_response': 'Video con CTA',
+                            'video_inline': 'Video',
+                            'photo': 'Foto',
+                            'status': 'Estado',
+                            'link': 'Enlace',
+                            'event': 'Evento',
+                            'album': 'Album',
+                            'offer': 'Oferta'
                         }.get(post['type'], post['type'].replace('_', ' ').capitalize())"/>
+                                        <t t-set="tipo_post_icon" t-value="{
+                            'video': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                            'video_direct_response': '/gl_geniolibre/static/src/img/iconos/icon_video_cta.png',
+                            'video_inline': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                            'photo': '/gl_geniolibre/static/src/img/iconos/icon_photo.png',
+                            'status': '/gl_geniolibre/static/src/img/iconos/icon_status.png',
+                            'link': '/gl_geniolibre/static/src/img/iconos/icon_link.png',
+                            'event': '/gl_geniolibre/static/src/img/iconos/icon_event.png',
+                            'album': '/gl_geniolibre/static/src/img/iconos/icon_album.png',
+                            'offer': '/gl_geniolibre/static/src/img/iconos/icon_offer.png'
+                        }.get(post['type'])"/>
 
                                         <tr>
                                             <td style="width: 20%;">
@@ -483,7 +527,11 @@
                                                 <t t-esc="post.get('message', 'Sin descripción')"/>
                                             </td>
                                             <td class="post-type">
-                                                <t t-esc="tipo_post"/>
+                                                <span class="report-icon-label">
+                                                    <img t-if="tipo_post_icon" t-att-src="tipo_post_icon"
+                                                         t-att-alt="tipo_post" class="report-icon"/>
+                                                    <span t-esc="tipo_post"/>
+                                                </span>
                                             </td>
 
                                             <td class="metric-value">
@@ -493,17 +541,20 @@
                                             <td style="text-align: center; vertical-align: middle;">
                                                 <div class="interactions-container">
                                                     <div class="metric-label">
-                                                        👍
+                                                        <img src="/gl_geniolibre/static/src/img/iconos/icon_reaction.png"
+                                                             alt="Reacciones" class="report-icon"/>
                                                         <t t-esc="post['reactions']"/>
                                                         Reacciones
                                                     </div>
                                                     <div class="metric-label">
-                                                        📝
+                                                        <img src="/gl_geniolibre/static/src/img/iconos/icon_comment.png"
+                                                             alt="Comentarios" class="report-icon"/>
                                                         <t t-esc="post['comments']"/>
                                                         Comentarios
                                                     </div>
                                                     <div class="metric-label">
-                                                        🔁
+                                                        <img src="/gl_geniolibre/static/src/img/iconos/icon_share.png"
+                                                             alt="Compartidos" class="report-icon"/>
                                                         <t t-esc="post['shares']"/>
                                                         Compartidos
                                                     </div>
@@ -612,16 +663,28 @@
                                 <tbody>
                                     <t t-foreach="data['instagram_data']['summary_by_type'].items()" t-as="item">
                                         <t t-set="tipo_media" t-value="{
-                                        'IMAGE': '🖼️ Imagen',
-                                        'VIDEO': '🎬 Video',
-                                        'CAROUSEL_ALBUM': '🖼️ Carrusel',
-                                        'CAROUSEL': '🖼️ Carrusel',
-                                        'REEL': '🎬 Reel',
-                                        'STORY': '🎬 Historia'
+                                        'IMAGE': 'Imagen',
+                                        'VIDEO': 'Video',
+                                        'CAROUSEL_ALBUM': 'Carrusel',
+                                        'CAROUSEL': 'Carrusel',
+                                        'REEL': 'Reel',
+                                        'STORY': 'Historia'
                                     }.get(item[0], item[0].replace('_', ' ').capitalize())"/>
+                                        <t t-set="tipo_media_icon" t-value="{
+                                        'IMAGE': '/gl_geniolibre/static/src/img/iconos/icon_image.png',
+                                        'VIDEO': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                                        'CAROUSEL_ALBUM': '/gl_geniolibre/static/src/img/iconos/icon_carousel.png',
+                                        'CAROUSEL': '/gl_geniolibre/static/src/img/iconos/icon_carousel.png',
+                                        'REEL': '/gl_geniolibre/static/src/img/iconos/icon_reel.png',
+                                        'STORY': '/gl_geniolibre/static/src/img/iconos/icon_story.png'
+                                    }.get(item[0])"/>
                                         <tr>
                                             <td class="text-center">
-                                                <t t-esc="tipo_media"/>
+                                                <span class="report-icon-label">
+                                                    <img t-if="tipo_media_icon" t-att-src="tipo_media_icon"
+                                                         t-att-alt="tipo_media" class="report-icon"/>
+                                                    <span t-esc="tipo_media"/>
+                                                </span>
                                             </td>
                                             <td class="text-center">
                                                 <t t-esc="item[1]['views']"/>
@@ -661,12 +724,19 @@
                                         <!-- Solo mostrar si tiene algún valor distinto de 0 -->
                                         <t t-if="post.get('views', 0) or post.get('reach', 0) or post.get('likes', 0) or post.get('comments', 0) or post.get('shares', 0) or post.get('saved', 0) or post.get('video_views', 0) or post.get('plays', 0)">
                                             <t t-set="tipo_post" t-value="{
-                                            'IMAGE': '🖼️ Imagen',
-                                            'VIDEO': '🎬 Video',
-                                            'CAROUSEL_ALBUM': '🖼️ Carrusel',
-                                            'REEL': '🎥 Reel',
-                                            'STORY': '📱 Historia'
+                                            'IMAGE': 'Imagen',
+                                            'VIDEO': 'Video',
+                                            'CAROUSEL_ALBUM': 'Carrusel',
+                                            'REEL': 'Reel',
+                                            'STORY': 'Historia'
                                         }.get(post.get('media_type', ''), post.get('media_type', '').replace('_', ' ').capitalize())"/>
+                                            <t t-set="tipo_post_icon" t-value="{
+                                            'IMAGE': '/gl_geniolibre/static/src/img/iconos/icon_image.png',
+                                            'VIDEO': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                                            'CAROUSEL_ALBUM': '/gl_geniolibre/static/src/img/iconos/icon_carousel.png',
+                                            'REEL': '/gl_geniolibre/static/src/img/iconos/icon_reel.png',
+                                            'STORY': '/gl_geniolibre/static/src/img/iconos/icon_story.png'
+                                        }.get(post.get('media_type', ''))"/>
                                             <tr>
                                                 <!-- Columna 1: Imagen + ID -->
                                                 <td>
@@ -690,7 +760,11 @@
                                                 </td>
                                                 <!-- Columna 2: Tipo -->
                                                 <td class="post-type">
-                                                    <t t-esc="tipo_post"/>
+                                                    <span class="report-icon-label">
+                                                        <img t-if="tipo_post_icon" t-att-src="tipo_post_icon"
+                                                             t-att-alt="tipo_post" class="report-icon"/>
+                                                        <span t-esc="tipo_post"/>
+                                                    </span>
                                                 </td>
 
                                                 <!-- Columna 3: Impresiones -->
@@ -709,29 +783,37 @@
                                                         <div class="interaction-metric"
                                                              style="margin-bottom: 0px!important;">
                                                             <div class="metric-label">
+                                                                <img src="/gl_geniolibre/static/src/img/iconos/icon_like.png"
+                                                                     alt="Me gusta" class="report-icon"/>
                                                                 <t t-esc="post.get('likes', 0)"/>
-                                                                👍 Me gusta
+                                                                Me gusta
                                                             </div>
                                                         </div>
                                                         <div class="interaction-metric"
                                                              style="margin-bottom: 0px!important;">
                                                             <div class="metric-label">
+                                                                <img src="/gl_geniolibre/static/src/img/iconos/icon_comment.png"
+                                                                     alt="Comentarios" class="report-icon"/>
                                                                 <t t-esc="post.get('comments', 0)"/>
-                                                                📝 Comentarios
+                                                                Comentarios
                                                             </div>
                                                         </div>
                                                         <div class="interaction-metric"
                                                              style="margin-bottom: 0px!important;">
                                                             <div class="metric-label">
+                                                                <img src="/gl_geniolibre/static/src/img/iconos/icon_share.png"
+                                                                     alt="Compartidos" class="report-icon"/>
                                                                 <t t-esc="post.get('shares', 0)"/>
-                                                                🔁 Compartidos
+                                                                Compartidos
                                                             </div>
                                                         </div>
                                                         <div class="interaction-metric"
                                                              style="margin-bottom: 0px!important;">
                                                             <div class="metric-label">
+                                                                <img src="/gl_geniolibre/static/src/img/iconos/icon_save.png"
+                                                                     alt="Guardados" class="report-icon"/>
                                                                 <t t-esc="post.get('saved', 0)"/>
-                                                                📥 Guardados
+                                                                Guardados
                                                             </div>
                                                         </div>
 
@@ -739,8 +821,10 @@
                                                             <div class="interaction-metric"
                                                                  style="margin-bottom: 0px!important;">
                                                                 <div class="metric-label">
+                                                                    <img src="/gl_geniolibre/static/src/img/iconos/icon_play.png"
+                                                                         alt="Reproducciones" class="report-icon"/>
                                                                     <t t-esc="post.get('video_views', post.get('plays', 0))"/>
-                                                                    📹 Reproducciones
+                                                                    Reproducciones
                                                                 </div>
                                                             </div>
                                                         </t>
@@ -957,19 +1041,46 @@
                                                      style="flex-wrap: wrap; display: flex;">
                                                     <t t-foreach="camp['actions'].items()" t-as="action">
                                                         <t t-set="action_name" t-value="{
-                                                  'like': '👍 Me gusta', 'link_click': '🖱️ Clics', 'view_content': '👁️‍ Vistas', 'purchase': '💰 Compras',
-                                                  'add_to_cart': '🛍️ Agregar al Carrito', 'initiate_checkout': '💳 Checkout', 'lead': '📈 Leads', 'comment': '💬 Comentarios',
-                                                  'post_engagement': '📱 Interacciones', 'video_view': '🎬 Vistas de Video', 'post_reaction': '👍 Reacciones',
-                                                  'page_engagement': '📊 Engagements de Página', 'landing_page_view': '🌐 Visitas a Landing', 'onsite_conversion.messaging_first_reply': '✉️ Respuesta Inicial',
-                                                  'onsite_conversion.messaging_user_depth_2_message_send': '✉️ Msg de Nivel 2', 'onsite_conversion.messaging_user_depth_3_message_send': '✉️ Msg de Nivel 3',
-                                                  'onsite_conversion.messaging_user_depth_5_message_send': '✉️ Msg de Nivel 5', 'onsite_conversion.messaging_conversation_started_7d': '🗨️ Conversaciones Iniciadas (7d)',
-                                                  'onsite_conversion.messaging_conversation_replied_7d': '🗨️ Conversaciones Respondidas (7d)', 'onsite_conversion.total_messaging_connection': '🔗 Conexiones Totales',
-                                                  'onsite_conversion.messaging_business_calling_opt_in_sent': '📞 Opt-In Llamadas', 'onsite_conversion.messaging_welcome_message_view': '👋 Vieron Mensaje Bienvenida',
-                                                  'omni_landing_page_view': '🌍 Omni Landing'
+                                                  'like': 'Me gusta', 'link_click': 'Clics', 'view_content': 'Vistas', 'purchase': 'Compras',
+                                                  'add_to_cart': 'Agregar al Carrito', 'initiate_checkout': 'Checkout', 'lead': 'Leads', 'comment': 'Comentarios',
+                                                  'post_engagement': 'Interacciones', 'video_view': 'Vistas de Video', 'post_reaction': 'Reacciones',
+                                                  'page_engagement': 'Engagements de Pagina', 'landing_page_view': 'Visitas a Landing', 'onsite_conversion.messaging_first_reply': 'Respuesta Inicial',
+                                                  'onsite_conversion.messaging_user_depth_2_message_send': 'Msg de Nivel 2', 'onsite_conversion.messaging_user_depth_3_message_send': 'Msg de Nivel 3',
+                                                  'onsite_conversion.messaging_user_depth_5_message_send': 'Msg de Nivel 5', 'onsite_conversion.messaging_conversation_started_7d': 'Conversaciones Iniciadas (7d)',
+                                                  'onsite_conversion.messaging_conversation_replied_7d': 'Conversaciones Respondidas (7d)', 'onsite_conversion.total_messaging_connection': 'Conexiones Totales',
+                                                  'onsite_conversion.messaging_business_calling_opt_in_sent': 'Opt-In Llamadas', 'onsite_conversion.messaging_welcome_message_view': 'Vieron Mensaje Bienvenida',
+                                                  'omni_landing_page_view': 'Omni Landing'
                                                 }.get(action[0], action[0].replace('_', ' ').replace('.', ' ').capitalize())"/>
+                                                        <t t-set="action_icon" t-value="{
+                                                  'like': '/gl_geniolibre/static/src/img/iconos/icon_like.png',
+                                                  'link_click': '/gl_geniolibre/static/src/img/iconos/icon_click.png',
+                                                  'view_content': '/gl_geniolibre/static/src/img/iconos/icon_view.png',
+                                                  'purchase': '/gl_geniolibre/static/src/img/iconos/icon_purchase.png',
+                                                  'add_to_cart': '/gl_geniolibre/static/src/img/iconos/icon_cart.png',
+                                                  'initiate_checkout': '/gl_geniolibre/static/src/img/iconos/icon_checkout.png',
+                                                  'lead': '/gl_geniolibre/static/src/img/iconos/icon_lead.png',
+                                                  'comment': '/gl_geniolibre/static/src/img/iconos/icon_comment.png',
+                                                  'post_engagement': '/gl_geniolibre/static/src/img/iconos/icon_interaction.png',
+                                                  'video_view': '/gl_geniolibre/static/src/img/iconos/icon_play.png',
+                                                  'post_reaction': '/gl_geniolibre/static/src/img/iconos/icon_reaction.png',
+                                                  'page_engagement': '/gl_geniolibre/static/src/img/iconos/icon_interaction.png',
+                                                  'landing_page_view': '/gl_geniolibre/static/src/img/iconos/icon_landing.png',
+                                                  'onsite_conversion.messaging_first_reply': '/gl_geniolibre/static/src/img/iconos/icon_message_reply.png',
+                                                  'onsite_conversion.messaging_user_depth_2_message_send': '/gl_geniolibre/static/src/img/iconos/icon_message_level.png',
+                                                  'onsite_conversion.messaging_user_depth_3_message_send': '/gl_geniolibre/static/src/img/iconos/icon_message_level.png',
+                                                  'onsite_conversion.messaging_user_depth_5_message_send': '/gl_geniolibre/static/src/img/iconos/icon_message_level.png',
+                                                  'onsite_conversion.messaging_conversation_started_7d': '/gl_geniolibre/static/src/img/iconos/icon_conversation_started.png',
+                                                  'onsite_conversion.messaging_conversation_replied_7d': '/gl_geniolibre/static/src/img/iconos/icon_conversation_replied.png',
+                                                  'onsite_conversion.total_messaging_connection': '/gl_geniolibre/static/src/img/iconos/icon_connection.png',
+                                                  'onsite_conversion.messaging_business_calling_opt_in_sent': '/gl_geniolibre/static/src/img/iconos/icon_call.png',
+                                                  'onsite_conversion.messaging_welcome_message_view': '/gl_geniolibre/static/src/img/iconos/icon_welcome_message.png',
+                                                  'omni_landing_page_view': '/gl_geniolibre/static/src/img/iconos/icon_landing.png'
+                                                }.get(action[0])"/>
                                                         <div class="interaction-metric"
                                                              style="min-width: 150px; margin-right: 10px; margin-bottom: 0px!important;">
                                                             <div class="metric-label">
+                                                                <img t-if="action_icon" t-att-src="action_icon"
+                                                                     t-att-alt="action_name" class="report-icon"/>
                                                                 <t t-esc="action[1]"/>
                                                                 <t t-esc="action_name"/>
                                                             </div>
@@ -1073,47 +1184,90 @@
                             </table>
                         </div>
 
-                        <!-- Top Videos -->
+                        <!-- Top Posts -->
                         <div class="top-posts-container">
-                            <h3>Top Videos</h3>
+                            <h3>Top Posts</h3>
                             <table class="top-posts-table">
                                 <thead>
                                     <tr class="text-center header-tiktok">
                                         <th class="text-center content-header">Contenido</th>
+                                        <th class="text-center copy-header">Copy</th>
+                                        <th class="metric-header">Tipo</th>
                                         <th class="metric-header">Vistas</th>
-                                        <th class="metric-header">Likes</th>
-                                        <th class="metric-header">Comentarios</th>
-                                        <th class="metric-header">Compartidos</th>
+                                        <th class="interactions-header">Interacciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <t t-foreach="data['tiktok_data']['top_5_videos']" t-as="video">
-                                        <tr>
-                                            <td>
-                                                <div class="text-center post-content">
-                                                    <a style="color:black;" t-att-href="video['share_url']"
-                                                       target="_blank">
-                                                        <img t-att-src="video['cover_image_url']" class="post-image"/>
-                                                    </a>
+                                    <t t-if="data['tiktok_data'].get('top_posts')">
+                                        <t t-foreach="data['tiktok_data']['top_posts']" t-as="post">
+                                            <tr>
+                                                <td>
+                                                    <div class="text-center post-content">
+                                                        <t t-if="post.get('picture_url')">
+                                                            <a style="color:black;" t-att-href="post.get('post_url') or '#'"
+                                                               target="_blank">
+                                                                <img t-att-src="post['picture_url']" class="post-image"/>
+                                                            </a>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <div class="post-image-placeholder">Sin imagen</div>
+                                                        </t>
+                                                    </div>
+                                                </td>
+                                                <td>
                                                     <div class="post-message text-center">
-                                                        <a style="color:black;" t-att-href="video['share_url']"
+                                                        <a style="color:black;" t-att-href="post.get('post_url') or '#'"
                                                            target="_blank">
-                                                            <t t-esc="(video.get('video_description') or 'Sin descripción')[:50]"/>
+                                                            <t t-esc="(post.get('message') or 'Sin descripción')[:160]"/>
                                                         </a>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td class="metric-value">
-                                                <t t-esc="video['view_count']"/>
-                                            </td>
-                                            <td class="metric-value">
-                                                <t t-esc="video['like_count']"/>
-                                            </td>
-                                            <td class="metric-value">
-                                                <t t-esc="video['comment_count']"/>
-                                            </td>
-                                            <td class="metric-value">
-                                                <t t-esc="video['share_count']"/>
+                                                </td>
+                                                <td class="metric-value">
+                                                    <span class="report-icon-label">
+                                                        <img src="/gl_geniolibre/static/src/img/iconos/icon_video.png"
+                                                             alt="Video"
+                                                             class="report-icon"/>
+                                                        <t t-esc="post.get('post_type') or 'Video'"/>
+                                                    </span>
+                                                </td>
+                                                <td class="metric-value">
+                                                    <t t-esc="post.get('views', 0)"/>
+                                                </td>
+                                                <td class="metric-value">
+                                                    <div class="interactions-container">
+                                                        <div class="interaction-metric">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_like.png"
+                                                                 alt="Likes"
+                                                                 class="report-icon"/>
+                                                            <span class="likes-count">
+                                                                <t t-esc="post.get('likes', 0)"/> Likes
+                                                            </span>
+                                                        </div>
+                                                        <div class="interaction-metric">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_comment.png"
+                                                                 alt="Comentarios"
+                                                                 class="report-icon"/>
+                                                            <span class="comments-count">
+                                                                <t t-esc="post.get('comments', 0)"/> Comentarios
+                                                            </span>
+                                                        </div>
+                                                        <div class="interaction-metric">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_share.png"
+                                                                 alt="Compartidos"
+                                                                 class="report-icon"/>
+                                                            <span class="shares-count">
+                                                                <t t-esc="post.get('shares', 0)"/> Compartidos
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <tr>
+                                            <td colspan="5" class="text-center" style="padding: 16px;">
+                                                No se encontraron posts de TikTok para el período seleccionado.
                                             </td>
                                         </tr>
                                     </t>
@@ -1407,11 +1561,23 @@
                                 </thead>
                                 <tbody>
                                     <t t-foreach="data['linkedin_data']['post_type_summary'].items()" t-as="item">
-                                        <t t-set="tipo_publicacion" t-value="{'Post': '💬 Post'}.get(item[0], item[0])"/>
+                                        <t t-set="tipo_publicacion" t-value="{'Post': 'Post'}.get(item[0], item[0])"/>
+                                        <t t-set="tipo_publicacion_icon" t-value="{
+                                            'Video': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                                            'Imagen': '/gl_geniolibre/static/src/img/iconos/icon_image.png',
+                                            'Carrusel': '/gl_geniolibre/static/src/img/iconos/icon_carousel.png',
+                                            'Documento': '/gl_geniolibre/static/src/img/iconos/icon_album.png',
+                                            'Enlace': '/gl_geniolibre/static/src/img/iconos/icon_link.png',
+                                            'Post': '/gl_geniolibre/static/src/img/iconos/icon_status.png'
+                                        }.get(item[0])"/>
 
                                         <tr class="text-center">
                                             <td>
-                                                <t t-esc="tipo_publicacion"/>
+                                                <span class="report-icon-label">
+                                                    <img t-if="tipo_publicacion_icon" t-att-src="tipo_publicacion_icon"
+                                                         t-att-alt="tipo_publicacion" class="report-icon"/>
+                                                    <span t-esc="tipo_publicacion"/>
+                                                </span>
                                             </td>
                                             <td>
                                                 <t t-esc="item[1].get('posts', 0)"/>
@@ -1434,7 +1600,7 @@
                             </table>
                         </div>
 
-                        <!-- Top Posts (estructura conservada, datos no disponibles) -->
+                        <!-- Top Posts -->
                         <div class="top-posts-container">
                             <h3>Top Posts</h3>
                             <table class="top-posts-table" style="table-layout: fixed; width: 100%;">
@@ -1448,11 +1614,96 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr class="text-center">
-                                        <td colspan="5">
-                                            No hay posts destacados disponibles para este período.
-                                        </td>
-                                    </tr>
+                                    <t t-if="data['linkedin_data'].get('top_posts')">
+                                        <t t-foreach="data['linkedin_data']['top_posts']" t-as="post">
+                                            <t t-set="tipo_post_icon" t-value="{
+                                                'Video': '/gl_geniolibre/static/src/img/iconos/icon_video.png',
+                                                'Imagen': '/gl_geniolibre/static/src/img/iconos/icon_image.png',
+                                                'Carrusel': '/gl_geniolibre/static/src/img/iconos/icon_carousel.png',
+                                                'Documento': '/gl_geniolibre/static/src/img/iconos/icon_album.png',
+                                                'Enlace': '/gl_geniolibre/static/src/img/iconos/icon_link.png',
+                                                'Post': '/gl_geniolibre/static/src/img/iconos/icon_status.png'
+                                            }.get(post.get('type'))"/>
+                                            <tr>
+                                                <td style="width: 20%;">
+                                                    <div class="text-center post-content">
+                                                        <t t-if="post.get('picture_url')">
+                                                            <img t-att-src="post.get('picture_url')"
+                                                                 class="post-image"
+                                                                 style="width:90%;max-width:90%;height:auto;"
+                                                                 t-att-alt="post.get('message', 'Post de LinkedIn')"/>
+                                                        </t>
+                                                        <t t-if="not post.get('picture_url')">
+                                                            <div class="metric-label">Sin imagen</div>
+                                                        </t>
+                                                    </div>
+                                                </td>
+                                                <td class="post-type">
+                                                    <t t-esc="post.get('message', 'Sin descripción')"/>
+                                                </td>
+                                                <td class="post-type">
+                                                    <span class="report-icon-label">
+                                                        <img t-if="tipo_post_icon" t-att-src="tipo_post_icon"
+                                                             t-att-alt="post.get('type', 'Post')" class="report-icon"/>
+                                                        <span t-esc="post.get('type', 'Post')"/>
+                                                    </span>
+                                                </td>
+                                                <td class="metric-value">
+                                                    <t t-if="post.get('views', 0)">
+                                                        <t t-esc="post.get('views', 0)"/>
+                                                    </t>
+                                                    <t t-if="not post.get('views', 0)">N/A</t>
+                                                </td>
+                                                <td style="text-align: center; vertical-align: middle;">
+                                                    <div class="interactions-container">
+                                                        <div class="metric-label">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_reaction.png"
+                                                                 alt="Reacciones" class="report-icon"/>
+                                                            <t t-if="post.get('reactions', 0)">
+                                                                <t t-esc="post.get('reactions', 0)"/>
+                                                            </t>
+                                                            <t t-if="not post.get('reactions', 0)">N/A</t>
+                                                            Reacciones
+                                                        </div>
+                                                        <div class="metric-label">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_comment.png"
+                                                                 alt="Comentarios" class="report-icon"/>
+                                                            <t t-if="post.get('comments', 0)">
+                                                                <t t-esc="post.get('comments', 0)"/>
+                                                            </t>
+                                                            <t t-if="not post.get('comments', 0)">N/A</t>
+                                                            Comentarios
+                                                        </div>
+                                                        <div class="metric-label">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_share.png"
+                                                                 alt="Compartidos" class="report-icon"/>
+                                                            <t t-if="post.get('shares', 0)">
+                                                                <t t-esc="post.get('shares', 0)"/>
+                                                            </t>
+                                                            <t t-if="not post.get('shares', 0)">N/A</t>
+                                                            Compartidos
+                                                        </div>
+                                                        <div class="metric-label">
+                                                            <img src="/gl_geniolibre/static/src/img/iconos/icon_click.png"
+                                                                 alt="Clics" class="report-icon"/>
+                                                            <t t-if="post.get('clicks', 0)">
+                                                                <t t-esc="post.get('clicks', 0)"/>
+                                                            </t>
+                                                            <t t-if="not post.get('clicks', 0)">N/A</t>
+                                                            Clics
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </t>
+                                    <t t-if="not data['linkedin_data'].get('top_posts')">
+                                        <tr class="text-center">
+                                            <td colspan="5">
+                                                No hay posts destacados disponibles para este período.
+                                            </td>
+                                        </tr>
+                                    </t>
                                 </tbody>
                             </table>
                         </div>

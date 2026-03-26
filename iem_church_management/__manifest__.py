@@ -16,6 +16,8 @@
         "data/church_member_position_data.xml",
         "data/auth_signup_mail_templates.xml",
         "data/mail_security_layout.xml",
+        "report/church_member_registration_report.xml",
+        "report/church_member_registration_report_templates.xml",
         "views/church_member_view.xml",
         "views/church_member_list_views.xml",
         "views/financial_contribution_views.xml",

@@ -493,13 +493,13 @@ class ChurchMember(models.Model):
                 }
 
             try:
-                response = requests.post(
-                    "https://api.json.pe/api/dni",
+                response = requests.get(
+                    "https://api.decolecta.com/v1/reniec/dni",
                     headers={
                         "Authorization": f"Bearer {token}",
                         "Content-Type": "application/json",
                     },
-                    json={"dni": dni},
+                    params={"numero": dni},
                     timeout=10,
                 )
                 response.raise_for_status()
@@ -512,10 +512,9 @@ class ChurchMember(models.Model):
                     }
                 }
 
-            data = payload.get("data") or {}
-            nombres = (data.get("nombres") or "").strip()
-            ap_pat = (data.get("apellido_paterno") or "").strip()
-            ap_mat = (data.get("apellido_materno") or "").strip()
+            nombres = (payload.get("first_name") or "").strip()
+            ap_pat = (payload.get("first_last_name") or "").strip()
+            ap_mat = (payload.get("second_last_name") or "").strip()
             if not (nombres or ap_pat or ap_mat):
                 return {
                     "warning": {
@@ -562,13 +561,13 @@ class ChurchMember(models.Model):
             return self._notify(_("DNI"), _("Falta configurar el token de la API de DNI."), "warning")
 
         try:
-            response = requests.post(
-                "https://api.json.pe/api/dni",
+            response = requests.get(
+                "https://api.decolecta.com/v1/reniec/dni",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
                 },
-                json={"dni": dni},
+                params={"numero": dni},
                 timeout=10,
             )
             response.raise_for_status()
@@ -580,10 +579,9 @@ class ChurchMember(models.Model):
                 "danger",
             )
 
-        data = payload.get("data") or {}
-        nombres = (data.get("nombres") or "").strip()
-        ap_pat = (data.get("apellido_paterno") or "").strip()
-        ap_mat = (data.get("apellido_materno") or "").strip()
+        nombres = (payload.get("first_name") or "").strip()
+        ap_pat = (payload.get("first_last_name") or "").strip()
+        ap_mat = (payload.get("second_last_name") or "").strip()
         if not (nombres or ap_pat or ap_mat):
             return self._notify(
                 _("DNI"),

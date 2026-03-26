@@ -36,6 +36,10 @@
                             <field name="aws_access_key" title="API Key"/>
                             <label class="col-lg-3 mt-3" string="Clave de acceso secreta" for="aws_secret"/>
                             <field name="aws_secret" title="API Key"/>
+                            <label class="col-lg-3 mt-3" string="Bucket" for="aws_bucket"/>
+                            <field name="aws_bucket" title="AWS Bucket"/>
+                            <label class="col-lg-3 mt-3" string="Dominio público" for="aws_public_domain"/>
+                            <field name="aws_public_domain" title="AWS Dominio publico"/>
                             <div class="content-group">
                                 <div class="mt8">
                                     <button name="action_test_aws_connection"

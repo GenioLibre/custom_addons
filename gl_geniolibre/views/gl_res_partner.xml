@@ -104,12 +104,14 @@
                             <button name="action_reveal_password"
                                     type="object"
                                     icon="fa-eye"
+                                    title="Mostrar contrasena"
                                     class="btn-link"
                                     string=""
                                     invisible="show_password"/>
                             <button name="action_hide_password"
                                     type="object"
                                     icon="fa-eye-slash"
+                                    title="Ocultar contrasena"
                                     class="btn-link"
                                     string=""
                                     invisible="not show_password"/>

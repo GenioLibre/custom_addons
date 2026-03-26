@@ -1,20 +1,30 @@
 # -*- coding: utf-8 -*-:
 import datetime, time, pytz, requests
 import logging
+import base64
 
 import json
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone, time, date
 from collections import defaultdict
 from google.ads.googleads.client import GoogleAdsClient
+from io import BytesIO
+
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - fallback si Pillow no está instalado
+    Image = None
 
 API_VERSION = None
 LinkedIn_Version = "202505"
 _logger = logging.getLogger(__name__)
+
+if Image is None:
+    _logger.warning("Pillow no está instalado; la conversión WEBP->JPEG para TikTok no estará disponible.")
 
 
 class GlJsonViewerWizard(models.TransientModel):
@@ -929,10 +939,58 @@ class project_project(models.Model):
 
     def get_tiktok_data(self, since, until):
         try:
+            self.ensure_one()
             headers = {
                 "Authorization": f"Bearer {self.partner_tiktok_access_token}",
                 "Content-Type": "application/json"
             }
+
+            def _prepare_tiktok_image_url(image_url):
+                if not image_url:
+                    return image_url
+                if ".webp" in image_url.lower():
+                    return "/gl_geniolibre/tiktok/image_proxy?url=%s" % quote(image_url, safe="")
+                if ".webp" not in image_url.lower() or not Image:
+                    return image_url
+                try:
+                    image_resp = requests.get(image_url, timeout=20)
+                    image_resp.raise_for_status()
+                    image = Image.open(BytesIO(image_resp.content)).convert("RGB")
+                    output = BytesIO()
+                    image.save(output, format="JPEG", quality=85)
+                    encoded = base64.b64encode(output.getvalue()).decode("ascii")
+                    return f"data:image/jpeg;base64,{encoded}"
+                except (requests.exceptions.RequestException, OSError, ValueError, TypeError):
+                    return image_url
+
+            def _normalize_tiktok_video(video):
+                description = (
+                    video.get("video_description")
+                    or video.get("title")
+                    or "Sin descripción"
+                )
+                picture_url = _prepare_tiktok_image_url(video.get("cover_image_url"))
+                return {
+                    "post_id": video.get("id"),
+                    "id": video.get("id"),
+                    "picture_url": picture_url,
+                    "cover_image_url": video.get("cover_image_url"),
+                    "post_url": video.get("share_url"),
+                    "share_url": video.get("share_url"),
+                    "message": description,
+                    "video_description": description,
+                    "post_type": "Video",
+                    "type": "Video",
+                    "created_time": video.get("create_time"),
+                    "view_count": video.get("view_count", 0),
+                    "like_count": video.get("like_count", 0),
+                    "comment_count": video.get("comment_count", 0),
+                    "share_count": video.get("share_count", 0),
+                    "views": video.get("view_count", 0),
+                    "likes": video.get("like_count", 0),
+                    "comments": video.get("comment_count", 0),
+                    "shares": video.get("share_count", 0),
+                }
 
             # 1️⃣ Obtener info de usuario
             user_url = "https://open.tiktokapis.com/v2/user/info/"
@@ -940,7 +998,11 @@ class project_project(models.Model):
             user_resp = requests.get(user_url, headers=headers, params={
                 "fields": user_fields
             })
-            user_data = user_resp.json().get("data", {}).get("user", {})
+            if user_resp.status_code != 200:
+                raise ValueError(f"❌ Error HTTP {user_resp.status_code} en user/info: {user_resp.text}")
+
+            user_payload = user_resp.json()
+            user_data = user_payload.get("data", {}).get("user", {})
             if not user_data:
                 raise ValueError("❌ No se pudo obtener información del usuario.")
 
@@ -957,8 +1019,9 @@ class project_project(models.Model):
 
             all_videos = []
             has_more = True
+            reached_older_than_since = False
 
-            while has_more:
+            while has_more and not reached_older_than_since:
                 try:
                     payload = {
                         "max_count": 20,
@@ -972,21 +1035,28 @@ class project_project(models.Model):
                     if resp.status_code != 200:
                         raise ValueError(f"❌ Error HTTP {resp.status_code}: {resp.text}")
 
-                    data = resp.json().get("data", {})
-                    videos = data.get("videos", [])
+                    page_payload = resp.json()
+                    data = page_payload.get("data", {})
+                    videos = data.get("videos") or data.get("video_list") or []
 
                     # Filtrar por rango de fechas - TikTok create_time está en SEGUNDOS
-                    page_filtered = [v for v in videos if since <= v.get("create_time", 0) <= until
-                                     # ← ¡CORRECCIÓN IMPORTANTE!
-                                     ]
+                    page_filtered = [
+                        v for v in videos
+                        if since <= v.get("create_time", 0) <= until
+                    ]
 
                     all_videos.extend(page_filtered)
+
+                    if videos:
+                        oldest_create_time = min(v.get("create_time", 0) for v in videos if v.get("create_time"))
+                        if oldest_create_time and oldest_create_time < since:
+                            reached_older_than_since = True
 
                     has_more = data.get("has_more", False)
                     next_cursor = data.get("cursor")
 
                     # Verificar si debemos continuar
-                    if not has_more or not next_cursor:
+                    if reached_older_than_since or not has_more or not next_cursor:
                         break
 
                     # Verificar que el cursor esté avanzando (debe ser menor que el actual)
@@ -1007,11 +1077,14 @@ class project_project(models.Model):
                 "total_shares": sum(v.get("share_count", 0) for v in all_videos),
             }
 
-            top_5_videos = sorted(all_videos, key=lambda v: v.get("view_count", 0), reverse=True)[:5]
+            normalized_posts = [_normalize_tiktok_video(video) for video in all_videos]
+            top_5_videos = sorted(normalized_posts, key=lambda v: v.get("view_count", 0), reverse=True)[:5]
 
             return {
                 "user": user_data,
                 "resumen": resumen_videos,
+                "posts": normalized_posts,
+                "top_posts": top_5_videos,
                 "top_5_videos": top_5_videos
             }
 
@@ -1047,52 +1120,182 @@ class project_project(models.Model):
             "X-RestLi-Protocol-Version": "2.0.0",
             "Content-Type": "application/json",
         }
-        # ================================================
-        # 1️⃣ OBTENER SHARES (máximo 100 publicaciones)
-        # ================================================
 
-        # url_shares = f"https://api.linkedin.com/rest/shares?q=owners&owners=List(urn:li:organization:{org_id_raw})&count=100"
-        # url = f"https://api.linkedin.com/rest/organizations/{org_urn}"
-        # try:
-        #     r = requests.get(url, headers=headers, timeout=20)
-        #     # Ignorar 404 (no hay posts)
-        #     if r.status_code == 404:
-        #         return []
-        #
-        #     r.raise_for_status()
-        #     data = r.json()
-        #
-        #     return []
-        #
-        # from datetime import datetime
-        #
-        # posts = []
-        #
-        # for el in data.get("elements", []):
-        #     created = el.get("created", {}).get("time", 0)
-        #
-        #     # Rango de fechas
-        #     if not (since_ms <= created <= until_ms):
-        #         continue
-        #
-        #     # Fecha legible
-        #     created_dt = datetime.utcfromtimestamp(created / 1000)
-        #
-        #     # Texto del post
-        #     text = el.get("text", {}).get("text", "")
-        #
-        #     # Media (imágenes, videos, links)
-        #     media = el.get("content", {}).get("contentEntities", [])
-        #
-        #     posts.append({
-        #         "type": "SHARE",
-        #         "urn": el.get("id", ""),
-        #         "created_timestamp": created,
-        #         "created_date": str(created_dt),
-        #         "text": text,
-        #         "media": media,
-        #     })
-        #
+        def _linkedin_classify_post(post):
+            content = post.get("content") or {}
+
+            multi_image = content.get("multiImage") or {}
+            multi_images = multi_image.get("images") or []
+            if multi_images:
+                return "Carrusel" if len(multi_images) > 1 else "Imagen"
+
+            if content.get("carousel"):
+                return "Carrusel"
+            if content.get("article"):
+                return "Enlace"
+
+            media = content.get("media") or {}
+            media_id = (media.get("id") or "").lower()
+            if ":video:" in media_id:
+                return "Video"
+            if ":image:" in media_id:
+                return "Imagen"
+            if ":document:" in media_id:
+                return "Documento"
+
+            return "Post"
+
+        def _linkedin_extract_image_urn(post):
+            content = post.get("content") or {}
+
+            multi_image = content.get("multiImage") or {}
+            for image in multi_image.get("images", []) or []:
+                image_id = image.get("id")
+                if image_id and ":image:" in image_id.lower():
+                    return image_id
+
+            article = content.get("article") or {}
+            article_thumb = article.get("thumbnail") or {}
+            article_thumb_id = article_thumb.get("id")
+            if article_thumb_id and ":image:" in article_thumb_id.lower():
+                return article_thumb_id
+
+            media = content.get("media") or {}
+            media_id = media.get("id")
+            if media_id and ":image:" in media_id.lower():
+                return media_id
+
+            carousel = content.get("carousel") or {}
+            for card in carousel.get("cards", []) or []:
+                card_media = card.get("media") or {}
+                card_media_id = card_media.get("id")
+                if card_media_id and ":image:" in card_media_id.lower():
+                    return card_media_id
+
+            return ""
+
+        def _linkedin_fetch_posts():
+            url = "https://api.linkedin.com/rest/posts"
+            finder_headers = dict(headers)
+            finder_headers["X-RestLi-Method"] = "FINDER"
+            author_urn = f"urn:li:organization:{org_id_raw}"
+            posts = []
+            start = 0
+            count = 100
+            max_pages = 20
+            pages = 0
+
+            while pages < max_pages:
+                params = {
+                    "q": "author",
+                    "author": author_urn,
+                    "count": count,
+                    "start": start,
+                    "sortBy": "LAST_MODIFIED",
+                }
+                resp = requests.get(url, headers=finder_headers, params=params, timeout=20)
+                resp.raise_for_status()
+                data = resp.json()
+                elements = data.get("elements", []) or []
+                if not elements:
+                    break
+
+                for post in elements:
+                    published_at = int(post.get("publishedAt", 0) or 0)
+                    if published_at and since_ms <= published_at <= until_ms:
+                        lifecycle_state = post.get("lifecycleState")
+                        if lifecycle_state == "PUBLISHED":
+                            posts.append(post)
+
+                if len(elements) < count:
+                    break
+                start += count
+                pages += 1
+
+            return posts
+
+        def _linkedin_fetch_image_urls(image_urns):
+            image_map = {}
+            if not image_urns:
+                return image_map
+
+            urns = list(dict.fromkeys([urn for urn in image_urns if urn]))
+            chunk_size = 20
+            for i in range(0, len(urns), chunk_size):
+                chunk = urns[i:i + chunk_size]
+                ids_param = ",".join(quote(urn, safe="") for urn in chunk)
+                url = f"https://api.linkedin.com/rest/images?ids=List({ids_param})"
+                try:
+                    resp = requests.get(url, headers=headers, timeout=20)
+                    resp.raise_for_status()
+                    data = resp.json()
+                except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+                    _logger.warning("No se pudieron obtener imágenes de LinkedIn (%s): %s", self.id, e)
+                    continue
+
+                for urn, image_data in (data.get("results") or {}).items():
+                    if not isinstance(image_data, dict):
+                        continue
+                    download_url = ""
+                    if image_data.get("downloadUrl"):
+                        download_url = image_data["downloadUrl"]
+                    else:
+                        artifacts = (((image_data.get("downloadUrlExpiresAt")) and []) or [])
+                        vectors = (((image_data.get("data") or {}).get("com.linkedin.digitalmedia.mediaartifact.StillImage") or {}).get("storageSize") or {})
+                        _ = artifacts, vectors  # mantener compatibilidad sin usar
+                    image_map[urn] = download_url
+
+            return image_map
+
+        def _linkedin_fetch_post_statistics(post_urns):
+            stats_map = {}
+            urns = list(dict.fromkeys([urn for urn in post_urns if urn]))
+            if not urns:
+                return stats_map
+
+            share_urns = [urn for urn in urns if ":share:" in urn]
+
+            def _consume_stats_response(data):
+                for el in (data.get("elements") or []):
+                    urn = el.get("share") or el.get("ugcPost")
+                    if not urn:
+                        continue
+                    total_stats = el.get("totalShareStatistics", {}) or {}
+                    existing = stats_map.setdefault(urn, {
+                        "impressionCount": 0,
+                        "clickCount": 0,
+                        "engagement": 0.0,
+                        "likeCount": 0,
+                        "commentCount": 0,
+                        "shareCount": 0,
+                    })
+                    existing["impressionCount"] += int(total_stats.get("impressionCount", 0) or 0)
+                    existing["clickCount"] += int(total_stats.get("clickCount", 0) or 0)
+                    existing["engagement"] += float(total_stats.get("engagement", 0.0) or 0.0)
+                    existing["likeCount"] += int(total_stats.get("likeCount", 0) or 0)
+                    existing["commentCount"] += int(total_stats.get("commentCount", 0) or 0)
+                    existing["shareCount"] += int(total_stats.get("shareCount", 0) or 0)
+
+            chunk_size = 20
+
+            for i in range(0, len(share_urns), chunk_size):
+                chunk = share_urns[i:i + chunk_size]
+                if not chunk:
+                    continue
+                shares_param = ",".join(quote(urn, safe="") for urn in chunk)
+                url = (
+                    f"https://api.linkedin.com/rest/organizationalEntityShareStatistics"
+                    f"?q=organizationalEntity&organizationalEntity={org_urn}"
+                    f"&shares=List({shares_param})"
+                )
+                try:
+                    resp = requests.get(url, headers=headers, timeout=20)
+                    resp.raise_for_status()
+                    _consume_stats_response(resp.json())
+                except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as e:
+                    _logger.warning("No se pudieron obtener stats por share de LinkedIn (%s): %s", self.id, e)
+
+            return stats_map
 
         # --- 1. organizationPageStatistics ---
         page_views_total = 0
@@ -1101,7 +1304,7 @@ class project_project(models.Model):
         try:
             url = (f"https://api.linkedin.com/rest/organizationPageStatistics"
                    f"?q=organization&organization={org_urn}"
-                   f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms + 86400}),timeGranularityType:DAY)")
+                   f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms}),timeGranularityType:DAY)")
             resp = requests.get(url, headers=headers, timeout=20)
             resp.raise_for_status()
             data = resp.json()
@@ -1127,7 +1330,7 @@ class project_project(models.Model):
         try:
             url_shares = (f"https://api.linkedin.com/rest/organizationalEntityShareStatistics"
                           f"?q=organizationalEntity&organizationalEntity={org_urn}"
-                          f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms + 86400}),timeGranularityType:DAY)")
+                          f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms}),timeGranularityType:DAY)")
             resp_shares = requests.get(url_shares, headers=headers, timeout=20)
             resp_shares.raise_for_status()
             share_data = resp_shares.json()
@@ -1143,7 +1346,7 @@ class project_project(models.Model):
         try:
             url_follow_period = (f"https://api.linkedin.com/rest/organizationalEntityFollowerStatistics"
                                  f"?q=organizationalEntity&organizationalEntity={org_urn}"
-                                 f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms + 86400}),timeGranularityType:DAY)")
+                                 f"&timeIntervals=(timeRange:(start:{since_ms},end:{until_ms}),timeGranularityType:DAY)")
             resp_period = requests.get(url_follow_period, headers=headers, timeout=20)
             resp_period.raise_for_status()
             period_data = resp_period.json()
@@ -1180,52 +1383,73 @@ class project_project(models.Model):
         # 2️⃣ OPERACIONES Y PROCESAMIENTO
         # =====================================================================
 
-        total_impressions = 0
+        total_post_impressions = 0
         total_clicks = 0
         total_engagement = 0.0
         total_reach = 0
         tipo_publicaciones = {}
         posts = []
+        top_posts = []
 
-        elements = share_data.get("elements", [])
-        for el in elements:
-            stats = el.get("totalShareStatistics", {})
-            share_urn = el.get("share", "")
-            ugc_urn = ""
-            type_name = "Post"
+        stats_by_post = defaultdict(lambda: {
+            "impressionCount": 0,
+            "uniqueImpressionsCount": 0,
+            "clickCount": 0,
+            "engagement": 0.0,
+            "reactions": 0,
+            "commentCount": 0,
+            "shareCount": 0,
+            "timeRange": {},
+        })
 
-            value_obj = el.get("value") or el.get("reference") or el.get("activity") or {}
-            if isinstance(value_obj, dict):
-                possible_urn = value_obj.get("urn") or value_obj.get("entity") or ""
-                if "ugcPost" in str(possible_urn):
-                    ugc_urn = possible_urn
+        for el in share_data.get("elements", []):
+            stats = el.get("totalShareStatistics", {}) or {}
+            post_urn = el.get("ugcPost") or el.get("share") or ""
+            if not post_urn:
+                continue
 
-            media_type = (el.get("shareMediaCategory") or el.get("content", {}).get("shareMediaCategory") or "").lower()
+            reaction_counts = stats.get("reactionTypeCounts", {}) or {}
+            reactions_count = sum(int(v or 0) for v in reaction_counts.values()) if reaction_counts else int(
+                stats.get("likeCount", 0) or 0
+            )
 
-            if media_type:
-                if "video" in media_type:
-                    type_name = "Video"
-                elif "image" in media_type:
-                    type_name = "Imagen"
-                elif "carousel" in media_type or "document" in media_type:
-                    type_name = "Carrusel"
-                elif "article" in media_type:
-                    type_name = "Documento"
-                elif "link" in media_type:
-                    type_name = "Enlace"
+            agg = stats_by_post[post_urn]
+            agg["impressionCount"] += int(stats.get("impressionCount", 0) or 0)
+            agg["uniqueImpressionsCount"] += int(stats.get("uniqueImpressionsCount", 0) or 0)
+            agg["clickCount"] += int(stats.get("clickCount", 0) or 0)
+            agg["engagement"] += float(stats.get("engagement", 0.0) or 0.0)
+            agg["reactions"] += reactions_count
+            agg["commentCount"] += int(stats.get("commentCount", 0) or 0)
+            agg["shareCount"] += int(stats.get("shareCount", 0) or 0)
+            agg["timeRange"] = el.get("timeRange", {}) or agg["timeRange"]
 
-            time_range = el.get("timeRange", {})
-            unique_impressions = stats.get("uniqueImpressionsCount", 0)
-            click_count = stats.get("clickCount", 0)
-            engagement_rate = stats.get("engagement", 0.0)
+        linkedin_posts = _linkedin_fetch_posts()
+        post_stats_map = _linkedin_fetch_post_statistics([post.get("id") for post in linkedin_posts])
+        image_map = _linkedin_fetch_image_urls([_linkedin_extract_image_urn(post) for post in linkedin_posts])
 
-            total_impressions += stats.get("impressionCount", 0)
+        for post in linkedin_posts:
+            post_id = post.get("id", "")
+            if not post_id:
+                continue
+
+            stats = post_stats_map.get(post_id) or stats_by_post.get(post_id, {})
+            type_name = _linkedin_classify_post(post)
+            impression_count = int(stats.get("impressionCount", 0) or 0)
+            unique_impressions = int(stats.get("uniqueImpressionsCount", 0) or 0)
+            click_count = int(stats.get("clickCount", 0) or 0)
+            engagement_rate = float(stats.get("engagement", 0.0) or 0.0)
+            reactions_count = int(stats.get("reactions", stats.get("likeCount", 0)) or 0)
+            comment_count = int(stats.get("commentCount", 0) or 0)
+            share_count = int(stats.get("shareCount", 0) or 0)
+
+            total_post_impressions += impression_count
             total_clicks += click_count
             total_engagement += engagement_rate
-            total_reach += stats.get("impressionCount", 0)
+            total_reach += impression_count
 
             tipo_publicaciones.setdefault(type_name, {
                 "posts": 0,
+                "views": 0,
                 "reach": 0,
                 "organic_reach": 0,
                 "paid_reach": 0,
@@ -1237,42 +1461,67 @@ class project_project(models.Model):
                 "engagement_total": 0.0,
             })
             tipo_publicaciones[type_name]["posts"] += 1
-            tipo_publicaciones[type_name]["reach"] += stats.get("impressionCount", 0)
-            tipo_publicaciones[type_name]["reactions"] += stats.get("likeCount", 0)
-            tipo_publicaciones[type_name]["comments"] += stats.get("commentCount", 0)
-            tipo_publicaciones[type_name]["shares"] += stats.get("shareCount", 0)
+            tipo_publicaciones[type_name]["views"] += impression_count
+            tipo_publicaciones[type_name]["reach"] += impression_count
+            tipo_publicaciones[type_name]["reactions"] += reactions_count
+            tipo_publicaciones[type_name]["comments"] += comment_count
+            tipo_publicaciones[type_name]["shares"] += share_count
             tipo_publicaciones[type_name]["clicks"] += click_count
             tipo_publicaciones[type_name]["engagement_total"] += engagement_rate
-            tipo_publicaciones[type_name]["organic_reach"] += stats.get("impressionCount", 0)
+            tipo_publicaciones[type_name]["organic_reach"] += impression_count
             tipo_publicaciones[type_name]["paid_reach"] += 0
             tipo_publicaciones[type_name]["unique_impressions"] += unique_impressions
 
-            posts.append({
-                "content": f"Publicación {share_urn[-8:] if share_urn else ''}",
+            message = (post.get("commentary") or "").strip()
+            if not message:
+                article = (post.get("content") or {}).get("article") or {}
+                message = (article.get("title") or article.get("source") or "").strip()
+
+            image_urn = _linkedin_extract_image_urn(post)
+            picture_url = image_map.get(image_urn, "")
+
+            post_values = {
+                "content": f"Publicación {post_id[-8:] if post_id else ''}",
                 "type": type_name,
-                "reach": stats.get("impressionCount", 0),
-                "organic_reach": stats.get("impressionCount", 0),
+                "views": impression_count,
+                "reach": impression_count,
+                "organic_reach": impression_count,
                 "paid_reach": 0,
-                "reactions": stats.get("likeCount", 0),
-                "comments": stats.get("commentCount", 0),
-                "shares": stats.get("shareCount", 0),
+                "reactions": reactions_count,
+                "comments": comment_count,
+                "shares": share_count,
                 "clicks": click_count,
                 "unique_impressions": unique_impressions,
                 "engagement": engagement_rate,
-                "picture_url": "",
-                "message": f"Post {share_urn[-8:] if share_urn else ''}",
-                "timeRange": time_range,
-                "share_urn": share_urn,
-                "ugc_urn": ugc_urn,
-            })
+                "picture_url": picture_url,
+                "message": (message or f"Post {post_id[-8:] if post_id else ''}")[:220],
+                "timeRange": stats.get("timeRange", {}),
+                "post_id": post_id,
+                "share_urn": post_id if "share" in post_id else "",
+                "ugc_urn": post_id if "ugcPost" in post_id else "",
+                "published_at": int(post.get("publishedAt", 0) or 0),
+            }
+            posts.append(post_values)
+            top_posts.append(post_values)
 
-        total_impressions += page_views_total
+        top_posts.sort(key=lambda p: (p.get("views", 0), p.get("reactions", 0), p.get("comments", 0)), reverse=True)
+        top_posts = top_posts[:5]
 
-        for el in share_data.get("elements", []):
-            stats = el.get("totalShareStatistics", {}) or {}
-            reaction_counts = stats.get("reactionTypeCounts", {}) or {}
-            for val in reaction_counts.values():
-                tipo_publicaciones["Post"]["reactions"] += int(val or 0)
+        # Ocultar la categoria generica "Post" en el resumen cuando solo actua
+        # como fallback de clasificacion y no aporta metricas utiles.
+        generic_post_stats = tipo_publicaciones.get("Post")
+        if generic_post_stats and not any([
+            generic_post_stats.get("views", 0),
+            generic_post_stats.get("reach", 0),
+            generic_post_stats.get("reactions", 0),
+            generic_post_stats.get("comments", 0),
+            generic_post_stats.get("shares", 0),
+            generic_post_stats.get("clicks", 0),
+        ]):
+            tipo_publicaciones.pop("Post", None)
+
+        total_impressions = total_post_impressions + page_views_total
+        engagement_rate_total = round((total_engagement / len(posts)) * 100, 2) if posts else 0.0
 
         # =====================================================================
         # 3️⃣ ESTRUCTURA FINAL
@@ -1287,13 +1536,14 @@ class project_project(models.Model):
                 "page_new_followers": new_followers_period,
                 "page_unfollows": unfollows_period,
                 "page_impressions_unique": page_unique_views_total,
-                "page_post_engagements": round(total_engagement, 2),
-                "page_posts_impressions": total_impressions,
+                "page_post_engagements": engagement_rate_total,
+                "page_posts_impressions": total_post_impressions,
                 "page_custom_button_clicks": page_custom_button_clicks,
                 "page_clicks_total_from_shares": total_clicks,
             },
             "post_type_summary": tipo_publicaciones,
             "posts": posts,
+            "top_posts": top_posts,
             "organization_id": org_id_raw,
             "time_range": {
                 "since_ms": since_ms,
@@ -1819,12 +2069,21 @@ def merge_final_tiktok_data(chunk_results):
         total_comments = sum(res["resumen"]["total_comments"] for res in chunk_results if "resumen" in res)
         total_shares = sum(res["resumen"]["total_shares"] for res in chunk_results if "resumen" in res)
 
-        # Combinar todos los videos y sacar el top 5 global
-        all_videos = []
+        # Combinar todos los posts/videos y sacar el top 5 global sin duplicados
+        all_posts = []
         for res in chunk_results:
-            all_videos.extend(res.get("top_5_videos", []))
+            all_posts.extend(res.get("posts", []))
 
-        top_5_videos = sorted(all_videos, key=lambda v: v.get("view_count", 0), reverse=True)[:5]
+        posts_by_id = {}
+        for post in all_posts:
+            post_id = post.get("post_id") or post.get("id")
+            if not post_id:
+                continue
+            posts_by_id[post_id] = post
+
+        merged_posts = list(posts_by_id.values())
+        top_5_videos = sorted(merged_posts, key=lambda v: v.get("view_count", 0), reverse=True)[:5]
+
 
         merged = {
             "user": user_data,
@@ -1835,6 +2094,8 @@ def merge_final_tiktok_data(chunk_results):
                 "total_comments": total_comments,
                 "total_shares": total_shares,
             },
+            "posts": merged_posts,
+            "top_posts": top_5_videos,
             "top_5_videos": top_5_videos
         }
 
@@ -2136,6 +2397,7 @@ def merge_final_linkedin_data(chunk_results):
     final = {
         "totals": {},
         "post_type_summary": {},
+        "top_posts": [],
     }
     last_time_range = None
     organization_id = None
@@ -2168,9 +2430,23 @@ def merge_final_linkedin_data(chunk_results):
                 else:
                     final["post_type_summary"][type_name][mk] = mv
 
+        existing_ids = {post.get("post_id") for post in final["top_posts"]}
+        for post in chunk.get("top_posts", []) or chunk.get("posts", []):
+            post_id = post.get("post_id")
+            if not post_id or post_id in existing_ids:
+                continue
+            final["top_posts"].append(post)
+            existing_ids.add(post_id)
+
     # limpiar si no hay nada
-    if not final["totals"] and not final["post_type_summary"]:
+    if not final["totals"] and not final["post_type_summary"] and not final["top_posts"]:
         return {}
+
+    final["top_posts"] = sorted(
+        final["top_posts"],
+        key=lambda post: (post.get("views", 0), post.get("reactions", 0), post.get("comments", 0)),
+        reverse=True,
+    )[:5]
 
     if organization_id:
         final["organization_id"] = organization_id

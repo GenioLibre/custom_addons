@@ -402,6 +402,13 @@ class IemChurchMemberList(models.Model):
             extra_values_by_member=values_by_member,
         )
 
+    def action_print_member_registration_forms(self):
+        self.ensure_one()
+        members = self.member_line_ids.mapped("member_id")
+        if not members:
+            raise UserError(_("La lista no tiene miembros para imprimir."))
+        return self.env.ref("iem_church_management.action_report_church_member_registration").report_action(members)
+
 
 class IemChurchMemberListLine(models.Model):
     _name = "iem.church.member.list.line"

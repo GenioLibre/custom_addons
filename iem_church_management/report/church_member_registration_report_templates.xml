@@ -1,0 +1,429 @@
+<odoo>
+    <template id="report_church_member_registration">
+        <t t-call="web.html_container">
+            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+            <meta charset="UTF-8"/>
+            <style>
+                
+                * {
+                    box-sizing: border-box;
+                }
+                .article {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                .container,
+                .container-fluid,
+                .o_report_layout,
+                .o_report_layout_standard,
+                .o_main_table {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                .sheet {
+                    font-family: "Times New Roman", Georgia, serif;
+                    color: #111111;
+                    font-size: 16px;
+                    width: 100%;
+                    page-break-inside: avoid;
+                    margin: 0;
+                    padding: 0;
+                }
+                .topbar {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                .topbar td {
+                    vertical-align: top;
+                    border: none;
+                    padding: 0;
+                }
+                .logo-cell {
+                    width: 120px;
+                }
+                .title-cell {
+                    padding: 0 14px;
+                }
+                .photo-cell {
+                    width: 165px;
+                    text-align: center;
+                }
+                .logo-box {
+                    height: 120px;
+                    text-align: center;
+                    font-weight: 700;
+                    font-size: 18px;
+                    line-height: 1;
+                    margin-top: 10px;
+                    padding-top: 16px;
+                    overflow: hidden;
+                }
+                .logo-img {
+                    max-width: 100%;
+                    max-height: 110px;
+                    display: block;
+                    margin: 0 auto;
+                }
+                .title-area {
+                    text-align: center;
+                    padding-top: 6px;
+                }
+                .title-area h1,
+                .title-area h2 {
+                    margin: 0;
+                    font-weight: 700;
+                }
+                .title-area h1 {
+                    font-size: 24px;
+                }
+                .title-area h2 {
+                    font-size: 22px;
+                    margin-top: 4px;
+                }
+                .title-row {
+                    margin-top: 8px;
+                    font-size: 20px;
+                    font-weight: 700;
+                    text-align: center;
+                }
+                .photo-box {
+                    height: 150px;
+                    width: 150px;
+                    border: 1px solid #777777;
+                    text-align: center;
+                    vertical-align: middle;
+                    overflow: hidden;
+                    margin-left: auto;
+                    margin-right: auto;
+                    padding: 4px;
+                }
+                .photo-img {
+                    width: 140px;
+                    height: 140px;
+                    display: block;
+                    margin: 0 auto;
+                }
+                .report-no {
+                    margin-left: 16px;
+                }
+                .red-line {
+                    width: 100%;
+                    margin: 0 0 12px 0;
+                    font-size: 24px;
+                    font-weight: 700;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                .red-line td {
+                    border: none;
+                    padding: 0;
+                    vertical-align: middle;
+                }
+                .red-label {
+                    width: 80px;
+                }
+                .line {
+                    border-bottom: 2px solid #222222;
+                    height: 30px;
+                    width: 100%;
+                    padding-left: 18px;
+                    padding-bottom: 6px;
+                }
+                .red-name {
+                    font-size: 28px;
+                    font-weight: 700;
+                    line-height: 1;
+                }
+                .section {
+                    border: 1px solid #222222;
+                    margin-top: 10px;
+                }
+                .section-title {
+                    background: #f3f3f3;
+                    border-bottom: 2px solid #222222;
+                    font-size: 20px;
+                    font-weight: 700;
+                    padding: 4px 10px;
+                    text-transform: uppercase;
+                }
+                table.data-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                table.data-table td,
+                table.data-table th {
+                    border: 1px solid #555555;
+                    padding: 3px 8px;
+                    vertical-align: middle;
+                    font-size: 16px;
+                    line-height: 1.15;
+                    word-wrap: break-word;
+                }
+                table.data-table th {
+                    text-align: left;
+                    font-weight: 700;
+                }
+                .center {
+                    text-align: center !important;
+                }
+                .label {
+                    font-weight: 700;
+                    white-space: nowrap;
+                }
+                .field-line {
+                    display: block;
+                    border-bottom: 1px solid #444444;
+                    min-height: 1.3em;
+                    width: 100%;
+                }
+                .signature-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    margin: 80px 0 24px 0;
+                }
+                .signature-table td {
+                    width: 50%;
+                    border: none;
+                    text-align: center;
+                    padding: 0 40px;
+                    font-size: 18px;
+                }
+                .sig-line {
+                    border-bottom: 1px solid #333333;
+                    height: 26px;
+                    margin-bottom: 6px;
+                }
+                .footer-box {
+                    border: 1px solid #222222;
+                    margin-top: 8px;
+                }
+                .footer-head {
+                    font-size: 15px;
+                    font-weight: 700;
+                    border-bottom: 2px solid #222222;
+                    padding: 3px 10px;
+                }
+                .footer-head span {
+                    font-weight: 400;
+                }
+                .checklist div {
+                    border-top: 1px solid #555555;
+                    padding: 6px 10px;
+                    font-size: 12px;
+                }
+                .checklist div:first-child {
+                    border-top: none;
+                }
+            </style>
+            <t t-foreach="docs" t-as="o">
+                <t t-set="church_logo_attachment_id" t-value="int(o.env['ir.config_parameter'].sudo().get_param('iem.church_logo_attachment_id', 0) or 0)"/>
+                <t t-set="church_logo_attachment" t-value="o.env['ir.attachment'].sudo().browse(church_logo_attachment_id).exists() if church_logo_attachment_id else False"/>
+                <t t-set="last_parts" t-value="(o.last_name or '').split()"/>
+                <t t-set="apellido_paterno" t-value="last_parts[0] if last_parts else ''"/>
+                <t t-set="apellido_materno" t-value="' '.join(last_parts[1:]) if len(last_parts) &gt; 1 else ''"/>
+                <t t-set="nombres_completos" t-value="o.first_name or ''"/>
+                <t t-set="id_type_name" t-value="(o.l10n_latam_identification_type_id.name or '').upper() if o.l10n_latam_identification_type_id else ''"/>
+                <t t-set="dni_number" t-value="o.vat if 'DNI' in id_type_name else ''"/>
+                <t t-set="passport_number" t-value="o.vat if 'PASAPORTE' in id_type_name else ''"/>
+                <t t-set="gender_label" t-value="dict(o.partner_id._fields['gender'].selection).get(o.gender, '') if o.gender else ''"/>
+                <t t-set="marital_status_label" t-value="dict(o._fields['marital_status'].selection).get(o.marital_status, '') if o.marital_status else ''"/>
+                <t t-set="current_position_label" t-value="dict(o._fields['current_position'].selection).get(o.current_position, '') if o.current_position else ''"/>
+                <t t-set="child_list" t-value="o.child_ids[:4]"/>
+                <div class="sheet">
+                    <table class="topbar">
+                        <tr>
+                            <td class="logo-cell">
+                                <div class="logo-box">
+                                    <img
+                                        t-if="church_logo_attachment and church_logo_attachment.datas"
+                                        t-att-src="image_data_uri(church_logo_attachment.datas)"
+                                        class="logo-img"
+                                        alt="Logo"
+                                    />
+                                    <t t-else="">IEM<br/>Cielos<br/>Abiertos</t>
+                                </div>
+                            </td>
+                            <td class="title-cell">
+                                <div class="title-area">
+                                    <h1>IGLESIA EVANGELICA MISIONERA</h1>
+                                    <h2>"CIELOS ABIERTOS"</h2>
+                                    <div class="title-row">
+                                        <span>Ficha de Registro</span>
+                                        <span class="report-no">N° <t t-esc="o.member_code or ''"/></span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="photo-cell">
+                                <div class="photo-box">
+                                    <img
+                                        t-if="o.image_1920"
+                                        t-att-src="image_data_uri(o.image_1920)"
+                                        class="photo-img"
+                                        alt="Foto"
+                                    />
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="red-line">
+                        <tr>
+                            <td class="red-label">RED:</td>
+                            <td>
+                                <div class="line">
+                                    <span class="red-name" t-esc="o.red_id.display_name or ''"/>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="section">
+                        <div class="section-title">Datos Personales</div>
+                        <table class="data-table">
+                            <tr>
+                                <th class="center">Apellido Paterno</th>
+                                <th class="center">Apellido Materno</th>
+                                <th class="center">Nombres Completos</th>
+                            </tr>
+                            <tr>
+                                <td><span class="field-line" t-esc="apellido_paterno"/></td>
+                                <td><span class="field-line" t-esc="apellido_materno"/></td>
+                                <td><span class="field-line" t-esc="nombres_completos"/></td>
+                            </tr>
+                            <tr>
+                                <td><span class="label">D.N.I:</span> <span t-esc="dni_number"/></td>
+                                <td><span class="label">Pasaporte:</span> <span t-esc="passport_number"/></td>
+                                <td><span class="label">Celular:</span> <span t-esc="o.mobile or ''"/></td>
+                            </tr>
+                            <tr>
+                                <td><span class="label">Fijo:</span> <span t-esc="o.phone or ''"/></td>
+                                <td colspan="2"><span class="label">Dirección:</span> <span t-esc="o.street or ''"/></td>
+                            </tr>
+                            <tr>
+                                <td><span class="label">Departamento:</span> <span t-esc="o.state_id.name or ''"/></td>
+                                <td><span class="label">Provincia:</span> <span t-esc="o.city or ''"/></td>
+                                <td><span class="label">Distrito:</span> <span t-esc="o.district or ''"/></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><span class="label">Referencia:</span> <span t-esc="o.ref or ''"/></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><span class="label">Email:</span> <span t-esc="o.email or ''"/></td>
+                            </tr>
+                            <tr>
+                                <td><span class="label">Fecha de Nacimiento:</span> <span t-esc="o.birth_date.strftime('%d/%m/%Y') if o.birth_date else ''"/></td>
+                                <td><span class="label">Estado Civil:</span> <span t-esc="marital_status_label"/></td>
+                                <td><span class="label">Sexo:</span> <span t-esc="gender_label"/></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><span class="label">Grado de Instrucción:</span></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><span class="label">Ocupación:</span></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><span class="label">Lugar de Nacimiento:</span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="label">Departamento:</span></td>
+                                <td><span class="label">Provincia:</span></td>
+                                <td><span class="label">Distrito:</span></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><span class="label">Nacionalidad:</span> <span t-esc="o.country_id.name or ''"/></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">
+                                    <span class="label">Cargo actual:</span>
+                                    <span t-esc="current_position_label"/>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Datos de la Iglesia</div>
+                        <table class="data-table">
+                            <tr>
+                                <td style="width:60%"><span class="label">Discipulador:</span> <span t-esc="o.discipulado_id.discipulador_id.name or ''"/></td>
+                                <td rowspan="2" style="width:40%"><span class="label">Fecha de Conversión:</span> <span t-esc="o.spiritual_encounter_date.strftime('%d/%m/%Y') if o.spiritual_encounter_date else ''"/></td>
+                            </tr>
+                            <tr>
+                                <td><span class="label">Líder de Célula:</span> <span t-esc="o.celula_id.lider_id.name or ''"/></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Datos Familiares</div>
+                        <table class="data-table">
+                            <tr>
+                                <th style="width:12%"></th>
+                                <th style="width:42%">Nombres y Apellidos</th>
+                                <th style="width:18%" class="center">Nacimiento</th>
+                                <th style="width:18%" class="center">Bautismo</th>
+                                <th style="width:10%" class="center">Vive</th>
+                            </tr>
+                            <tr><td class="label">Padre</td><td></td><td></td><td></td><td></td></tr>
+                            <tr><td class="label">Madre</td><td></td><td></td><td></td><td></td></tr>
+                            <tr>
+                                <td class="label">Conyugue</td>
+                                <td><t t-esc="o.spouse_id.name or ''"/></td>
+                                <td></td><td></td><td></td>
+                            </tr>
+                            <tr>
+                                <td class="label">Hijo1</td>
+                                <td><t t-esc="child_list[0].name if len(child_list) &gt; 0 else ''"/></td>
+                                <td></td><td></td><td></td>
+                            </tr>
+                            <tr>
+                                <td class="label">Hijo2</td>
+                                <td><t t-esc="child_list[1].name if len(child_list) &gt; 1 else ''"/></td>
+                                <td></td><td></td><td></td>
+                            </tr>
+                            <tr>
+                                <td class="label">Hijo3</td>
+                                <td><t t-esc="child_list[2].name if len(child_list) &gt; 2 else ''"/></td>
+                                <td></td><td></td><td></td>
+                            </tr>
+                            <tr>
+                                <td class="label">Hijo4</td>
+                                <td><t t-esc="child_list[3].name if len(child_list) &gt; 3 else ''"/></td>
+                                <td></td><td></td><td></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <table class="signature-table">
+                        <tr>
+                            <td>
+                                <div class="sig-line"></div>
+                                <div>Firma del Pastor</div>
+                            </td>
+                            <td>
+                                <div class="sig-line"></div>
+                                <div>Firma del Miembro</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="footer-box">
+                        <div class="footer-head">DOCUMENTOS PERSONALES ARCHIVADOS DE BAUTISMO: <span>Traer todo en una mica A4</span></div>
+                        <div class="checklist">
+                            <div>(  ) Copia del DNI o Partida de Nacimiento (menor de edad)</div>
+                            <div>(  ) Copia del Certificado de Matrimonio</div>
+                            <div>(  ) Copia del Certificado de Bautismo (si viene de otra iglesia)</div>
+                            <div>(  ) 2 Fotos tamaño carnet con fondo blanco</div>
+                            <div>(  ) Otro documento (especificar):</div>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

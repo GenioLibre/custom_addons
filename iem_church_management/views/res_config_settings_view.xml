@@ -9,6 +9,12 @@
                     string="Church Management"
                     name="church_management"
                     logo="/iem_church_management/static/description/icon.png">
+                    <block title="Identidad de la iglesia">
+                        <div class="col-xs-12 row o_settings_container">
+                            <label class="col-lg-3" string="Logo de la iglesia" for="church_logo"/>
+                            <field name="church_logo" widget="image" class="oe_avatar"/>
+                        </div>
+                    </block>
                     <block title="API DNI">
                         <div class="col-xs-12 row o_settings_container">
                             <label class="col-lg-3" string="Token API DNI" for="dni_api_token"/>
