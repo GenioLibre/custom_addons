@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-:
-import random, re, requests, base64, boto3, logging
+import random, re, requests, base64, boto3, logging, html
 import subprocess
 import json
 import tempfile
 import base64
 import botocore
 import binascii
+from html.parser import HTMLParser
 
 from io import BytesIO
 from odoo.tools import html2plaintext
@@ -26,6 +27,64 @@ TIKTOK_PRIVACY_SELECTION = [
     ('FOLLOWER_OF_CREATOR', 'Seguidores del creador'),
     ('SELF_ONLY', 'Solo yo'),
 ]
+
+
+UNICODE_BOLD_MAP = {
+    **{chr(ord('A') + i): chr(0x1D400 + i) for i in range(26)},
+    **{chr(ord('a') + i): chr(0x1D41A + i) for i in range(26)},
+    **{chr(ord('0') + i): chr(0x1D7CE + i) for i in range(10)},
+}
+
+
+def _to_unicode_bold(text):
+    return "".join(UNICODE_BOLD_MAP.get(char, char) for char in (text or ""))
+
+
+class PublishTextHTMLParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.bold_level = 0
+
+    def _append(self, value):
+        if value:
+            self.parts.append(value)
+
+    def _append_newline(self):
+        if not self.parts:
+            return
+        if self.parts[-1] != "\n":
+            self.parts.append("\n")
+
+    def handle_starttag(self, tag, attrs):
+        tag = (tag or "").lower()
+        if tag in ("strong", "b"):
+            self.bold_level += 1
+        elif tag == "br":
+            self._append("\n")
+        elif tag in ("p", "div", "section", "article", "ul", "ol", "tr"):
+            self._append_newline()
+        elif tag == "li":
+            self._append_newline()
+            self._append("• ")
+
+    def handle_endtag(self, tag):
+        tag = (tag or "").lower()
+        if tag in ("strong", "b"):
+            self.bold_level = max(0, self.bold_level - 1)
+        elif tag in ("p", "div", "section", "article", "li", "ul", "ol", "tr"):
+            self._append_newline()
+
+    def handle_data(self, data):
+        text = data or ""
+        if self.bold_level:
+            text = _to_unicode_bold(text)
+        self._append(text)
+
+    def get_text(self):
+        text = "".join(self.parts)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        return text.strip()
 
 
 class red_social(models.Model):
@@ -104,7 +163,7 @@ class project_task(models.Model):
     ], string='Tipo de Publicación', default='otro', required=True)
     red_social_ids = fields.Many2many('red.social', string='Redes Sociales', )
     hashtags = fields.Text(string="Hashtags")
-    texto_en_diseno = fields.Text(string="Texto en diseño")
+    texto_en_diseno = fields.Html(string="Texto en diseño")
     objetivo = fields.Text(string="Objetivo del post")
 
     partner_id = fields.Many2one('res.partner')
@@ -835,6 +894,58 @@ class project_task(models.Model):
             rec.has_tiktok = 'TikTok' in names
             rec.has_linkedin = 'LinkedIn' in names
 
+    def _send_admin_flow_failure_email(self, network, error_message, stage=None):
+        self.ensure_one()
+
+        admin_user = self.env.ref("base.user_admin", raise_if_not_found=False)
+        if not admin_user:
+            admin_user = self.env["res.users"].sudo().search([("login", "=", "admin")], limit=1)
+
+        admin_email = admin_user.partner_id.email if admin_user and admin_user.partner_id else False
+        if not admin_email:
+            _logger.warning(
+                "No se pudo enviar correo de error para la tarea %s porque el Administrador no tiene email.",
+                self.id,
+            )
+            return False
+
+        subject = f"[GenioLibre] Error en {network} para la tarea {self.display_name}"
+        stage_label = stage or "flujo de publicacion"
+        project_name = self.project_id.display_name if self.project_id else "Sin proyecto"
+        partner_name = self.partner_id.display_name if self.partner_id else "Sin cliente"
+        publish_date = self.fecha_publicacion or "Sin fecha"
+
+        body_html = """
+            <p>Se detecto un error en un flujo de publicacion.</p>
+            <ul>
+                <li><strong>Red:</strong> {network}</li>
+                <li><strong>Etapa:</strong> {stage}</li>
+                <li><strong>Tarea:</strong> {task}</li>
+                <li><strong>Proyecto:</strong> {project}</li>
+                <li><strong>Cliente:</strong> {partner}</li>
+                <li><strong>Fecha de publicacion:</strong> {publish_date}</li>
+            </ul>
+            <p><strong>Detalle del error:</strong></p>
+            <pre>{error}</pre>
+        """.format(
+            network=html.escape(str(network or "")),
+            stage=html.escape(str(stage_label)),
+            task=html.escape(str(self.display_name or self.name or self.id)),
+            project=html.escape(str(project_name)),
+            partner=html.escape(str(partner_name)),
+            publish_date=html.escape(str(publish_date)),
+            error=html.escape(str(error_message or "Error no especificado")),
+        )
+
+        mail_values = {
+            "subject": subject,
+            "email_to": admin_email,
+            "body_html": body_html,
+            "auto_delete": False,
+        }
+        self.env["mail.mail"].sudo().create(mail_values).send()
+        return True
+
     def unlink(self):
         for task in self:
             if task.tag_ids.filtered(lambda tag: tag.name.lower() == 'plantilla'):
@@ -1020,7 +1131,9 @@ class project_task(models.Model):
         return True
 
     def _prepare_text(self):
-        plain_description = html2plaintext(self.description or '')
+        parser = PublishTextHTMLParser()
+        parser.feed(self.description or '')
+        plain_description = parser.get_text()
         plain_hashtags = html2plaintext(self.hashtags or '')
         paragraphs = [p.strip() for p in plain_description.split('\n') if p.strip()]
         formatted_description = '\n\n'.join(paragraphs)
@@ -1223,6 +1336,9 @@ class project_task(models.Model):
 
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             _logger.error("Error en revisar_post (%s): %s", self.id, e)
+            self.fb_estado = "Error"
+            self.fb_error = str(e)
+            self._send_admin_flow_failure_email("Facebook", str(e), stage="revision del flow")
 
             if from_cron:
                 raise
@@ -1276,6 +1392,7 @@ class project_task(models.Model):
                 if status_code == "ERROR":
                     self.ig_estado = "Error"
                     self.ig_error = f"Container ERROR: {sdata}"
+                    self._send_admin_flow_failure_email("Instagram", self.ig_error, stage="revision del flow")
                     if from_cron:
                         raise ValidationError(self.ig_error)
                     return {
@@ -1303,6 +1420,7 @@ class project_task(models.Model):
                 if not ig_media_id:
                     self.ig_estado = "Error"
                     self.ig_error = f"media_publish sin id: {pdata}"
+                    self._send_admin_flow_failure_email("Instagram", self.ig_error, stage="publicacion del flow")
                     if from_cron:
                         raise ValidationError(self.ig_error)
                     return {
@@ -1347,6 +1465,7 @@ class project_task(models.Model):
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.ig_estado = "Error"
             self.ig_error = str(e)
+            self._send_admin_flow_failure_email("Instagram", self.ig_error, stage="revision del flow")
             if from_cron:
                 raise
             return {
@@ -1400,6 +1519,7 @@ class project_task(models.Model):
                 if status in ("ERROR", "FAILED", "PUBLISH_FAILED"):
                     self.tt_estado = "Error"
                     self.tt_error = f"TikTok status error: {data}"
+                    self._send_admin_flow_failure_email("TikTok", self.tt_error, stage="revision del flow")
                     if from_cron:
                         raise ValidationError(self.tt_error)
                     return {
@@ -1445,6 +1565,7 @@ class project_task(models.Model):
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.tt_estado = "Error"
             self.tt_error = str(e)
+            self._send_admin_flow_failure_email("TikTok", self.tt_error, stage="revision del flow")
             if from_cron:
                 raise
             return {
@@ -1488,6 +1609,7 @@ class project_task(models.Model):
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.li_estado = "Error"
             self.li_error = str(e)
+            self._send_admin_flow_failure_email("LinkedIn", self.li_error, stage="revision del flow")
             if from_cron:
                 raise
             return {
@@ -2107,6 +2229,7 @@ class project_task(models.Model):
                     published_on.append("Facebook")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"fb_estado": "Error", "fb_error": str(e)})
+                    self._send_admin_flow_failure_email("Facebook", str(e), stage="inicio de publicacion")
                     errors.append(f"Facebook: {str(e)}")
 
             # Instagram
@@ -2119,6 +2242,7 @@ class project_task(models.Model):
                     published_on.append("Instagram")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"ig_estado": "Error", "ig_error": str(e)})
+                    self._send_admin_flow_failure_email("Instagram", str(e), stage="inicio de publicacion")
                     errors.append(f"Instagram: {str(e)}")
 
             # TikTok
@@ -2136,9 +2260,11 @@ class project_task(models.Model):
                         published_on.append("TikTok")
                     else:
                         self.write({"tt_estado": "Error", "tt_error": "No se recibió respuesta del servidor"})
+                        self._send_admin_flow_failure_email("TikTok", "No se recibió respuesta del servidor", stage="inicio de publicacion")
                         errors.append("TikTok: No se recibió respuesta del servidor")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"tt_estado": "Error", "tt_error": str(e)})
+                    self._send_admin_flow_failure_email("TikTok", str(e), stage="inicio de publicacion")
                     errors.append(f"TikTok: {str(e)}")
 
             # LinkedIn
@@ -2155,9 +2281,11 @@ class project_task(models.Model):
                         published_on.append("LinkedIn")
                     else:
                         self.write({"li_estado": "Error", "li_error": "No se recibió respuesta del servidor"})
+                        self._send_admin_flow_failure_email("LinkedIn", "No se recibió respuesta del servidor", stage="inicio de publicacion")
                         errors.append("LinkedIn: No se recibió respuesta del servidor")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
                     self.write({"li_estado": "Error", "li_error": str(e)})
+                    self._send_admin_flow_failure_email("LinkedIn", str(e), stage="inicio de publicacion")
                     errors.append(f"LinkedIn: {str(e)}")
 
             # Resultado final
@@ -2225,6 +2353,7 @@ class project_task(models.Model):
                     update_vals.update({"tt_estado": "Error", "tt_error": error_detalle})
                 if update_vals:
                     self.write(update_vals)
+                self._send_admin_flow_failure_email("Multiples redes", error_detalle, stage="inicio de publicacion")
 
                 raise ValidationError("No se pudo iniciar el proceso en ninguna red social:\n" + error_detalle)
 
@@ -2241,6 +2370,7 @@ class project_task(models.Model):
                 update_vals.update({"tt_estado": "Error", "tt_error": error_detalle})
             if update_vals:
                 self.write(update_vals)
+            self._send_admin_flow_failure_email("Multiples redes", error_detalle, stage="proceso de publicacion")
             raise ValidationError(f"Error en el proceso de publicación: {str(e)}")
 
 
