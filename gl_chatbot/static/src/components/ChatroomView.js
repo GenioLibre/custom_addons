@@ -10,16 +10,19 @@ export class ChatroomView extends Component {
 
     setup() {
         this.orm = useService("orm");
+        this.notification = useService("notification");
         this.state = useState({
             chatrooms: [],
             selected: null,
             messages: [],
+            showEmojiPicker: false,
             attachedFile: null,
             fileName: "",
             filePreview: null,
             fileType: null,
             partnerData: null,
             partnerOrders: [],
+            loadingPartner: false,
             activeTab: 'reply',
             suggestedMessages: [],
             selectedMessage: null
@@ -72,6 +75,7 @@ export class ChatroomView extends Component {
 
     // Cargar datos del partner y sus documentos de venta
     async _loadPartnerInfo(partnerId) {
+        this.state.loadingPartner = true;
         try {
             const partnerData = await this.orm.read(
                 'res.partner',
@@ -91,6 +95,8 @@ export class ChatroomView extends Component {
             console.error("[ERROR] Error al obtener info del partner:", error);
             this.state.partnerData = null;
             this.state.partnerOrders = [];
+        } finally {
+            this.state.loadingPartner = false;
         }
     }
 
@@ -116,28 +122,129 @@ export class ChatroomView extends Component {
         return messages;
     }
 
+    async _refreshCurrentChatroom() {
+        if (!this.state.selected) {
+            return;
+        }
+        this.state.messages = await this._loadMessages(this.state.selected);
+
+        const updatedChatrooms = await this.orm.call(
+            'whatsapp.chatroom',
+            'search_read',
+            [[['state', '=', 'open']]]
+        );
+        this.state.chatrooms = updatedChatrooms;
+        this.state.selected = updatedChatrooms.find(chat => chat.id === this.state.selected.id) || this.state.selected;
+    }
+
+    async _createOutgoingMessage(message, sender = 'user') {
+        if (!this.state.selected) {
+            this.notification.add("Selecciona un chat antes de enviar un mensaje.", {
+                type: "warning",
+            });
+            return false;
+        }
+
+        const cleanMessage = (message || "").trim();
+        if (!cleanMessage) {
+            this.notification.add("Escribe un mensaje antes de enviar.", {
+                type: "warning",
+            });
+            return false;
+        }
+
+        try {
+            await this.orm.call(
+                'whatsapp.chatroom',
+                'create_outgoing_message',
+                [[this.state.selected.id], cleanMessage, sender, 'text']
+            );
+            await this._refreshCurrentChatroom();
+            return true;
+        } catch (error) {
+            console.error("[ERROR] Error al guardar el mensaje:", error);
+            this.notification.add("No se pudo registrar el mensaje en el chat.", {
+                type: "danger",
+            });
+            return false;
+        }
+    }
+
     // Respuestas sugeridas
     handleSelectMessage(ev) {
         const messageId = parseInt(ev.target.value);
         this.state.selectedMessage = this.state.suggestedMessages.find(msg => msg.id === messageId) || null;
     }
 
-    sendSuggestedMessage() {
-        if (this.state.selectedMessage) {
-            alert(this.state.selectedMessage.contenido);
-        } else {
-            alert("Por favor selecciona un mensaje");
+    async sendSuggestedMessage() {
+        if (!this.state.selected) {
+            this.notification.add("Selecciona un chat antes de enviar una respuesta.", {
+                type: "warning",
+            });
+            return;
+        }
+        if (!this.state.selectedMessage) {
+            this.notification.add("Por favor selecciona un mensaje.", {
+                type: "warning",
+            });
+            return;
+        }
+
+        try {
+            const sent = await this._createOutgoingMessage(this.state.selectedMessage.contenido, 'bot');
+            if (sent) {
+                this.notification.add("Respuesta registrada en el chat.", {
+                    type: "success",
+                });
+            }
+        } catch (error) {
+            console.error("[ERROR] Error al guardar la respuesta sugerida:", error);
+            this.notification.add("No se pudo registrar la respuesta en el chat.", {
+                type: "danger",
+            });
         }
     }
 
-    sendCustomMessage() {
+    async sendCustomMessage() {
         const message = this.customMessageInput.el.value.trim();
         if (message) {
-            alert(`Mensaje a enviar: ${message}`);
-            this.customMessageInput.el.value = "";
+            const sent = await this._createOutgoingMessage(message, 'bot');
+            if (sent) {
+                this.customMessageInput.el.value = "";
+                this.notification.add("Mensaje sugerido registrado en el chat.", {
+                    type: "success",
+                });
+            }
         } else {
-            alert("Por favor escribe un mensaje");
+            this.notification.add("Por favor escribe un mensaje.", {
+                type: "warning",
+            });
         }
+    }
+
+    async sendMainMessage() {
+        const message = this.inputRef.el ? this.inputRef.el.value.trim() : "";
+        if (message) {
+            const sent = await this._createOutgoingMessage(message, 'user');
+            if (sent) {
+                this.inputRef.el.value = "";
+                this.state.showEmojiPicker = false;
+                this.notification.add("Mensaje enviado al chat.", {
+                    type: "success",
+                });
+            }
+        } else {
+            this.notification.add("Por favor escribe un mensaje.", {
+                type: "warning",
+            });
+        }
+    }
+
+    async onMainFormSubmit(ev) {
+        if (ev) {
+            ev.preventDefault();
+        }
+        await this.sendMainMessage();
     }
 
     // Adjuntar archivos

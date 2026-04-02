@@ -69,7 +69,7 @@ Estilos segunda Columna
     flex-direction: column;
     height: 97%;
     width:513px;
-    background: url('/gl_tithor/static/src/img/fondo_whatsapp.jpg') no-repeat center center;
+    background: url('/gl_chatbot/static/src/img/fondo_whatsapp.jpg') no-repeat center center;
     background-size: cover;
     padding: 10px;
     position: relative;
@@ -115,7 +115,13 @@ Estilos segunda Columna
 
 /* Cliente (lado izquierdo, fondo gris claro) */
 .chatroom-msg-client {
-    @extend .chatroom-message-item;
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 75%;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+    width: 400px;
     background: white;
     align-self: flex-start;
     color: #000;
@@ -123,7 +129,13 @@ Estilos segunda Columna
 
 /* Usuario interno / agente (lado derecho, fondo verde claro) */
 .chatroom-msg-user {
-    @extend .chatroom-message-item;
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 75%;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+    width: 400px;
     background: #dcf8c6;
     align-self: flex-end;
     color: #000;
@@ -131,7 +143,13 @@ Estilos segunda Columna
 
 /* Bot (fondo azul claro) */
 .chatroom-msg-bot {
-    @extend .chatroom-message-item;
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 75%;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+    width: 400px;
     background: #e6f3ff;
     align-self: flex-end;
     color: #004c99;

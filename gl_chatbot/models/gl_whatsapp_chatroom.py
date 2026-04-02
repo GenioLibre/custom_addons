@@ -33,6 +33,26 @@ class WhatsappChatroom(models.Model):
         for record in self:
             record.state = 'open'
 
+    def create_outgoing_message(self, message_text, sender='bot', message_type='text'):
+        self.ensure_one()
+        timestamp = fields.Datetime.now()
+
+        self.write({
+            'last_message': message_text,
+            'last_message_time': timestamp,
+            'state': 'open',
+        })
+
+        message = self.env['whatsapp.chatmessage'].create({
+            'chatroom_id': self.id,
+            'sender': sender,
+            'message': message_text,
+            'message_type': message_type,
+            'timestamp': timestamp,
+        })
+
+        return message.id
+
     @api.model
     def handle_incoming_message(self, phone_number, message_text, message_type='text', sender='client', timestamp=None, external_message_id=None, media_url=None, media_filename=None, media_mimetype=None):
         if not timestamp:
@@ -42,7 +62,7 @@ class WhatsappChatroom(models.Model):
             ('phone_number', '=', phone_number)
         ], limit=1)
         if not chatroom:
-            chatroom.create({
+            chatroom = self.create({
                 'name': f"Chat con {phone_number}",
                 'phone_number': phone_number,
                 'state': 'open',

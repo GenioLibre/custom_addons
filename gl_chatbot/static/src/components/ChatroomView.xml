@@ -15,7 +15,7 @@
                                           t-esc="chat.last_message_time ? (new Date(chat.last_message_time)).toLocaleTimeString() : ''"/>
                                 </div>
                                 <div class="chatroom-last-msg"
-                                     t-esc="chat.last_message.length > 40 ? chat.last_message.slice(0, 40) + '...' : chat.last_message"/>
+                                     t-esc="chat.last_message ? (chat.last_message.length > 40 ? chat.last_message.slice(0, 40) + '...' : chat.last_message) : ''"/>
                             </li>
                         </t>
                     </t>
@@ -48,7 +48,7 @@
 
                     <!-- Formulario para enviar mensajes -->
                     <div class="chatroom-message-form">
-                        <form t-attf-action="#" onsubmit="return false;" class="oe_chat_form">
+                        <form t-attf-action="#" t-on-submit="onMainFormSubmit" class="oe_chat_form">
                             <div class="chatroom-input-row">
                                 <input t-ref="inputMessage"
                                        type="text"
@@ -66,34 +66,34 @@
                                 <!-- PopUp Emojis -->
                                 <t t-if="state.showEmojiPicker">
                                     <div id="emoji-picker" class="chatroom-emoji-picker">
-                                        <span t-on-click="() => insertEmoji('😀')">😀</span>
-                                        <span t-on-click="() => insertEmoji('❤️')">❤️</span>
-                                        <span t-on-click="() => insertEmoji('😍')">😍</span>
-                                        <span t-on-click="() => insertEmoji('🤣')">🤣</span>
-                                        <span t-on-click="() => insertEmoji('😊')">😊</span>
-                                        <span t-on-click="() => insertEmoji('🙏')">🙏</span>
-                                        <span t-on-click="() => insertEmoji('😭')">😭</span>
-                                        <span t-on-click="() => insertEmoji('🥰')">🥰</span>
-                                        <span t-on-click="() => insertEmoji('😘')">😘</span>
-                                        <span t-on-click="() => insertEmoji('😅')">😅</span>
-                                        <span t-on-click="() => insertEmoji('👍')">👍</span>
-                                        <span t-on-click="() => insertEmoji('🔥')">🔥</span>
-                                        <span t-on-click="() => insertEmoji('💕')">💕</span>
-                                        <span t-on-click="() => insertEmoji('😎')">😎</span>
-                                        <span t-on-click="() => insertEmoji('💔')">💔</span>
-                                        <span t-on-click="() => insertEmoji('🤔')">🤔</span>
-                                        <span t-on-click="() => insertEmoji('😁')">😁</span>
-                                        <span t-on-click="() => insertEmoji('😢')">😢</span>
-                                        <span t-on-click="() => insertEmoji('🎉')">🎉</span>
-                                        <span t-on-click="() => insertEmoji('🥺')">🥺</span>
-                                        <span t-on-click="() => insertEmoji('😆')">😆</span>
-                                        <span t-on-click="() => insertEmoji('😋')">😋</span>
-                                        <span t-on-click="() => insertEmoji('🤗')">🤗</span>
-                                        <span t-on-click="() => insertEmoji('😜')">😜</span>
-                                        <span t-on-click="() => insertEmoji('😡')">😡</span>
-                                        <span t-on-click="() => insertEmoji('🤩')">🤩</span>
-                                        <span t-on-click="() => insertEmoji('🙈')">🙈</span>
-                                        <span t-on-click="() => insertEmoji('😴')">😴</span>
+                                        <span t-on-click="() => this.insertEmoji('😀')">😀</span>
+                                        <span t-on-click="() => this.insertEmoji('❤️')">❤️</span>
+                                        <span t-on-click="() => this.insertEmoji('😍')">😍</span>
+                                        <span t-on-click="() => this.insertEmoji('🤣')">🤣</span>
+                                        <span t-on-click="() => this.insertEmoji('😊')">😊</span>
+                                        <span t-on-click="() => this.insertEmoji('🙏')">🙏</span>
+                                        <span t-on-click="() => this.insertEmoji('😭')">😭</span>
+                                        <span t-on-click="() => this.insertEmoji('🥰')">🥰</span>
+                                        <span t-on-click="() => this.insertEmoji('😘')">😘</span>
+                                        <span t-on-click="() => this.insertEmoji('😅')">😅</span>
+                                        <span t-on-click="() => this.insertEmoji('👍')">👍</span>
+                                        <span t-on-click="() => this.insertEmoji('🔥')">🔥</span>
+                                        <span t-on-click="() => this.insertEmoji('💕')">💕</span>
+                                        <span t-on-click="() => this.insertEmoji('😎')">😎</span>
+                                        <span t-on-click="() => this.insertEmoji('💔')">💔</span>
+                                        <span t-on-click="() => this.insertEmoji('🤔')">🤔</span>
+                                        <span t-on-click="() => this.insertEmoji('😁')">😁</span>
+                                        <span t-on-click="() => this.insertEmoji('😢')">😢</span>
+                                        <span t-on-click="() => this.insertEmoji('🎉')">🎉</span>
+                                        <span t-on-click="() => this.insertEmoji('🥺')">🥺</span>
+                                        <span t-on-click="() => this.insertEmoji('😆')">😆</span>
+                                        <span t-on-click="() => this.insertEmoji('😋')">😋</span>
+                                        <span t-on-click="() => this.insertEmoji('🤗')">🤗</span>
+                                        <span t-on-click="() => this.insertEmoji('😜')">😜</span>
+                                        <span t-on-click="() => this.insertEmoji('😡')">😡</span>
+                                        <span t-on-click="() => this.insertEmoji('🤩')">🤩</span>
+                                        <span t-on-click="() => this.insertEmoji('🙈')">🙈</span>
+                                        <span t-on-click="() => this.insertEmoji('😴')">😴</span>
                                     </div>
                                 </t>
                                 <!-- Adjuntar archivos -->
@@ -276,7 +276,7 @@
             <i class="fa fa-file-text-o me-1 text-muted"/>
             <strong t-esc="order.name"/>
             <small class="text-muted">
-                – <t t-esc="STATE_LABELS[order.state] || order.state"/>
+                - <t t-esc="this.STATE_LABELS[order.state] || order.state"/>
             </small>
         </div>
 
@@ -309,7 +309,7 @@
                                     <!-- Mostrar mensaje solo cuando sabemos que no hay partner -->
                                 <div class="alert alert-warning d-flex flex-column gap-2"
                                      t-att-class="{ 'd-none': state.loadingPartner }">
-                                    ⚠ No hay cliente asociado. Asigna un contacto para ver sus detalles.
+                                    No hay cliente asociado. Asigna un contacto para ver sus detalles.
 
                                     <div class="d-flex gap-2 mt-2">
                                         <!-- Seleccionar contacto existente -->

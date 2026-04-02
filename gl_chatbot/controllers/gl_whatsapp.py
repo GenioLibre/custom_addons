@@ -5,7 +5,44 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
+
 class WhatsAppBotController(http.Controller):
+    def _load_json_payload(self):
+        raw_data = request.httprequest.data.decode('utf-8') if request.httprequest.data else '{}'
+        return json.loads(raw_data or '{}')
+
+    def _register_local_message(self, payload):
+        phone_number = payload.get('phone_number') or payload.get('from')
+        message_text = payload.get('message') or payload.get('message_text')
+        message_type = payload.get('message_type', 'text')
+        sender = payload.get('sender', 'client')
+        timestamp = payload.get('timestamp')
+
+        if not phone_number:
+            return {
+                'ok': False,
+                'error': "El campo 'phone_number' es obligatorio.",
+            }, 400
+
+        if not message_text:
+            return {
+                'ok': False,
+                'error': "El campo 'message' es obligatorio.",
+            }, 400
+
+        chatroom_id = request.env['whatsapp.chatroom'].sudo().handle_incoming_message(
+            phone_number=phone_number,
+            message_text=message_text,
+            message_type=message_type,
+            sender=sender,
+            timestamp=timestamp,
+        )
+        return {
+            'ok': True,
+            'chatroom_id': chatroom_id,
+            'phone_number': phone_number,
+            'message': message_text,
+        }, 200
 
     @http.route('/whatsapp/webhook', type='http', auth='public', csrf=False, methods=['GET'])
     def verify_webhook(self, **kwargs):
@@ -19,18 +56,40 @@ class WhatsAppBotController(http.Controller):
         else:
             return request.make_response("Token inválido", status=403)
 
-    @http.route('/whatsapp/webhook', type='json', auth='public', csrf=False, methods=['POST'])
+    @http.route('/whatsapp/webhook', type='http', auth='public', csrf=False, methods=['POST'])
     def whatsapp_webhook_post(self, **kwargs):
         try:
-            data = json.loads(request.httprequest.data.decode('utf-8'))
-            _logger.info("📨 Webhook recibido de WhatsApp:\n%s", json.dumps(data, indent=2))
-
-            # Opcional: imprimir también en consola si estás en desarrollo
-            print("📨 Webhook recibido de WhatsApp:")
-            print(json.dumps(data, indent=2))
-
+            data = self._load_json_payload()
+            _logger.info("Webhook recibido en /whatsapp/webhook:\n%s", json.dumps(data, indent=2))
+            response_data, status = self._register_local_message(data)
+            return request.make_response(
+                json.dumps(response_data),
+                status=status,
+                headers=[('Content-Type', 'application/json')]
+            )
         except Exception as e:
-            _logger.error("❌ Error procesando el webhook: %s", str(e))
-            return request.make_response("Error", status=500)
+            _logger.exception("Error procesando el webhook local: %s", str(e))
+            return request.make_response(
+                json.dumps({'ok': False, 'error': str(e)}),
+                status=500,
+                headers=[('Content-Type', 'application/json')]
+            )
 
-        return request.make_response("OK", status=200)
+    @http.route('/whatsapp/webhook/local_test', type='http', auth='public', csrf=False, methods=['POST'])
+    def whatsapp_webhook_local_test(self, **kwargs):
+        try:
+            data = self._load_json_payload()
+            _logger.info("Prueba local recibida en /whatsapp/webhook/local_test:\n%s", json.dumps(data, indent=2))
+            response_data, status = self._register_local_message(data)
+            return request.make_response(
+                json.dumps(response_data),
+                status=status,
+                headers=[('Content-Type', 'application/json')]
+            )
+        except Exception as e:
+            _logger.exception("Error procesando la prueba local: %s", str(e))
+            return request.make_response(
+                json.dumps({'ok': False, 'error': str(e)}),
+                status=500,
+                headers=[('Content-Type', 'application/json')]
+            )

@@ -7,6 +7,7 @@ import base64
 import botocore
 import binascii
 from html.parser import HTMLParser
+from PIL import Image, ImageOps
 
 from io import BytesIO
 from odoo.tools import html2plaintext
@@ -1819,6 +1820,14 @@ class project_task(models.Model):
                             "cover_url": cover_url,  # ✅ obligatorio
                         }
 
+                print("Instagram container_params:", {
+                    "task_id": self.id,
+                    "tipo": self.tipo,
+                    "container_url": container_url,
+                    "media_urls": media_urls,
+                    "cover_url": cover_url,
+                    "container_params": container_params,
+                })
                 r = requests.post(container_url, params=container_params, timeout=20)
                 data = r.json()
                 if r.status_code != 200 or not data.get("id"):
@@ -2200,22 +2209,37 @@ class project_task(models.Model):
                     f"Los datos de acceso no fueron configurados para: {', '.join(credential_errors)}")
 
             # Subir archivos a S3 (única operación que debe fallar completamente si hay error)
-            media_urls = upload_files_to_s3(self.adjuntos_ids, aws_api, aws_secret, aws_bucket, aws_public_domain)
-            media_ids = []
-            _logger.info(f"Archivos subidos a S3. URLs obtenidas: {media_urls}")
+            media_urls_native = upload_files_to_s3(
+                self.adjuntos_ids, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="native"
+            )
+            media_urls_custom = upload_files_to_s3(
+                self.adjuntos_ids, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="custom"
+            )
+            _logger.info(f"Archivos subidos a S3. URLs nativas obtenidas: {media_urls_native}")
+            _logger.info(f"Archivos subidos a S3. URLs custom obtenidas: {media_urls_custom}")
             # Publicación en redes sociales con gestión de errores individual
             errors = []
             success_messages = []
             published_on = []
 
-            cover_url = None
+            cover_url_native = None
+            cover_url_custom = None
             if self.imagen_portada and self.tipo == "video_reels":
-                cover_url = upload_files_to_s3(
+                cover_url_native = upload_files_to_s3(
                     [("portada.jpg", self.imagen_portada)],
                     aws_api,
                     aws_secret,
                     aws_bucket,
                     aws_public_domain,
+                    url_mode="native",
+                )[0]
+                cover_url_custom = upload_files_to_s3(
+                    [("portada.jpg", self.imagen_portada)],
+                    aws_api,
+                    aws_secret,
+                    aws_bucket,
+                    aws_public_domain,
+                    url_mode="custom",
                 )[0]
 
             procesando = False
@@ -2224,7 +2248,7 @@ class project_task(models.Model):
                 try:
                     # marcar inicio
                     self.write({"fb_estado": "Procesando", "fb_error": False})
-                    self.publish_on_facebook(media_urls, combined_text)
+                    self.publish_on_facebook(media_urls_native, combined_text)
                     success_messages.append("Facebook: Publicación en proceso")
                     published_on.append("Facebook")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
@@ -2237,7 +2261,7 @@ class project_task(models.Model):
                 try:
                     # marcar inicio
                     self.write({"ig_estado": "Procesando", "ig_error": False})
-                    self.publish_on_instagram(media_urls, combined_text, cover_url)
+                    self.publish_on_instagram(media_urls_native, combined_text, cover_url_native)
                     success_messages.append("Instagram: Publicación en proceso")
                     published_on.append("Instagram")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
@@ -2251,7 +2275,7 @@ class project_task(models.Model):
                     self._refresh_tiktok_guideline_fields()
                     self._validate_tiktok_business_rules()
                     self.write({"tt_estado": "Procesando", "tt_error": False})
-                    tik_response = self.publish_on_tiktok(media_urls, combined_text)
+                    tik_response = self.publish_on_tiktok(media_urls_custom, combined_text, cover_url_custom)
                     if tik_response:
                         self.write({
                             "tiktok_post_id": tik_response,
@@ -2271,7 +2295,7 @@ class project_task(models.Model):
             if 'LinkedIn' in self.red_social_ids.mapped('name'):
                 try:
                     self.write({"li_estado": "Procesando", "li_error": False})
-                    linkedin_response = self.publish_on_linkedin(media_urls, combined_text)
+                    linkedin_response = self.publish_on_linkedin(media_urls_native, combined_text, cover_url_native)
                     if linkedin_response:
                         self.write({
                             "linkedin_post_id": linkedin_response["post_id"],
@@ -2412,7 +2436,7 @@ class project_task(models.Model):
         return True
 
 
-def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain):
+def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="native"):
     """Sube archivos (imágenes o videos) a AWS S3 y devuelve sus URLs públicas."""
     aws_access_key_id = aws_api
     aws_secret_access_key = aws_secret
@@ -2485,6 +2509,10 @@ def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain
 
             # Decodificar y subir
             file_bytes = base64.b64decode(file_data)
+
+            if file_ext in ['jpg', 'jpeg']:
+                file_bytes = normalize_image_for_meta(file_bytes, file_name_raw)
+
             _logger.info(f"Subiendo {file_name} ({len(file_bytes)} bytes) a S3...")
 
             s3_client.put_object(Bucket=bucket_name, Key=file_name, Body=file_bytes,
@@ -2493,7 +2521,10 @@ def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain
                                      'jpeg'
                                  ] else 'video/mp4', )
 
-            file_url = f"{public_domain}/{file_name}"
+            if url_mode == "custom":
+                file_url = f"{public_domain}/{file_name}"
+            else:
+                file_url = f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{file_name}"
             uploaded_urls.append(file_url)
 
             _logger.info(f"Archivo subido correctamente: {file_url}")
@@ -2504,6 +2535,35 @@ def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain
 
     _logger.info(f"Todos los archivos subidos correctamente. Total: {len(uploaded_urls)}")
     return uploaded_urls
+
+
+def normalize_image_for_meta(file_bytes, file_name="image.jpg"):
+    """Reencodea imágenes a JPEG RGB baseline para mejorar compatibilidad con Meta."""
+    try:
+        with Image.open(BytesIO(file_bytes)) as img:
+            img = ImageOps.exif_transpose(img)
+            if img.mode not in ("RGB",):
+                img = img.convert("RGB")
+
+            output = BytesIO()
+            img.save(
+                output,
+                format="JPEG",
+                quality=95,
+                optimize=True,
+                progressive=False,
+            )
+            normalized = output.getvalue()
+            _logger.info(
+                "Imagen normalizada para Meta: %s | bytes originales=%s | bytes finales=%s",
+                file_name,
+                len(file_bytes),
+                len(normalized),
+            )
+            return normalized
+    except Exception as e:
+        _logger.warning("No se pudo normalizar imagen %s para Meta: %s", file_name, e)
+        return file_bytes
 
 
 def get_video_duration_ffprobe(base64_data):
