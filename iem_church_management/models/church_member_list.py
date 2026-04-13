@@ -16,7 +16,7 @@ class IemChurchMemberList(models.Model):
     visibility = fields.Selection(
         [("public", "Pública"), ("private", "Privada")],
         string="Visibilidad",
-        default="public",
+        default="private",
         required=True,
         tracking=True,
     )
@@ -181,6 +181,8 @@ class IemChurchMemberList(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not self._can_manage_visibility():
+                vals["visibility"] = "private"
             self._apply_scope_defaults(vals)
             self._check_scope_for_user(vals)
         records = super().create(vals_list)
@@ -192,27 +194,23 @@ class IemChurchMemberList(models.Model):
     def write(self, vals):
         if self.env.context.get("allow_filter_write"):
             return super().write(vals)
-        if self._is_limited_discipulador() and ("name" in vals or vals.get("active") is False):
-            foreign_lists = self.filtered(
-                lambda rec: rec.create_uid != self.env.user and rec.visibility == "private"
-            )
-            if foreign_lists:
-                raise UserError(
-                    _(
-                        "No tienes permiso para renombrar o borrar listas creadas por otros usuarios."
-                    )
-                )
+        if "visibility" in vals:
+            if not self._can_manage_visibility():
+                vals["visibility"] = "private"
+        scope_fields = {"predio_id", "red_id", "discipulado_id"}
+        if scope_fields & set(vals.keys()):
+            for rec in self:
+                merged_vals = {
+                    "predio_id": vals.get("predio_id", rec.predio_id.id),
+                    "red_id": vals.get("red_id", rec.red_id.id),
+                    "discipulado_id": vals.get("discipulado_id", rec.discipulado_id.id),
+                }
+                rec._check_scope_for_user(merged_vals)
         return super().write(vals)
 
     def unlink(self):
         if self._is_limited_discipulador():
-            foreign_lists = self.filtered(
-                lambda rec: rec.create_uid != self.env.user and rec.visibility == "private"
-            )
-            if foreign_lists:
-                raise UserError(
-                    _("No tienes permiso para borrar listas creadas por otros usuarios.")
-                )
+            raise UserError(_("Los discipuladores no pueden eliminar listas."))
         return super().unlink()
 
     def _is_limited_discipulador(self):
@@ -223,6 +221,14 @@ class IemChurchMemberList(models.Model):
             and not user.has_group("iem_church_management.group_iem_pastor_gobierno")
             and not user.has_group("iem_church_management.group_iem_admin")
             and not user.has_group("base.group_system")
+        )
+
+    def _can_manage_visibility(self):
+        user = self.env.user
+        return (
+            user.has_group("iem_church_management.group_iem_pastor")
+            or user.has_group("iem_church_management.group_iem_admin")
+            or user.has_group("base.group_system")
         )
 
     def _apply_scope_defaults(self, vals):
@@ -259,25 +265,23 @@ class IemChurchMemberList(models.Model):
         message = _("No tienes permiso para crear listas fuera de tu ámbito (Predio, Red, Discipulado).")
 
         if user.has_group("iem_church_management.group_iem_pastor_gobierno"):
-            if not target_predio:
-                raise UserError(message)
-            if partner.predio_id and target_predio != partner.predio_id.id:
+            if target_predio and partner.predio_id and target_predio != partner.predio_id.id:
                 raise UserError(message)
         elif user.has_group("iem_church_management.group_iem_pastor"):
-            if not target_predio or not target_red:
-                raise UserError(message)
             if (
-                (partner.predio_id and target_predio != partner.predio_id.id)
-                or (partner.red_id and target_red != partner.red_id.id)
+                (target_predio and partner.predio_id and target_predio != partner.predio_id.id)
+                or (target_red and partner.red_id and target_red != partner.red_id.id)
             ):
                 raise UserError(message)
         elif user.has_group("iem_church_management.group_iem_discipulador"):
-            if not target_predio or not target_red or not target_discipulado:
-                raise UserError(message)
             if (
-                (partner.predio_id and target_predio != partner.predio_id.id)
-                or (partner.red_id and target_red != partner.red_id.id)
-                or (partner.discipulado_id and target_discipulado != partner.discipulado_id.id)
+                (target_predio and partner.predio_id and target_predio != partner.predio_id.id)
+                or (target_red and partner.red_id and target_red != partner.red_id.id)
+                or (
+                    target_discipulado
+                    and partner.discipulado_id
+                    and target_discipulado != partner.discipulado_id.id
+                )
             ):
                 raise UserError(message)
 
@@ -477,6 +481,7 @@ class IemChurchMemberListLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        self._check_member_scope_for_vals_list(vals_list)
         records = super().create(vals_list)
         for rec in records:
             if rec.source == "manual":
@@ -484,6 +489,7 @@ class IemChurchMemberListLine(models.Model):
         return records
 
     def write(self, vals):
+        self._check_member_scope_for_write(vals)
         res = super().write(vals)
         tracked_fields = {"extra_boolean", "extra_amount", "extra_text"}
         if tracked_fields & set(vals.keys()):
@@ -517,3 +523,52 @@ class IemChurchMemberListLine(models.Model):
             for body in bodies:
                 list_rec.message_post(body=body)
         return res
+
+    @api.model
+    def _check_member_scope_for_vals_list(self, vals_list):
+        for vals in vals_list:
+            list_id = vals.get("list_id")
+            member_id = vals.get("member_id")
+            if not list_id or not member_id:
+                continue
+            list_rec = self.env["iem.church.member.list"].browse(list_id).exists()
+            member = self.env["church.member"].browse(member_id).exists()
+            self._check_member_scope(member, list_rec)
+
+    def _check_member_scope_for_write(self, vals):
+        for rec in self:
+            list_rec = (
+                self.env["iem.church.member.list"].browse(vals["list_id"]).exists()
+                if vals.get("list_id")
+                else rec.list_id
+            )
+            member = (
+                self.env["church.member"].browse(vals["member_id"]).exists()
+                if vals.get("member_id")
+                else rec.member_id
+            )
+            self._check_member_scope(member, list_rec)
+
+    @api.model
+    def _check_member_scope(self, member, list_rec):
+        if not member or not list_rec:
+            return
+
+        user = self.env.user
+        partner = user.partner_id
+        if user.has_group("iem_church_management.group_iem_admin") or user.has_group("base.group_system"):
+            return
+
+        if user.has_group("iem_church_management.group_iem_discipulador"):
+            if partner.discipulado_id and member.discipulado_id != partner.discipulado_id:
+                raise UserError(
+                    _("Como discipulador solo puedes agregar o modificar miembros de tu discipulado.")
+                )
+            return
+
+        if user.has_group("iem_church_management.group_iem_pastor"):
+            if partner.red_id and member.red_id != partner.red_id:
+                raise UserError(
+                    _("Como obrero o pastor solo puedes agregar o modificar miembros de tu red.")
+                )
+            return

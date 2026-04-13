@@ -5,7 +5,7 @@
         <field name="arch" type="xml">
             <list string="Listas de Membresía">
                 <field name="name" />
-                <field name="visibility" />
+                <field name="visibility" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor" />
                 <field name="creation_date" />
                 <field name="member_count" />
                 <field name="filter_member_count" />
@@ -44,10 +44,9 @@
                     </div>
                     <group>
                         <group>
-                            <field name="visibility" />
+                            <field name="visibility" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor" />
                             <field name="creation_date" readonly="1" />
                             <field name="create_uid" readonly="1" string="Creado por" />
-                            <field name="currency_id" options="{'no_create': True, 'no_create_edit': True}" />
                         </group>
                         <group>
                             <field name="member_count" readonly="1" />
@@ -152,8 +151,8 @@
             <search string="Buscar listas">
                 <field name="name" />
                 <field name="create_uid" />
-                <filter name="filter_public_list" string="Públicas" domain="[('visibility', '=', 'public')]" />
-                <filter name="filter_private_list" string="Privadas" domain="[('visibility', '=', 'private')]" />
+                <filter name="filter_public_list" string="Públicas" domain="[('visibility', '=', 'public')]" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor" />
+                <filter name="filter_private_list" string="Privadas" domain="[('visibility', '=', 'private')]" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor" />
                 <filter name="filter_male" string="Hombres" domain="[('gender', '=', 'male')]" />
                 <filter name="filter_female" string="Mujeres" domain="[('gender', '=', 'female')]" />
                 <group expand="0" string="Agrupar por">
