@@ -145,21 +145,21 @@
     <record id="rule_member_list_pastor_gobierno" model="ir.rule">
         <field name="name">Member List Pastor Gobierno</field>
         <field name="model_id" ref="iem_church_management.model_iem_church_member_list" />
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">['|', '|', '|', ('create_uid', '=', user.id), '&amp;', ('creator_scope_role', '=', 'admin'), ('visibility', '=', 'public'), '&amp;', ('creator_scope_role', '=', 'pastor_gobierno'), ('visibility', '=', 'public'), '|', '&amp;', ('creator_scope_role', '=', 'pastor'), ('scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', ('creator_scope_role', '=', 'discipulador'), ('scope_predio_id', '=', user.partner_id.predio_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor_gobierno'))]" />
     </record>
 
     <record id="rule_member_list_pastor" model="ir.rule">
         <field name="name">Member List Pastor</field>
         <field name="model_id" ref="iem_church_management.model_iem_church_member_list" />
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">['|', '|', '|', '|', ('create_uid', '=', user.id), '&amp;', ('creator_scope_role', '=', 'admin'), ('visibility', '=', 'public'), '&amp;', '&amp;', ('creator_scope_role', '=', 'pastor_gobierno'), ('visibility', '=', 'public'), ('scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', '&amp;', ('creator_scope_role', '=', 'pastor'), ('visibility', '=', 'public'), ('scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', ('creator_scope_role', '=', 'discipulador'), ('scope_red_id', '=', user.partner_id.red_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor'))]" />
     </record>
 
     <record id="rule_member_list_discipulador" model="ir.rule">
         <field name="name">Member List Discipulador</field>
         <field name="model_id" ref="iem_church_management.model_iem_church_member_list" />
-        <field name="domain_force">['|', ('visibility', '=', 'public'), ('create_uid', '=', user.id)]</field>
+        <field name="domain_force">['|', '|', '|', '|', ('create_uid', '=', user.id), '&amp;', ('creator_scope_role', '=', 'admin'), ('visibility', '=', 'public'), '&amp;', '&amp;', ('creator_scope_role', '=', 'pastor_gobierno'), ('visibility', '=', 'public'), ('scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', '&amp;', ('creator_scope_role', '=', 'pastor'), ('visibility', '=', 'public'), ('scope_red_id', '=', user.partner_id.red_id.id), '&amp;', '&amp;', ('creator_scope_role', '=', 'discipulador'), ('visibility', '=', 'public'), ('scope_red_id', '=', user.partner_id.red_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_discipulador'))]" />
     </record>
 
@@ -180,21 +180,21 @@
     <record id="rule_member_list_line_pastor_gobierno" model="ir.rule">
         <field name="name">Member List Line Pastor Gobierno</field>
         <field name="model_id" ref="iem_church_management.model_iem_church_member_list_line" />
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">['|', '|', '|', ('list_id.create_uid', '=', user.id), '&amp;', ('list_id.creator_scope_role', '=', 'admin'), ('list_id.visibility', '=', 'public'), '&amp;', ('list_id.creator_scope_role', '=', 'pastor_gobierno'), ('list_id.visibility', '=', 'public'), '|', '&amp;', ('list_id.creator_scope_role', '=', 'pastor'), ('list_id.scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', ('list_id.creator_scope_role', '=', 'discipulador'), ('list_id.scope_predio_id', '=', user.partner_id.predio_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor_gobierno'))]" />
     </record>
 
     <record id="rule_member_list_line_pastor" model="ir.rule">
         <field name="name">Member List Line Pastor</field>
         <field name="model_id" ref="iem_church_management.model_iem_church_member_list_line" />
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">['|', '|', '|', '|', ('list_id.create_uid', '=', user.id), '&amp;', ('list_id.creator_scope_role', '=', 'admin'), ('list_id.visibility', '=', 'public'), '&amp;', '&amp;', ('list_id.creator_scope_role', '=', 'pastor_gobierno'), ('list_id.visibility', '=', 'public'), ('list_id.scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', '&amp;', ('list_id.creator_scope_role', '=', 'pastor'), ('list_id.visibility', '=', 'public'), ('list_id.scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', ('list_id.creator_scope_role', '=', 'discipulador'), ('list_id.scope_red_id', '=', user.partner_id.red_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_pastor'))]" />
     </record>
 
     <record id="rule_member_list_line_discipulador" model="ir.rule">
         <field name="name">Member List Line Discipulador</field>
         <field name="model_id" ref="iem_church_management.model_iem_church_member_list_line" />
-        <field name="domain_force">['|', ('list_id.visibility', '=', 'public'), ('list_id.create_uid', '=', user.id)]</field>
+        <field name="domain_force">['|', '|', '|', '|', ('list_id.create_uid', '=', user.id), '&amp;', ('list_id.creator_scope_role', '=', 'admin'), ('list_id.visibility', '=', 'public'), '&amp;', '&amp;', ('list_id.creator_scope_role', '=', 'pastor_gobierno'), ('list_id.visibility', '=', 'public'), ('list_id.scope_predio_id', '=', user.partner_id.predio_id.id), '&amp;', '&amp;', ('list_id.creator_scope_role', '=', 'pastor'), ('list_id.visibility', '=', 'public'), ('list_id.scope_red_id', '=', user.partner_id.red_id.id), '&amp;', '&amp;', ('list_id.creator_scope_role', '=', 'discipulador'), ('list_id.visibility', '=', 'public'), ('list_id.scope_red_id', '=', user.partner_id.red_id.id)]</field>
         <field name="groups" eval="[(4, ref('iem_church_management.group_iem_discipulador'))]" />
     </record>
 

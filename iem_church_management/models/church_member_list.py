@@ -26,6 +26,19 @@ class IemChurchMemberList(models.Model):
         store=True,
         readonly=True,
     )
+    creator_scope_role = fields.Selection(
+        [
+            ("admin", "Administrador"),
+            ("pastor_gobierno", "Pastor de Gobierno"),
+            ("pastor", "Pastor / Obrero"),
+            ("discipulador", "Discipulador"),
+            ("other", "Otro"),
+        ],
+        string="Rol del creador",
+        compute="_compute_creator_scope_role",
+        store=True,
+        readonly=True,
+    )
     creation_date = fields.Datetime(string="Fecha de creación", related="create_date", readonly=True)
 
     gender = fields.Selection(
@@ -48,6 +61,27 @@ class IemChurchMemberList(models.Model):
         "list_id",
         "position_id",
         string="Cargos",
+        tracking=True,
+    )
+    scope_predio_id = fields.Many2one(
+        "iem.church.predio",
+        string="Predio",
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
+    scope_red_id = fields.Many2one(
+        "iem.church.red",
+        string="Red",
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
+    scope_discipulado_id = fields.Many2one(
+        "iem.church.discipulado",
+        string="Discipulado",
+        readonly=True,
+        copy=False,
         tracking=True,
     )
     predio_id = fields.Many2one("iem.church.predio", string="Predio", tracking=True)
@@ -129,6 +163,11 @@ class IemChurchMemberList(models.Model):
         for rec in self:
             rec.creator_access_level = rec._access_level_for_user(rec.create_uid)
 
+    @api.depends("create_uid", "create_uid.groups_id")
+    def _compute_creator_scope_role(self):
+        for rec in self:
+            rec.creator_scope_role = rec._scope_role_for_user(rec.create_uid)
+
     @api.model
     def _access_level_for_user(self, user):
         if not user:
@@ -142,6 +181,20 @@ class IemChurchMemberList(models.Model):
         if user.has_group("iem_church_management.group_iem_discipulador"):
             return 1
         return 0
+
+    @api.model
+    def _scope_role_for_user(self, user):
+        if not user:
+            return "other"
+        if user.has_group("base.group_system") or user.has_group("iem_church_management.group_iem_admin"):
+            return "admin"
+        if user.has_group("iem_church_management.group_iem_pastor_gobierno"):
+            return "pastor_gobierno"
+        if user.has_group("iem_church_management.group_iem_pastor"):
+            return "pastor"
+        if user.has_group("iem_church_management.group_iem_discipulador"):
+            return "discipulador"
+        return "other"
 
     @api.constrains("age_from", "age_to")
     def _check_age_bounds(self):
@@ -184,6 +237,7 @@ class IemChurchMemberList(models.Model):
             if not self._can_manage_visibility():
                 vals["visibility"] = "private"
             self._apply_scope_defaults(vals)
+            self._apply_scope_snapshot(vals)
             self._check_scope_for_user(vals)
         records = super().create(vals_list)
         for rec in records:
@@ -226,7 +280,9 @@ class IemChurchMemberList(models.Model):
     def _can_manage_visibility(self):
         user = self.env.user
         return (
-            user.has_group("iem_church_management.group_iem_pastor")
+            user.has_group("iem_church_management.group_iem_pastor_gobierno")
+            or user.has_group("iem_church_management.group_iem_pastor")
+            or user.has_group("iem_church_management.group_iem_discipulador")
             or user.has_group("iem_church_management.group_iem_admin")
             or user.has_group("base.group_system")
         )
@@ -237,19 +293,49 @@ class IemChurchMemberList(models.Model):
             return
         partner = user.partner_id
         if user.has_group("iem_church_management.group_iem_pastor_gobierno") and partner.predio_id:
-            vals.setdefault("predio_id", partner.predio_id.id)
+            if not vals.get("predio_id"):
+                vals["predio_id"] = partner.predio_id.id
         if user.has_group("iem_church_management.group_iem_pastor"):
             if partner.predio_id:
-                vals.setdefault("predio_id", partner.predio_id.id)
+                if not vals.get("predio_id"):
+                    vals["predio_id"] = partner.predio_id.id
             if partner.red_id:
-                vals.setdefault("red_id", partner.red_id.id)
+                if not vals.get("red_id"):
+                    vals["red_id"] = partner.red_id.id
         if user.has_group("iem_church_management.group_iem_discipulador"):
             if partner.predio_id:
-                vals.setdefault("predio_id", partner.predio_id.id)
+                if not vals.get("predio_id"):
+                    vals["predio_id"] = partner.predio_id.id
             if partner.red_id:
-                vals.setdefault("red_id", partner.red_id.id)
+                if not vals.get("red_id"):
+                    vals["red_id"] = partner.red_id.id
             if partner.discipulado_id:
-                vals.setdefault("discipulado_id", partner.discipulado_id.id)
+                if not vals.get("discipulado_id"):
+                    vals["discipulado_id"] = partner.discipulado_id.id
+
+    def _apply_scope_snapshot(self, vals):
+        user = self.env.user
+        partner = user.partner_id
+        role = self._scope_role_for_user(user)
+
+        if role == "admin":
+            return
+
+        if role == "pastor_gobierno":
+            vals["scope_predio_id"] = vals.get("predio_id") or partner.predio_id.id or False
+            return
+
+        if role == "pastor":
+            vals["scope_predio_id"] = vals.get("predio_id") or partner.predio_id.id or False
+            vals["scope_red_id"] = vals.get("red_id") or partner.red_id.id or False
+            return
+
+        if role == "discipulador":
+            vals["scope_predio_id"] = vals.get("predio_id") or partner.predio_id.id or False
+            vals["scope_red_id"] = vals.get("red_id") or partner.red_id.id or False
+            vals["scope_discipulado_id"] = (
+                vals.get("discipulado_id") or partner.discipulado_id.id or False
+            )
 
     def _check_scope_for_user(self, vals):
         if self.env.context.get("skip_scope_check"):
