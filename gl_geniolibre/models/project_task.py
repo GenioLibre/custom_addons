@@ -6,6 +6,7 @@ import tempfile
 import base64
 import botocore
 import binascii
+from urllib.parse import quote
 from html.parser import HTMLParser
 from PIL import Image, ImageOps
 
@@ -223,7 +224,7 @@ class project_task(models.Model):
     )
     tiktok_privacy_option_id = fields.Many2one(
         'gl.tiktok.privacy.option',
-        string='Privacidad TikTok',
+        string='Privacidad TikTok seleccionada',
         domain="[('id', 'in', tiktok_allowed_privacy_option_ids)]",
     )
 
@@ -255,6 +256,7 @@ class project_task(models.Model):
     )
     tiktok_avatar_url = fields.Char(related='partner_id.tiktok_avatar_url', string='TikTok Avatar URL', readonly=True,
                                     store=False)
+    tiktok_avatar_proxy_url = fields.Char(string='TikTok Avatar', compute='_compute_tiktok_avatar_proxy_url', readonly=True)
 
     # Nuevo campo label para mensajes legales / restricciones de TikTok
     tiktok_creator_status_info = fields.Text(string="Estado del Creador (TikTok)", readonly=True, )
@@ -269,11 +271,21 @@ class project_task(models.Model):
     tt_error = fields.Text(string="Error TikTok", copy=False, tracking=True)
     li_error = fields.Text(string="Error LinkedIn", copy=False, tracking=True)
 
-    @api.depends('tiktok_privacy_level_options')
+    @api.depends('tiktok_avatar_url')
+    def _compute_tiktok_avatar_proxy_url(self):
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '').rstrip('/')
+        for rec in self:
+            if rec.tiktok_avatar_url:
+                proxy_path = "/gl_geniolibre/tiktok/image_proxy?url=%s" % quote(rec.tiktok_avatar_url, safe="")
+                rec.tiktok_avatar_proxy_url = f"{base_url}{proxy_path}" if base_url else proxy_path
+            else:
+                rec.tiktok_avatar_proxy_url = False
+
+    @api.depends('tiktok_privacy_level_options', 'tiktok_is_commercial', 'tiktok_commercial_branded')
     def _compute_tiktok_allowed_privacy_option_ids(self):
         privacy_model = self.env['gl.tiktok.privacy.option']
         for rec in self:
-            codes = rec._get_tiktok_privacy_options_list()
+            codes = rec._get_effective_tiktok_privacy_options_list()
             if codes:
                 rec.tiktok_allowed_privacy_option_ids = privacy_model.search([('code', 'in', codes)])
             else:
@@ -376,6 +388,14 @@ class project_task(models.Model):
     def _onchange_tiktok_privacy_option_id(self):
         for rec in self:
             rec.tiktok_privacy_level = rec.tiktok_privacy_option_id.code if rec.tiktok_privacy_option_id else False
+            if rec.tiktok_privacy_level == 'SELF_ONLY' and rec.tiktok_commercial_branded:
+                rec.tiktok_commercial_branded = False
+                return {
+                    'warning': {
+                        'title': 'Restriccion de privacidad TikTok',
+                        'message': "Branded content visibility cannot be set to private.",
+                    }
+                }
 
     @api.onchange('tiktok_privacy_level')
     def _onchange_tiktok_privacy_level_sync_option(self):
@@ -387,6 +407,33 @@ class project_task(models.Model):
                 )
             else:
                 rec.tiktok_privacy_option_id = False
+
+    @api.onchange('tiktok_commercial_branded')
+    def _onchange_tiktok_commercial_branded_privacy(self):
+        for rec in self:
+            if not rec.tiktok_commercial_branded:
+                continue
+
+            if rec.tiktok_privacy_level == 'SELF_ONLY':
+                non_private_options = [
+                    code for code in rec._get_tiktok_privacy_options_list()
+                    if code != 'SELF_ONLY'
+                ]
+                if non_private_options:
+                    privacy_model = self.env['gl.tiktok.privacy.option']
+                    rec.tiktok_privacy_level = non_private_options[0]
+                    rec.tiktok_privacy_option_id = privacy_model.search(
+                        [('code', '=', non_private_options[0])], limit=1
+                    )
+                else:
+                    rec.tiktok_commercial_branded = False
+
+                return {
+                    'warning': {
+                        'title': 'Restriccion de privacidad TikTok',
+                        'message': "Branded content visibility cannot be set to private.",
+                    }
+                }
 
     @api.onchange('tiktok_is_commercial')
     def _onchange_tiktok_is_commercial_clear_flags(self):
@@ -449,16 +496,14 @@ class project_task(models.Model):
         self.ensure_one()
 
         notes = []
-        privacy_options = [
-            item.strip() for item in (self.tiktok_privacy_level_options or "").split(",") if item.strip()
-        ]
+        privacy_options = self._get_effective_tiktok_privacy_options_list()
 
         if privacy_options:
             notes.append(f"Visibilidades disponibles para esta cuenta: {', '.join(privacy_options)}.")
         if self.tiktok_privacy_level == "SELF_ONLY":
             notes.append("Con visibilidad 'Solo yo', la opcion 'Branded Content' no esta disponible.")
         if self.tiktok_commercial_branded:
-            notes.append("Branded Content solo puede configurarse con visibilidad publica o amigos.")
+            notes.append("Branded content visibility cannot be set to private.")
         if self.tiktok_comment_disabled:
             notes.append("TikTok deshabilito comentarios para esta cuenta.")
         if self.tiktok_duet_disabled:
@@ -472,7 +517,17 @@ class project_task(models.Model):
         self.ensure_one()
 
         if self.tiktok_privacy_level == "SELF_ONLY" and self.tiktok_commercial_branded:
-            self.tiktok_commercial_branded = False
+            non_private_options = [
+                code for code in self._get_tiktok_privacy_options_list()
+                if code != 'SELF_ONLY'
+            ]
+            if non_private_options:
+                self.tiktok_privacy_level = non_private_options[0]
+                self.tiktok_privacy_option_id = self.env['gl.tiktok.privacy.option'].search(
+                    [('code', '=', non_private_options[0])], limit=1
+                )
+            else:
+                self.tiktok_commercial_branded = False
 
         declaration_text = self._compute_tiktok_declaration_text()
         commercial_label = self._compute_tiktok_commercial_label_preview()
@@ -520,6 +575,13 @@ class project_task(models.Model):
     def _get_tiktok_privacy_options_list(self):
         self.ensure_one()
         return [item.strip() for item in (self.tiktok_privacy_level_options or "").split(",") if item.strip()]
+
+    def _get_effective_tiktok_privacy_options_list(self):
+        self.ensure_one()
+        privacy_options = self._get_tiktok_privacy_options_list()
+        if self.tiktok_is_commercial and self.tiktok_commercial_branded:
+            privacy_options = [code for code in privacy_options if code != 'SELF_ONLY']
+        return privacy_options
 
     def _get_tiktok_caption_to_publish(self):
         self.ensure_one()

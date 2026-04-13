@@ -80,7 +80,7 @@
               name="Chats Activos"
               parent="menu_whatsapp_root"
               action="action_whatsapp_chatroom_owl"
-              sequence="30"/>
+              sequence="10"/>
 
     <!--    Aqui empieza el codigo de Respuestas automaticas ##################################### -->
     <record id="view_mensajes_automaticos_list" model="ir.ui.view">
@@ -88,15 +88,33 @@
         <field name="model">mensajes.automaticos</field>
         <field name="arch" type="xml">
             <list string="Mensajes Automáticos">
-                <!-- Campos principales -->
-                <field name="name" string="Nombre"/>
+                <field name="prioridad" string="Secuencia"/>
+                <field name="name" string="Titulo"/>
+                <field name="category" string="Categoria"/>
                 <field name="activo" string="Activo"/>
-                <field name="prioridad" string="Prioridad"/>
-
-                <!-- Botones de acción -->
                 <field name="contenido"/>
-
             </list>
+        </field>
+    </record>
+
+    <record id="view_mensajes_automaticos_form" model="ir.ui.view">
+        <field name="name">mensajes.automaticos.form</field>
+        <field name="model">mensajes.automaticos</field>
+        <field name="arch" type="xml">
+            <form string="Mensaje Automático">
+                <sheet>
+                    <group>
+                        <field name="name" string="Titulo"/>
+                        <field name="category"/>
+                        <field name="prioridad" string="Secuencia"/>
+                        <field name="activo"/>
+                    </group>
+                    <group>
+                        <field name="contenido" widget="text"
+                               placeholder="Escribe aqui la respuesta automatica que la IA puede reutilizar o adaptar."/>
+                    </group>
+                </sheet>
+            </form>
         </field>
     </record>
 
@@ -115,7 +133,7 @@
     <!-- Menú para acceder a la vista -->
     <menuitem id="menu_mensajes_automaticos"
               name="Mensajes Automáticos"
-              parent="menu_whatsapp_root"
+              parent="menu_chatbot_knowledge_base"
               action="action_mensajes_automaticos"
-              sequence="10"/>
+              sequence="30"/>
 </odoo>

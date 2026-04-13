@@ -31,9 +31,9 @@
                             <field name="chatbot_local_url" placeholder="http://192.168.1.130:11434/api/generate"/>
                         </setting>
                         <setting string="Modelo local"
-                                 help="Modelo que se enviará al servidor local, por ejemplo qwen2.5:3b."
+                                 help="Modelo que se enviará al servidor local, por ejemplo gemma3:4b."
                                  invisible="chatbot_connection_mode != 'local'">
-                            <field name="chatbot_local_model" placeholder="qwen2.5:3b"/>
+                            <field name="chatbot_local_model" placeholder="gemma3:4b"/>
                         </setting>
                         <setting string="Clave API de OpenAI"
                                  invisible="chatbot_connection_mode != 'openai'">

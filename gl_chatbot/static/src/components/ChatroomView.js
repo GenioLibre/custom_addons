@@ -1,7 +1,6 @@
 /** @odoo-module **/
 
-
-import { Component, useState, onWillStart, useRef } from "@odoo/owl";
+import { Component, useState, onWillStart, useRef, onPatched } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
 
@@ -23,6 +22,7 @@ export class ChatroomView extends Component {
             partnerData: null,
             partnerOrders: [],
             loadingPartner: false,
+            loadingAiReply: false,
             activeTab: 'reply',
             suggestedMessages: [],
             selectedMessage: null
@@ -38,7 +38,9 @@ export class ChatroomView extends Component {
         // Referencias
         this.inputRef = useRef("inputMessage");
         this.customMessageInput = useRef("customMessageInput");
+        this.clientSimulationInput = useRef("clientSimulationInput");
         this.fileInputRef = useRef("file-input");
+        this.messageScrollRef = useRef("messageScroll");
 
         // Binding de métodos
         this.toggleEmojiPicker = this.toggleEmojiPicker.bind(this);
@@ -71,6 +73,17 @@ export class ChatroomView extends Component {
                 console.error("[ERROR] Error en carga inicial:", error);
             }
         });
+
+        onPatched(() => {
+            this._scrollMessagesToBottom();
+        });
+    }
+
+    _scrollMessagesToBottom() {
+        const el = this.messageScrollRef.el;
+        if (el) {
+            el.scrollTop = el.scrollHeight;
+        }
     }
 
     // Cargar datos del partner y sus documentos de venta
@@ -217,6 +230,54 @@ export class ChatroomView extends Component {
             }
         } else {
             this.notification.add("Por favor escribe un mensaje.", {
+                type: "warning",
+            });
+        }
+    }
+
+    async generateAiReply() {
+        if (!this.state.selected) {
+            this.notification.add("Selecciona un chat antes de generar una respuesta.", {
+                type: "warning",
+            });
+            return;
+        }
+
+        this.state.loadingAiReply = true;
+        try {
+            const reply = await this.orm.call(
+                'whatsapp.chatroom',
+                'generate_ai_reply',
+                [[this.state.selected.id]]
+            );
+            if (this.customMessageInput.el) {
+                this.customMessageInput.el.value = reply;
+            }
+            this.notification.add("Respuesta generada con Ollama.", {
+                type: "success",
+            });
+        } catch (error) {
+            console.error("[ERROR] Error al generar la respuesta IA:", error);
+            this.notification.add(error.message || "No se pudo generar la respuesta con IA.", {
+                type: "danger",
+            });
+        } finally {
+            this.state.loadingAiReply = false;
+        }
+    }
+
+    async simulateClientMessage() {
+        const message = this.clientSimulationInput.el ? this.clientSimulationInput.el.value.trim() : "";
+        if (message) {
+            const sent = await this._createOutgoingMessage(message, 'client');
+            if (sent) {
+                this.clientSimulationInput.el.value = "";
+                this.notification.add("Mensaje de cliente simulado en el chat.", {
+                    type: "success",
+                });
+            }
+        } else {
+            this.notification.add("Escribe el mensaje del cliente para simularlo.", {
                 type: "warning",
             });
         }

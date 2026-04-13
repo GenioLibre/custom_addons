@@ -71,7 +71,7 @@
                             <group>
                                 <field name="tiktok_nickname" readonly="1" force_save="1"/>
                                 <field name="tiktok_creator_username" readonly="1" force_save="1"/>
-                                <field name="tiktok_avatar_url" string="TikTok Avatar"
+                                <field name="tiktok_avatar_proxy_url" string="TikTok Avatar"
                                        widget="image_url"
                                        force_save="1"
                                        options="{'size': [50, 50]}"/>

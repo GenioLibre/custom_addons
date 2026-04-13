@@ -23,6 +23,25 @@
                         <li class="chatroom-item"><em>No hay chats disponibles.</em></li>
                     </t>
                 </ul>
+                <div class="chatroom-local-test">
+                    <h4>Prueba Local Cliente</h4>
+                    <div class="input-group mb-3 w-100">
+                        <textarea
+                                name="client_simulation_message"
+                                placeholder="Escribe aqui un mensaje temporal para simular al cliente..."
+                                class="form-control o_input"
+                                rows="3"
+                                style="resize: none; min-height: 80px;"
+                                t-ref="clientSimulationInput"/>
+                    </div>
+                    <button
+                            class="btn btn-outline-secondary w-100"
+                            type="button"
+                            t-on-click="simulateClientMessage">
+                        <i class="fa fa-commenting-o me-2"/>
+                        Simular mensaje del cliente
+                    </button>
+                </div>
             </div>
             <!-- Chat Messages -->
             <div class="chatroom-messages">
@@ -32,6 +51,7 @@
                 <h4 t-if="state.selected"><t t-esc="state.selected.name"/>
                     (Mensajes)</h4>
                 <div t-if="state.selected" class="container">
+                    <div class="chatroom-message-scroll" t-ref="messageScroll">
                     <ul t-if="state.selected" class="chatroom-message-list">
                         <t t-foreach="state.messages" t-as="msg" t-key="msg.id">
                             <li t-att-class="[
@@ -41,10 +61,10 @@
                                 'chatroom-msg-client'
                             ].join(' ')">
                             <t t-esc="msg.message"/>
-                                <t t-esc="msg.sender"/>
                         </li>
                         </t>
                     </ul>
+                    </div>
 
                     <!-- Formulario para enviar mensajes -->
                     <div class="chatroom-message-form">
@@ -219,10 +239,19 @@
                             <h4 class="text-primary mb-3 border-bottom pb-2">Respuesta Sugerida por IA</h4>
 
                             <div class="border p-4">
+                                <button
+                                        class="btn btn-outline-primary w-100 mb-3"
+                                        type="button"
+                                        t-on-click="generateAiReply"
+                                        t-att-disabled="state.loadingAiReply">
+                                    <i class="fa fa-magic me-2"/>
+                                    <t t-if="state.loadingAiReply">Generando respuesta...</t>
+                                    <t t-else="">Generar respuesta con Ollama</t>
+                                </button>
                                 <div class="input-group mb-3 w-100">
                                     <textarea
                                             name="message"
-                                            placeholder="Escribe tu mensaje personalizado..."
+                                            placeholder="Aqui aparecera la respuesta sugerida por Ollama o puedes escribir una manualmente..."
                                             class="form-control o_input"
                                             rows="3"
                                             style="resize: none; min-height: 80px;"

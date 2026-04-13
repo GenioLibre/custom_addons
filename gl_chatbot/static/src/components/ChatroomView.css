@@ -1,5 +1,7 @@
 .o_chatroom_view {
     background:white;
+    height: 100%;
+    min-height: 0;
 }
 /**********************************************************
 Estilos Primera Columna
@@ -57,23 +59,41 @@ Estilos Primera Columna
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.chatroom-local-test {
+    margin: 10px;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.chatroom-local-test h4 {
+    margin: 0 0 10px;
+    padding: 0;
+    text-align: left;
+}
 /**********************************************************
 Estilos segunda Columna
 /**********************************************************/
 .chatroom-messages {
-    width:513px;
+    width: 513px;
     max-height: 95%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 .chatroom-messages .container{
     display: flex;
     flex-direction: column;
-    height: 97%;
-    width:513px;
+    height: 100%;
+    width: 513px;
     background: url('/gl_chatbot/static/src/img/fondo_whatsapp.jpg') no-repeat center center;
     background-size: cover;
     padding: 10px;
     position: relative;
     border-radius: 9px;
+    min-height: 0;
 }
 
 .chatroom-messages h4 {
@@ -92,14 +112,20 @@ Estilos segunda Columna
     position: absolute;
 }
 
-.chatroom-message-list {
+.chatroom-message-scroll {
     flex: 1;
     overflow-y: auto;
+    min-height: 0;
     padding-right: 5px;
-    margin-bottom: 60px; /* espacio para el formulario fijo */
+    padding-bottom: 80px;
+}
+
+.chatroom-message-list {
     list-style: none; /* ✅ quita los puntos */
     padding-left: 0;
-    display: contents;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Mensaje base opcional si necesitas reutilizar */

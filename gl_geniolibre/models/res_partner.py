@@ -5,6 +5,7 @@ import random
 import secrets
 import time
 import requests
+from urllib.parse import quote
 
 from datetime import datetime
 from google.ads.googleads.client import GoogleAdsClient
@@ -70,6 +71,7 @@ class Partner(models.Model):
     tiktok_nickname = fields.Char(string='TikTok Nickname')
     tiktok_username = fields.Char(string='TikTok Username')
     tiktok_avatar_url = fields.Char(string='TikTok Avatar URL')
+    tiktok_avatar_proxy_url = fields.Char(string='TikTok Avatar Proxy URL', compute='_compute_tiktok_avatar_proxy_url')
     tiktok_open_id = fields.Char(string='TikTok Open ID')
     tiktok_oauth_state = fields.Char(copy=False)
     tiktok_oauth_state_expiry = fields.Integer(copy=False)
@@ -81,6 +83,16 @@ class Partner(models.Model):
     # LinkeIn
     linkedin_organization = fields.Many2one('linkedin.organization', string='Organización de LinkedIn')
     id_linkedin_organization = fields.Char(string="ID Organización LinkedIn", related='linkedin_organization.account_id', readonly=True, store=True)
+
+    @api.depends('tiktok_avatar_url')
+    def _compute_tiktok_avatar_proxy_url(self):
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '').rstrip('/')
+        for rec in self:
+            if rec.tiktok_avatar_url:
+                proxy_path = "/gl_geniolibre/tiktok/image_proxy?url=%s" % quote(rec.tiktok_avatar_url, safe="")
+                rec.tiktok_avatar_proxy_url = f"{base_url}{proxy_path}" if base_url else proxy_path
+            else:
+                rec.tiktok_avatar_proxy_url = False
 
     def facebook_obtener_datos(self):
         API_VERSION = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_version')

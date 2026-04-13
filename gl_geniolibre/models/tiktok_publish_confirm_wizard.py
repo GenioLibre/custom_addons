@@ -27,7 +27,7 @@ class TikTokPublishConfirmWizard(models.TransientModel):
     tiktok_can_publish = fields.Boolean(related="task_id.tiktok_can_publish", string="Puede publicar", readonly=True)
     tiktok_can_publish_reason = fields.Char(related="task_id.tiktok_can_publish_reason", string="Motivo estado TikTok", readonly=True)
     tiktok_privacy_level = fields.Selection(related="task_id.tiktok_privacy_level", string="Privacidad", readonly=True)
-    tiktok_privacy_level_label = fields.Char(string="Privacidad", readonly=True, compute="_compute_tiktok_privacy_level_label")
+    tiktok_privacy_level_label = fields.Char(string="Privacidad final", readonly=True, compute="_compute_tiktok_privacy_level_label")
     tiktok_allow_comments = fields.Boolean(related="task_id.tiktok_allow_comments", string="Permitir comentarios", readonly=True)
     tiktok_allow_duet = fields.Boolean(related="task_id.tiktok_allow_duet", string="Permitir duet", readonly=True)
     tiktok_allow_stitch = fields.Boolean(related="task_id.tiktok_allow_stitch", string="Permitir stitch", readonly=True)

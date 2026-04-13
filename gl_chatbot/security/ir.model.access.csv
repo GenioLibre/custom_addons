@@ -2,3 +2,5 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_whatsapp_chatroom_user,access.whatsapp.chatroom.user,model_whatsapp_chatroom,base.group_user,1,1,1,1
 access_whatsapp_chatmessage_user,access.whatsapp.chatmessage.user,model_whatsapp_chatmessage,base.group_user,1,1,1,1
 access_mensajes_automaticos,mensajes.automaticos,model_mensajes_automaticos,base.group_user,1,1,1,1
+access_chatbot_knowledge_document,chatbot.knowledge.document,model_chatbot_knowledge_document,base.group_user,1,1,1,1
+access_chatbot_knowledge_query,chatbot.knowledge.query,model_chatbot_knowledge_query,base.group_user,1,1,1,1

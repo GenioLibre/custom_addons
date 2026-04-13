@@ -24,7 +24,7 @@ class ResConfigSettings(models.TransientModel):
     chatbot_local_model = fields.Char(
         string='Modelo local',
         config_parameter='gl_chatbot.local_model',
-        default='qwen2.5:3b',
+        default='gemma3:4b',
     )
     openai_api_key = fields.Char(string='Clave API de OpenAI', config_parameter='openai.api_key')
     openai_model = fields.Char(

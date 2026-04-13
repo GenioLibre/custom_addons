@@ -1,0 +1,134 @@
+<odoo>
+    <record id="view_chatbot_knowledge_document_list" model="ir.ui.view">
+        <field name="name">chatbot.knowledge.document.list</field>
+        <field name="model">chatbot.knowledge.document</field>
+        <field name="arch" type="xml">
+            <list string="Documentos">
+                <field name="sequence"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_chatbot_knowledge_document_form" model="ir.ui.view">
+        <field name="name">chatbot.knowledge.document.form</field>
+        <field name="model">chatbot.knowledge.document</field>
+        <field name="arch" type="xml">
+            <form string="Documento">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="category"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                    <group>
+                        <field name="content" widget="text"
+                               placeholder="Escribe aqui devoluciones, tiempos, precios, condiciones, politicas o cualquier contexto largo para la IA."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_chatbot_knowledge_document" model="ir.actions.act_window">
+        <field name="name">Documentos</field>
+        <field name="res_model">chatbot.knowledge.document</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_chatbot_knowledge_query_list" model="ir.ui.view">
+        <field name="name">chatbot.knowledge.query.list</field>
+        <field name="model">chatbot.knowledge.query</field>
+        <field name="arch" type="xml">
+            <list string="Consultas">
+                <field name="sequence"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_chatbot_knowledge_query_form" model="ir.ui.view">
+        <field name="name">chatbot.knowledge.query.form</field>
+        <field name="model">chatbot.knowledge.query</field>
+        <field name="arch" type="xml">
+            <form string="Consulta">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="category"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                    <group>
+                        <field name="query_text" widget="text"
+                               placeholder="Escribe aqui consultas SQL, reglas de acceso a datos, estructuras de tablas o ejemplos que la IA puede considerar."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_chatbot_knowledge_query" model="ir.actions.act_window">
+        <field name="name">Consultas BD</field>
+        <field name="res_model">chatbot.knowledge.query</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_chatbot_knowledge_company_form" model="ir.ui.view">
+        <field name="name">chatbot.knowledge.company.form</field>
+        <field name="model">res.company</field>
+        <field name="arch" type="xml">
+            <form string="Base de Conocimiento">
+                <sheet>
+                    <group>
+                        <field name="name" readonly="1"/>
+                    </group>
+                    <group string="Documentos que la IA debe leer">
+                        <field name="chatbot_knowledge_document_ids" widget="many2many_tags"/>
+                    </group>
+                    <group string="Consultas a la base de datos para IA">
+                        <field name="chatbot_database_query_ids" widget="many2many_tags"/>
+                    </group>
+                    <group string="Mensajes automáticos para IA">
+                        <field name="chatbot_automatic_message_ids" widget="many2many_tags"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_open_chatbot_knowledge_base" model="ir.actions.server">
+        <field name="name">Base de Conocimiento</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">action = env.company.action_open_chatbot_knowledge_base()</field>
+    </record>
+
+    <menuitem id="menu_chatbot_knowledge_base"
+              name="Base de Conocimiento"
+              parent="menu_whatsapp_root"
+              sequence="40"/>
+
+    <menuitem id="menu_chatbot_knowledge_configuration"
+              name="Configuración"
+              parent="menu_chatbot_knowledge_base"
+              action="action_open_chatbot_knowledge_base"
+              sequence="5"/>
+
+    <menuitem id="menu_chatbot_knowledge_document"
+              name="Documentos"
+              parent="menu_chatbot_knowledge_base"
+              action="action_chatbot_knowledge_document"
+              sequence="10"/>
+
+    <menuitem id="menu_chatbot_knowledge_query"
+              name="Consultas"
+              parent="menu_chatbot_knowledge_base"
+              action="action_chatbot_knowledge_query"
+              sequence="20"/>
+</odoo>
