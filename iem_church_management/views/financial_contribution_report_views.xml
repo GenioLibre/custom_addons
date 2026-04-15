@@ -1,0 +1,102 @@
+<odoo>
+    <record id="view_iem_financial_contribution_report_year_wizard_form" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.report.year.wizard.form</field>
+        <field name="model">iem.financial.contribution.report.year.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte de contribuciones">
+                <group>
+                    <field name="year" />
+                    <field name="contribution_type_ids" widget="many2many_tags" options="{'no_create': True, 'no_create_edit': True}" />
+                </group>
+                <footer>
+                    <button name="action_open_report" type="object" string="Ver reporte" class="btn-primary" />
+                    <button string="Cancelar" special="cancel" class="btn-secondary" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_iem_financial_contribution_report_year_wizard" model="ir.actions.act_window">
+        <field name="name">Reporte de contribuciones</field>
+        <field name="res_model">iem.financial.contribution.report.year.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_iem_financial_contribution_report_year_wizard_form" />
+        <field name="target">new</field>
+        <field name="groups_id" eval="[(6, 0, [
+            ref('base.group_system'),
+            ref('iem_church_management.group_iem_admin'),
+            ref('iem_church_management.group_iem_pastor_gobierno'),
+            ref('iem_church_management.group_iem_pastor'),
+        ])]" />
+    </record>
+
+    <record id="view_iem_financial_contribution_report_wizard_form" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.report.wizard.form</field>
+        <field name="model">iem.financial.contribution.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte de contribuciones">
+                <header>
+                    <button name="action_refresh" type="object" string="Actualizar" class="btn-primary" />
+                    <button name="action_open_year_selector" type="object" string="Cambiar año" />
+                    <button name="action_open_export_wizard" type="object" string="Exportar Excel" />
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="year" />
+                            <field name="contribution_type_ids" widget="many2many_tags" options="{'no_create': True, 'no_create_edit': True}" />
+                            <field name="currency_id" readonly="1" />
+                        </group>
+                        <group>
+                            <field name="member_count" readonly="1" />
+                            <field name="total_amount" readonly="1" />
+                        </group>
+                    </group>
+                    <group>
+                        <field name="report_html" nolabel="1" widget="html" readonly="1" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_iem_financial_contribution_report_export_wizard_form" model="ir.ui.view">
+        <field name="name">iem.financial.contribution.report.export.wizard.form</field>
+        <field name="model">iem.financial.contribution.report.export.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Exportar reporte de contribuciones">
+                <group>
+                    <field name="year" readonly="1" />
+                    <field name="contribution_type_ids" widget="many2many_tags" readonly="1" options="{'no_create': True, 'no_create_edit': True}" />
+                    <field name="include_amounts" />
+                </group>
+                <group>
+                    <div class="text-muted" colspan="2">
+                        Si desmarcas esta opción, el Excel mostrará un check por cada mes con contribución.
+                    </div>
+                </group>
+                <footer>
+                    <button name="action_export_xlsx" type="object" string="Generar Excel" class="btn-primary" />
+                    <button string="Cancelar" special="cancel" class="btn-secondary" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <menuitem
+        id="menu_iem_financial_reports"
+        name="Reportes"
+        parent="menu_iem_financial_root"
+        sequence="20"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+
+    <menuitem
+        id="menu_iem_financial_contribution_report"
+        name="Reporte de contribuciones"
+        parent="menu_iem_financial_reports"
+        action="action_iem_financial_contribution_report_year_wizard"
+        sequence="10"
+        groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor"
+    />
+</odoo>

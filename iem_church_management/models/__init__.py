@@ -5,6 +5,7 @@ from . import church_member
 from . import church_member_position
 from . import church_member_list
 from . import financial_contribution
+from . import financial_contribution_report
 from . import academy_dashboard
 from . import academia_cursos
 from . import academia_inscripcion

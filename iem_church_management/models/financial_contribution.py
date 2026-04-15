@@ -74,6 +74,7 @@ class IemFinancialContribution(models.Model):
     contribution_type_id = fields.Many2one(
         "iem.financial.contribution.type",
         string="Tipo de contribución",
+        required=True,
         ondelete="restrict",
     )
     contribution_month = fields.Selection(MONTH_SELECTION, string="Mes de contribución", tracking=True)

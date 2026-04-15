@@ -21,6 +21,7 @@
         "views/church_member_view.xml",
         "views/church_member_list_views.xml",
         "views/financial_contribution_views.xml",
+        "views/financial_contribution_report_views.xml",
         "views/academy_dashboard_views.xml",
         "views/academia_cursos_views.xml",
         "views/academia_inscripcion_views.xml",
