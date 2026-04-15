@@ -670,6 +670,11 @@ class project_task(models.Model):
         if errors:
             raise ValidationError("No se puede publicar en TikTok por estas razones:\n- " + "\n- ".join(errors))
 
+    def _ensure_tiktok_privacy_selected(self):
+        self.ensure_one()
+        if 'TikTok' in (self.red_social_ids.mapped('name') or []) and not self.tiktok_privacy_level:
+            raise ValidationError("Debes seleccionar la privacidad de TikTok antes de continuar.")
+
     def _fetch_tiktok_creator_info(self, access_token):
         url = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
         headers = {
@@ -932,6 +937,8 @@ class project_task(models.Model):
             self.sync_tiktok_account_data()
         else:
             self._refresh_tiktok_guideline_fields()
+
+        self._ensure_tiktok_privacy_selected()
 
         wizard = self.env["gl.tiktok.publish.confirm.wizard"].create({
             "task_id": self.id,
@@ -1307,9 +1314,8 @@ class project_task(models.Model):
                     self.fb_estado = "Revisando"
                     return True
 
-
                 # REVISANDO
-                if self.fb_estado == "Revisando" and self.fb_video_id:
+                if self.fb_estado == "Revisando" and self.fb_video_id and not self.fb_post_id:
 
                     status_url = f"{base_url}/{self.fb_video_id}"
                     status_params = {
@@ -1340,7 +1346,10 @@ class project_task(models.Model):
                     }
 
                     resp = requests.post(publish_url, params=publish_params, timeout=20)
-                    resp.raise_for_status()
+                    if resp.status_code >= 400:
+                        raise ValidationError(
+                            f"Facebook Reel finish error: {resp.status_code} {resp.text}"
+                        )
                     pdata = resp.json()
 
                     post_id = pdata.get("post_id")
@@ -1348,7 +1357,8 @@ class project_task(models.Model):
                         raise ValidationError(f"Facebook Reel: no devolvió post_id. Detalle: {pdata}")
 
                     self.fb_post_id = post_id
-                    self.fb_estado = "Publicado"
+                    self.fb_estado = "Revisando"
+                    self.fb_error = "Facebook aun no devolvio el permalink final del reel. Se seguira revisando."
 
                     # Portada
                     if self.imagen_portada and self.fb_video_id:
@@ -1373,18 +1383,36 @@ class project_task(models.Model):
                             raise ValidationError(
                                 f"FB thumbnails error: {resp_thumb.status_code} {resp_thumb.text}")
 
-                # PUBLICADO → URL REEL
-                if self.fb_estado == "Publicado" and self.fb_post_id and not self.fb_post_url:
-                    r = requests.get(
-                        f"{base_url}/{self.fb_post_id}",
-                        params={
-                            "fields": "permalink_url",
-                            "access_token": self.partner_page_access_token,
-                        },
-                        timeout=20,
-                    )
-                    r.raise_for_status()
-                    self.fb_post_url = r.json().get("permalink_url")
+                # REVISANDO → URL REEL
+                if self.fb_estado == "Revisando" and self.fb_post_id and not self.fb_post_url:
+                    try:
+                        r = requests.get(
+                            f"{base_url}/{self.fb_post_id}",
+                            params={
+                                "fields": "permalink_url",
+                                "access_token": self.partner_page_access_token,
+                            },
+                            timeout=20,
+                        )
+                        r.raise_for_status()
+                        self.fb_post_url = r.json().get("permalink_url")
+                        self.fb_estado = "Publicado"
+                        self.fb_error = False
+                    except requests.exceptions.RequestException as err:
+                        self.fb_error = (
+                            "Facebook publico el reel, pero aun no devolvio el permalink final. "
+                            f"Se reintentara automaticamente. Detalle: {err}"
+                        )
+                        return True if from_cron else {
+                            "type": "ir.actions.client",
+                            "tag": "display_notification",
+                            "params": {
+                                "title": "Publicado",
+                                "message": "Facebook publico el reel, pero aun no devolvio la URL final. Se seguira revisando.",
+                                "type": "warning",
+                                "next": {"type": "ir.actions.client", "tag": "reload"},
+                            },
+                        }
 
                     return True if from_cron else {
                         "type": "ir.actions.client",
@@ -1943,6 +1971,7 @@ class project_task(models.Model):
     def publish_on_tiktok(self, media_urls, combined_text, cover_url=None):
         url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
         tiktok_caption = self._get_tiktok_caption_to_publish()
+        self._ensure_tiktok_privacy_selected()
     
         headers = {
             "Authorization": f"Bearer {self.partner_tiktok_access_token}",
@@ -1952,10 +1981,10 @@ class project_task(models.Model):
         data = {
             "post_info": {
                 "title": tiktok_caption,
-                "privacy_level": "SELF_ONLY",
-                "disable_duet": False,
-                "disable_comment": False,
-                "disable_stitch": False,
+                "privacy_level": self.tiktok_privacy_level,
+                "disable_duet": not self.tiktok_allow_duet,
+                "disable_comment": not self.tiktok_allow_comments,
+                "disable_stitch": not self.tiktok_allow_stitch,
             },
             "source_info": {
                 "source": "PULL_FROM_URL",
