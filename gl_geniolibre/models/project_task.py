@@ -1385,6 +1385,7 @@ class project_task(models.Model):
 
                 # REVISANDO → URL REEL
                 if self.fb_estado == "Revisando" and self.fb_post_id and not self.fb_post_url:
+                    fallback_fb_url = f"https://www.facebook.com/{self.fb_post_id}"
                     try:
                         r = requests.get(
                             f"{base_url}/{self.fb_post_id}",
@@ -1395,24 +1396,16 @@ class project_task(models.Model):
                             timeout=20,
                         )
                         r.raise_for_status()
-                        self.fb_post_url = r.json().get("permalink_url")
+                        self.fb_post_url = r.json().get("permalink_url") or fallback_fb_url
                         self.fb_estado = "Publicado"
                         self.fb_error = False
                     except requests.exceptions.RequestException as err:
+                        self.fb_post_url = fallback_fb_url
+                        self.fb_estado = "Publicado"
                         self.fb_error = (
-                            "Facebook publico el reel, pero aun no devolvio el permalink final. "
-                            f"Se reintentara automaticamente. Detalle: {err}"
+                            "Facebook no devolvio permalink_url para el reel. "
+                            f"Se guardo URL alternativa basada en el Post ID. Detalle: {err}"
                         )
-                        return True if from_cron else {
-                            "type": "ir.actions.client",
-                            "tag": "display_notification",
-                            "params": {
-                                "title": "Publicado",
-                                "message": "Facebook publico el reel, pero aun no devolvio la URL final. Se seguira revisando.",
-                                "type": "warning",
-                                "next": {"type": "ir.actions.client", "tag": "reload"},
-                            },
-                        }
 
                     return True if from_cron else {
                         "type": "ir.actions.client",
