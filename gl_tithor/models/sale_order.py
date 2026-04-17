@@ -12,6 +12,7 @@ class Camiseta_Registro(models.Model):
 
     nombre_en_camiseta = fields.Char(string='Nombre en Camiseta')
     numero = fields.Char(string='Número')
+    notas = fields.Text(string='Notas')
 
     tipo = fields.Selection([
         ('camiseta_short', 'Camiseta + Short'),
@@ -162,6 +163,7 @@ class SaleOrder(models.Model):
                 talla_short = valores[5]
                 corte = valores[6]
                 manga = valores[7]
+                notas = valores[8] if len(valores) > 8 and valores[8] is not None else False
 
                 # Normalizar tallas
                 def normalizar_talla(talla):
@@ -192,6 +194,7 @@ class SaleOrder(models.Model):
                 registros.append({
                     'nombre_en_camiseta': nombre,
                     'numero': numero,
+                    'notas': str(notas).strip() if notas else False,
                     'tipo': tipo,
                     'talla_camiseta': talla_camiseta,
                     'talla_short': talla_short or False,

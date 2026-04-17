@@ -50,6 +50,7 @@
                 <field name="talla_short"/>
                 <field name="corte"/>
                 <field name="manga"/>
+                <field name="notas"/>
             </list>
         </field>
     </record>

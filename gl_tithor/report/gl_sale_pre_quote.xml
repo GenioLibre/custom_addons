@@ -176,6 +176,7 @@
                                             <th>Talla Short</th>
                                             <th>Corte</th>
                                             <th>Manga</th>
+                                            <th>Notas</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -206,6 +207,9 @@
                                             </td>
                                             <td>
                                                 <t t-esc="dict(cam._fields['manga'].selection).get(cam.manga)"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="cam.notas or ''"/>
                                             </td>
                                             <!-- Incrementar el contador en cada iteración -->
                                             <t t-set="counter" t-value="counter + 1"/>
