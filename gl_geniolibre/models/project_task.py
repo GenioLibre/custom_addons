@@ -143,6 +143,26 @@ class TikTokPrivacyOption(models.Model):
         return res
 
 
+class ProjectTaskAttachmentLine(models.Model):
+    _name = 'gl.project.task.attachment.line'
+    _description = 'Project Task Attachment Order'
+    _order = 'sequence, id'
+
+    task_id = fields.Many2one('project.task', string='Tarea', required=True, ondelete='cascade')
+    attachment_id = fields.Many2one('ir.attachment', string='Adjunto', required=True, ondelete='cascade')
+    sequence = fields.Integer(string='Secuencia', default=10)
+    attachment_name = fields.Char(related='attachment_id.name', string='Archivo', readonly=True)
+    attachment_mimetype = fields.Char(related='attachment_id.mimetype', string='Tipo', readonly=True)
+
+    _sql_constraints = [
+        (
+            'gl_task_attachment_line_unique',
+            'unique(task_id, attachment_id)',
+            'Cada adjunto solo puede aparecer una vez en el orden de la tarea.',
+        ),
+    ]
+
+
 class project_task(models.Model):
     _inherit = "project.task"
     state = fields.Selection(tracking=True)  # track_visibility en versiones antiguas
@@ -155,7 +175,26 @@ class project_task(models.Model):
     fin_promocion = fields.Date("Fin de Promoción", tracking=True)
     presupuesto = fields.Monetary("Presupuesto", currency_field='currency_id', tracking=True)
     currency_id = fields.Many2one('res.currency', string='Moneda')
+    activar_publicidad_paga = fields.Boolean(string="Activar Publicidad Paga", tracking=True, copy=False)
+    marketing_record_id = fields.Many2one('project.marketing', string="Registro Marketing", copy=False, readonly=True)
+    marketing_state = fields.Selection(
+        [
+            ("por_publicitar", "Por publicar"),
+            ("publicado", "Promocionado"),
+            ("pausado", "Pausado"),
+            ("terminado", "Terminado"),
+        ],
+        compute="_compute_marketing_state",
+        string="Estado Publicidad Paga",
+        readonly=True,
+    )
     adjuntos_ids = fields.Many2many('ir.attachment', string='Archivos Adjuntos', tracking=True)
+    attachment_line_ids = fields.One2many(
+        'gl.project.task.attachment.line',
+        'task_id',
+        string='Orden de adjuntos',
+        copy=False,
+    )
     imagen_portada = fields.Image(string='Imagen de Portada')
     tipo = fields.Selection(selection=[
         ('feed', 'Feed'),
@@ -191,6 +230,16 @@ class project_task(models.Model):
     has_instagram = fields.Boolean(compute="_compute_social_flags")
     has_tiktok = fields.Boolean(compute="_compute_social_flags")
     has_linkedin = fields.Boolean(compute="_compute_social_flags")
+
+    @api.depends('marketing_record_id.marketing_state')
+    def _compute_marketing_state(self):
+        for record in self:
+            if record.marketing_record_id and record.marketing_record_id.marketing_state:
+                record.marketing_state = record.marketing_record_id.marketing_state
+            elif record.activar_publicidad_paga:
+                record.marketing_state = "por_publicitar"
+            else:
+                record.marketing_state = False
 
     # ====================================================================================== Tiktok Requisitos#
     # PRIVACIDAD (obligatorio por API)
@@ -550,7 +599,7 @@ class project_task(models.Model):
     def _calculate_video_duration_from_attachments(self, attachments=None):
         self.ensure_one()
 
-        attachments = attachments if attachments is not None else self.adjuntos_ids
+        attachments = attachments if attachments is not None else self._get_ordered_attachments()
         if not attachments or self.tipo not in ("video_stories", "video_reels"):
             return 0
 
@@ -571,6 +620,103 @@ class project_task(models.Model):
                 rec.tiktok_video_duration = rec._calculate_video_duration_from_attachments()
             elif rec.tipo not in ("video_stories", "video_reels"):
                 rec.tiktok_video_duration = 0
+
+    def _get_ordered_attachments(self, attachments=None):
+        self.ensure_one()
+        attachments = attachments if attachments is not None else self.adjuntos_ids
+        if not attachments:
+            return attachments
+
+        if not hasattr(attachments, 'ids'):
+            attachment_ids = [
+                attachment.id
+                for attachment in attachments
+                if getattr(attachment, 'id', False)
+            ]
+            attachments = self.env['ir.attachment'].browse(attachment_ids)
+
+        ordered_ids = []
+        for line in self.attachment_line_ids.sorted(lambda line: (line.sequence, line.id)):
+            attachment_id = line.attachment_id.id
+            if attachment_id and attachment_id in attachments.ids:
+                ordered_ids.append(attachment_id)
+
+        missing_ids = [attachment.id for attachment in attachments if attachment.id not in ordered_ids]
+        ordered_ids.extend(missing_ids)
+        return self.env['ir.attachment'].browse(ordered_ids)
+
+    def _build_attachment_order_from_commands(self, base_ids, commands):
+        ordered_ids = list(base_ids or [])
+        if not commands:
+            return ordered_ids
+
+        for command in commands:
+            if not isinstance(command, (list, tuple)) or not command:
+                continue
+
+            op_type = command[0]
+            if op_type == 4 and len(command) > 1 and command[1]:
+                attachment_id = command[1]
+                if attachment_id in ordered_ids:
+                    ordered_ids.remove(attachment_id)
+                ordered_ids.append(attachment_id)
+            elif op_type in (2, 3) and len(command) > 1 and command[1]:
+                attachment_id = command[1]
+                if attachment_id in ordered_ids:
+                    ordered_ids.remove(attachment_id)
+            elif op_type == 5:
+                ordered_ids = []
+            elif op_type == 6 and len(command) > 2:
+                ordered_ids = list(command[2] or [])
+
+        return ordered_ids
+
+    def _sync_attachment_lines(self, preferred_order_ids=None):
+        line_model = self.env['gl.project.task.attachment.line']
+        for rec in self:
+            attachments = rec.adjuntos_ids
+            existing_lines = rec.attachment_line_ids.sorted(lambda line: (line.sequence, line.id))
+            existing_by_attachment = {
+                line.attachment_id.id: line
+                for line in existing_lines
+                if line.attachment_id
+            }
+            attachment_ids = set(attachments.ids)
+
+            lines_to_remove = existing_lines.filtered(
+                lambda line: line.attachment_id.id not in attachment_ids
+            )
+            if lines_to_remove:
+                lines_to_remove.unlink()
+
+            desired_order = list(preferred_order_ids or [])
+            if not desired_order:
+                desired_order = [
+                    line.attachment_id.id
+                    for line in existing_lines
+                    if line.attachment_id.id in attachment_ids
+                ]
+
+            desired_order.extend([
+                attachment.id
+                for attachment in attachments
+                if attachment.id not in desired_order
+            ])
+
+            for index, attachment_id in enumerate(desired_order, start=1):
+                if attachment_id not in attachment_ids:
+                    continue
+
+                line = existing_by_attachment.get(attachment_id)
+                sequence = index * 10
+                if line:
+                    line.sequence = sequence
+                else:
+                    line_model.create({
+                        'task_id': rec.id,
+                        'attachment_id': attachment_id,
+                        'sequence': sequence,
+                    })
 
     def _get_tiktok_privacy_options_list(self):
         self.ensure_one()
@@ -1020,6 +1166,11 @@ class project_task(models.Model):
         for task in self:
             if task.tag_ids.filtered(lambda tag: tag.name.lower() == 'plantilla'):
                 raise ValidationError('No puedes eliminar tareas con la etiqueta "Plantilla".')
+            if task.marketing_record_id:
+                raise ValidationError(
+                    'No puedes eliminar esta tarea mientras exista su registro en Project Marketing. '
+                    'Elimínalo primero desde Project Marketing.'
+                )
         return super(project_task, self).unlink()
 
     def copy(self, default=None):
@@ -1036,17 +1187,32 @@ class project_task(models.Model):
             self._normalize_tiktok_privacy_vals(self._normalize_tiktok_commercial_vals(vals))
             for vals in vals_list
         ]
+        for vals in vals_list:
+            if vals.get("activar_publicidad_paga") and vals.get("post_estado") != "Publicado":
+                raise ValidationError("Solo puedes activar Publicidad Paga cuando el post ya está Publicado.")
         records = super().create(vals_list)
-        for rec in records:
+        for rec, vals in zip(records, vals_list):
+            preferred_order_ids = rec._build_attachment_order_from_commands([], vals.get('adjuntos_ids', []))
+            rec._sync_attachment_lines(preferred_order_ids=preferred_order_ids)
             if rec.tipo in ("video_stories", "video_reels") and rec.adjuntos_ids:
                 rec.tiktok_video_duration = rec._calculate_video_duration_from_attachments()
             elif rec.tipo not in ("video_stories", "video_reels"):
                 rec.tiktok_video_duration = 0
         records._sync_tiktok_account_data_after_save()
+        for rec in records.filtered(lambda r: r.activar_publicidad_paga and r.post_estado == "Publicado"):
+            rec.env['project.marketing'].sudo().sync_from_task(rec)
         return records
 
     def write(self, vals):  
         vals = self._normalize_tiktok_privacy_vals(self._normalize_tiktok_commercial_vals(vals))
+        preferred_attachment_orders = {}
+
+        if vals.get("activar_publicidad_paga"):
+            target_state = vals.get("post_estado")
+            if not target_state and any(record.post_estado != "Publicado" for record in self):
+                raise ValidationError("Solo puedes activar Publicidad Paga cuando el post ya está Publicado.")
+            if target_state and target_state != "Publicado":
+                raise ValidationError("Solo puedes activar Publicidad Paga cuando el post ya está Publicado.")
 
         for record in self:
             current_tipo = vals.get('tipo', record.tipo)
@@ -1064,6 +1230,10 @@ class project_task(models.Model):
                     continue
 
                 if 'adjuntos_ids' in vals:
+                    preferred_attachment_orders[record.id] = record._build_attachment_order_from_commands(
+                        record._get_ordered_attachments().ids,
+                        vals['adjuntos_ids'],
+                    )
                     current_attachment_ids = set(record.adjuntos_ids.ids)
                     for command in vals['adjuntos_ids']:
                         op_type = command[0]
@@ -1122,6 +1292,10 @@ class project_task(models.Model):
 
         result = super().write(vals)
 
+        if 'adjuntos_ids' in vals:
+            for rec in self:
+                rec._sync_attachment_lines(preferred_order_ids=preferred_attachment_orders.get(rec.id))
+
         if {'adjuntos_ids', 'tipo'} & set(vals.keys()):
             for rec in self:
                 if rec.tipo in ("video_stories", "video_reels") and rec.adjuntos_ids:
@@ -1136,7 +1310,20 @@ class project_task(models.Model):
         if {'red_social_ids', 'partner_id'} & set(vals.keys()):
             self._sync_tiktok_account_data_after_save()
 
+        if not self.env.context.get("skip_marketing_sync") and (
+            {'activar_publicidad_paga', 'post_estado', 'inicio_promocion', 'fin_promocion', 'presupuesto',
+             'partner_id', 'currency_id', 'name'} & set(vals.keys())
+        ):
+            for rec in self:
+                self.env['project.marketing'].sudo().sync_from_task(rec)
+
         return result
+
+    @api.constrains('activar_publicidad_paga', 'post_estado')
+    def _check_activar_publicidad_paga_requires_publicado(self):
+        for record in self:
+            if record.activar_publicidad_paga and record.post_estado != "Publicado":
+                raise ValidationError("Solo puedes activar Publicidad Paga cuando el post ya está Publicado.")
 
     def programar_post(self):
         if (
@@ -2293,11 +2480,13 @@ class project_task(models.Model):
                     f"Los datos de acceso no fueron configurados para: {', '.join(credential_errors)}")
 
             # Subir archivos a S3 (única operación que debe fallar completamente si hay error)
+            self._sync_attachment_lines()
+            ordered_attachments = self._get_ordered_attachments()
             media_urls_native = upload_files_to_s3(
-                self.adjuntos_ids, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="native"
+                ordered_attachments, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="native"
             )
             media_urls_custom = upload_files_to_s3(
-                self.adjuntos_ids, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="custom"
+                ordered_attachments, aws_api, aws_secret, aws_bucket, aws_public_domain, url_mode="custom"
             )
             _logger.info(f"Archivos subidos a S3. URLs nativas obtenidas: {media_urls_native}")
             _logger.info(f"Archivos subidos a S3. URLs custom obtenidas: {media_urls_custom}")

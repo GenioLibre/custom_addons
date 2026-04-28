@@ -25,6 +25,14 @@
                             <field name="fin_promocion"/>
                             <field name="presupuesto"/>
                             <field name="currency_id" String="Moneda"/>
+                            <field name="activar_publicidad_paga"
+                                   readonly="post_estado != 'Publicado' and not activar_publicidad_paga"/>
+                            <field name="marketing_state" widget="badge"
+                                   decoration-muted="not marketing_state or marketing_state == 'por_publicitar'"
+                                   decoration-success="marketing_state == 'publicado'"
+                                   decoration-warning="marketing_state == 'pausado'"
+                                   decoration-info="marketing_state == 'terminado'"/>
+                            <field name="marketing_record_id" readonly="1"/>
                         </group>
                     </page>
 

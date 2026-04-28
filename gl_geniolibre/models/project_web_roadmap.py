@@ -146,7 +146,11 @@ class ProjectProject(models.Model):
             raise ValidationError('Selecciona un Tipo de Web para generar la hoja de ruta.')
 
         Stage = self.env['project.task.type'].sudo()
-        Task = self.env['project.task'].sudo()
+        Task = self.env['project.task'].with_context(
+            default_user_ids=False,
+            default_personal_stage_type_ids=False,
+            default_personal_stage_type_id=False,
+        ).sudo()
 
         stage_data_list = self.web_type_id._parse_xml_template()
         for sequence, stage_data in enumerate(stage_data_list, start=1):
@@ -164,6 +168,7 @@ class ProjectProject(models.Model):
                     'project_id': self.id,
                     'stage_id': stage.id,
                     'partner_id': self.partner_id.id or False,
+                    'user_ids': [Command.clear()],
                     'gl_is_web_roadmap_generated': True,
                 })
 
@@ -174,6 +179,7 @@ class ProjectProject(models.Model):
                         'parent_id': parent_task.id,
                         'stage_id': stage.id,
                         'partner_id': self.partner_id.id or False,
+                        'user_ids': [Command.clear()],
                         'gl_is_web_roadmap_generated': True,
                     })
 

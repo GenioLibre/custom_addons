@@ -1,0 +1,579 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_project_marketing_kanban" model="ir.ui.view">
+            <field name="name">project.marketing.kanban</field>
+            <field name="model">project.marketing</field>
+            <field name="arch" type="xml">
+                <kanban default_group_by="marketing_state" class="o_kanban_small_column">
+                    <field name="name"/>
+                    <field name="partner_id"/>
+                    <field name="task_id"/>
+                    <field name="marketing_state"/>
+                    <field name="scheduled_activation"/>
+                    <field name="budget"/>
+                    <field name="currency_id"/>
+                    <templates>
+                        <t t-name="card">
+                            <div class="oe_kanban_global_click">
+                                <field name="marketing_state" widget="badge"
+                                       decoration-success="marketing_state == 'publicado'"
+                                       decoration-warning="marketing_state == 'pausado'"
+                                       decoration-info="marketing_state == 'terminado'"/>
+                                <strong class="d-block mt-2">
+                                    <field name="name"/>
+                                </strong>
+                                <div class="text-muted">
+                                    <field name="partner_id"/>
+                                </div>
+                                <div class="mt-2">
+                                    <span>Tarea:</span>
+                                    <field name="task_id"/>
+                                </div>
+                                <div>
+                                    <span>Programado:</span>
+                                    <field name="scheduled_activation"/>
+                                </div>
+                                <div>
+                                    <span>Monto:</span>
+                                    <field name="budget"/>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <record id="view_project_marketing_tree" model="ir.ui.view">
+            <field name="name">project.marketing.list</field>
+            <field name="model">project.marketing</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="partner_id"/>
+                    <field name="task_id"/>
+                    <field name="marketing_state" widget="badge"
+                           decoration-success="marketing_state == 'publicado'"
+                           decoration-warning="marketing_state == 'pausado'"
+                           decoration-info="marketing_state == 'terminado'"/>
+                    <field name="scheduled_activation"/>
+                    <field name="budget"/>
+                    <field name="campaign_id"/>
+                    <field name="adset_id"/>
+                    <field name="meta_ad_id"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_project_marketing_form" model="ir.ui.view">
+            <field name="name">project.marketing.form</field>
+            <field name="model">project.marketing</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button name="action_open_meta_ads_manager" type="object" string="Abrir en Meta" icon="fa-external-link"
+                                class="btn-secondary" invisible="not ad_account_id or not campaign_id or not adset_id or not meta_ad_id"/>
+                        <button name="action_revisar" type="object" string="Revisar" icon="fa-check"
+                                class="btn-info" invisible="not meta_ad_id"/>
+                    </header>
+                    <sheet>
+                        <widget name="web_ribbon" bg_color="text-bg-secondary" title="Por publicar"
+                                invisible="marketing_state != 'por_publicitar'"/>
+                        <widget name="web_ribbon" bg_color="text-bg-success" title="Promocionado"
+                                invisible="marketing_state != 'publicado'"/>
+                        <widget name="web_ribbon" bg_color="text-bg-secondary" title="Pausado"
+                                invisible="marketing_state != 'pausado'"/>
+                        <widget name="web_ribbon" bg_color="text-bg-info" title="Terminado"
+                                invisible="marketing_state != 'terminado'"/>
+                        <group>
+                            <group>
+                                <field name="imported_from_meta" invisible="1"/>
+                                <field name="name"/>
+                                <field name="partner_id"/>
+                                <field name="task_id"/>
+                                <field name="platform"/>
+                                <field name="marketing_state" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="scheduled_activation" invisible="1"/>
+                                <field name="start_date"/>
+                                <field name="end_date"/>
+                                <field name="budget"/>
+                                <field name="currency_id"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Datos de Campaña">
+                                <group>
+                                    <group>
+                                        <div class="o_form_label">Selecciona o sincroniza una campana existente en Meta.</div>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <button name="action_sync_accounts" type="object" string="Cuenta" icon="fa-refresh" class="btn-secondary"/>
+                                        <button name="action_sync_campaigns" type="object" string="Campaña" icon="fa-refresh" class="btn-secondary"
+                                                invisible="not ad_account_id"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="ad_account_id" readonly="imported_from_meta"/>
+                                        <field name="campaign_id" readonly="imported_from_meta"/>
+                                        <field name="campaign_account_ref" readonly="1" invisible="not imported_from_meta"/>
+                                        <field name="campaign_name_meta" readonly="1"/>
+                                        <field name="campaign_objective" readonly="1"/>
+                                        <field name="campaign_buying_type" readonly="1"/>
+                                        <field name="campaign_status" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="campaign_special_ad_categories" readonly="1"/>
+                                        <field name="campaign_budget_strategy" readonly="1"/>
+                                        <field name="campaign_budget_mode" readonly="1"/>
+                                        <field name="campaign_daily_budget" readonly="1"/>
+                                        <field name="campaign_lifetime_budget" readonly="1"/>
+                                        <field name="campaign_bid_strategy" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Datos de Adset">
+                                <group>
+                                    <group>
+                                        <div class="o_form_label">Selecciona o sincroniza el conjunto de anuncios existente en Meta.</div>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <button name="action_sync_adsets" type="object" string="Conjuntos" icon="fa-refresh" class="btn-secondary"
+                                                invisible="not campaign_id"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="adset_id" readonly="imported_from_meta"/>
+                                        <field name="adset_campaign_ref" readonly="1"/>
+                                        <field name="adset_name_meta" readonly="1"/>
+                                        <field name="adset_daily_budget_meta" readonly="1"/>
+                                        <field name="adset_budget_type" readonly="1"/>
+                                        <field name="adset_lifetime_budget" readonly="1"/>
+                                        <field name="adset_billing_event" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="adset_start_time" readonly="1"/>
+                                        <field name="adset_end_time" readonly="1"/>
+                                        <field name="adset_optimization_goal" readonly="1"/>
+                                        <field name="adset_bid_strategy_meta" readonly="1"/>
+                                        <field name="adset_destination_type" readonly="1"/>
+                                        <field name="adset_age_min" readonly="1"/>
+                                        <field name="adset_age_max" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="adset_places_summary" widget="text" readonly="1"/>
+                                        <field name="adset_detailed_targeting" widget="text" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="adset_targeting_summary" widget="text" readonly="1"/>
+                                        <field name="adset_placements" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Datos del Anuncio">
+                                <group>
+                                    <group>
+                                        <div class="o_form_label">Selecciona o sincroniza el anuncio existente en Meta.</div>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <button name="action_sync_ads" type="object" string="Anuncios" icon="fa-refresh" class="btn-secondary"
+                                                invisible="not adset_id"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="meta_ad_id"/>
+                                        <field name="ad_name_meta" readonly="1"/>
+                                        <field name="ad_existing_post_id" readonly="1"/>
+                                        <field name="ad_status" readonly="1"/>
+                                        <field name="ad_message_destination" readonly="1"/>
+                                        <field name="ad_whatsapp_number" readonly="1"/>
+                                        <field name="ad_preview_url" widget="url" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="ad_image_preview" widget="html" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="ad_call_to_action" readonly="imported_from_meta"/>
+                                        <field name="ad_destination_url" widget="url" readonly="imported_from_meta"/>
+                                    </group>
+                                    <group>
+                                        <field name="ad_headline" readonly="imported_from_meta"/>
+                                        <field name="ad_primary_text" widget="text" readonly="imported_from_meta"/>
+                                        <field name="ad_description" widget="text" readonly="imported_from_meta"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Metricas del Anuncio">
+                                <group>
+                                    <group string="Resumen">
+                                        <field name="campaign_spend" readonly="1"/>
+                                        <field name="campaign_reach" readonly="1"/>
+                                        <field name="campaign_impressions" readonly="1"/>
+                                        <field name="campaign_frequency" readonly="1"/>
+                                        <field name="campaign_result_action_type" readonly="1"/>
+                                        <field name="campaign_results" readonly="1"/>
+                                    </group>
+                                    <group string="Rendimiento">
+                                        <field name="campaign_cost_per_result" readonly="1"/>
+                                        <field name="campaign_clicks" readonly="1"/>
+                                        <field name="campaign_ctr" readonly="1"/>
+                                        <field name="campaign_cpc" readonly="1"/>
+                                        <field name="campaign_cpm" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="campaign_actions_json" widget="text" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="campaign_cost_per_action_type_json" widget="text" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Observaciones">
+                                <group>
+                                    <field name="error_message" widget="text" readonly="1"/>
+                                    <field name="notes" widget="text" readonly="imported_from_meta"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_marketing_meta_campaign_tree" model="ir.ui.view">
+            <field name="name">marketing.meta.campaign.list</field>
+            <field name="model">marketing.meta.campaign</field>
+            <field name="arch" type="xml">
+                <list create="false" edit="false">
+                    <field name="provider"/>
+                    <field name="name"/>
+                    <field name="account_id"/>
+                    <field name="status" widget="badge"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_marketing_meta_campaign_form" model="ir.ui.view">
+            <field name="name">marketing.meta.campaign.form</field>
+            <field name="model">marketing.meta.campaign</field>
+            <field name="arch" type="xml">
+                <form create="false" edit="false">
+                    <sheet>
+                        <group>
+                            <field name="provider"/>
+                            <field name="account_id"/>
+                            <field name="name"/>
+                            <field name="status" readonly="1"/>
+                            <field name="objective" readonly="1"/>
+                            <field name="buying_type" readonly="1"/>
+                            <field name="special_ad_categories" readonly="1"/>
+                            <field name="budget_strategy" readonly="1"/>
+                            <field name="budget_mode" readonly="1"/>
+                            <field name="daily_budget" readonly="1"/>
+                            <field name="lifetime_budget" readonly="1"/>
+                            <field name="bid_strategy" readonly="1"/>
+                        </group>
+                        <notebook>
+                            <page string="Técnico">
+                                <group>
+                                    <field name="external_id" readonly="1"/>
+                                    <field name="configured_status" readonly="1"/>
+                                    <field name="effective_status" readonly="1"/>
+                                </group>
+                                <group>
+                                    <field name="raw_payload" widget="text" readonly="1"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_marketing_meta_adset_tree" model="ir.ui.view">
+            <field name="name">marketing.meta.adset.list</field>
+            <field name="model">marketing.meta.adset</field>
+            <field name="arch" type="xml">
+                <list create="false" edit="false">
+                    <field name="name"/>
+                    <field name="campaign_id"/>
+                    <field name="configured_status"/>
+                    <field name="effective_status"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_marketing_meta_adset_form" model="ir.ui.view">
+            <field name="name">marketing.meta.adset.form</field>
+            <field name="model">marketing.meta.adset</field>
+            <field name="arch" type="xml">
+                <form create="false" edit="false">
+                    <sheet>
+                        <group>
+                            <field name="name"/>
+                            <field name="account_id"/>
+                            <field name="campaign_id"/>
+                            <field name="external_id"/>
+                            <field name="configured_status"/>
+                            <field name="effective_status"/>
+                        </group>
+                        <group>
+                            <field name="raw_payload" widget="text"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_marketing_meta_ad_tree" model="ir.ui.view">
+            <field name="name">marketing.meta.ad.list</field>
+            <field name="model">marketing.meta.ad</field>
+            <field name="arch" type="xml">
+                <list create="false" edit="false">
+                    <field name="name"/>
+                    <field name="campaign_id"/>
+                    <field name="adset_id"/>
+                    <field name="configured_status"/>
+                    <field name="effective_status"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_marketing_meta_ad_form" model="ir.ui.view">
+            <field name="name">marketing.meta.ad.form</field>
+            <field name="model">marketing.meta.ad</field>
+            <field name="arch" type="xml">
+                <form create="false" edit="false">
+                    <sheet>
+                        <group>
+                            <field name="name"/>
+                            <field name="account_id"/>
+                            <field name="campaign_id"/>
+                            <field name="adset_id"/>
+                            <field name="external_id"/>
+                            <field name="configured_status"/>
+                            <field name="effective_status"/>
+                            <field name="creative_id"/>
+                            <field name="preview_url" widget="url"/>
+                        </group>
+                        <group>
+                            <field name="raw_payload" widget="text"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_project_marketing_import_wizard_form" model="ir.ui.view">
+            <field name="name">project.marketing.import.wizard.form</field>
+            <field name="model">project.marketing.import.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Importar desde Meta">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="marketing_id" readonly="1" invisible="not marketing_id"/>
+                                <field name="name"/>
+                                <field name="partner_id"/>
+                                <field name="task_id"/>
+                            </group>
+                        </group>
+                        <group string="Cadena Meta">
+                            <group>
+                                <field name="ad_account_id"/>
+                                <field name="campaign_id"/>
+                            </group>
+                            <group>
+                                <field name="adset_id"/>
+                                <field name="meta_ad_id"/>
+                                <field name="import_notes" widget="text"/>
+                            </group>
+                        </group>
+                    </sheet>
+                    <footer>
+                        <button name="action_import_chain" type="object" string="Importar" class="btn-primary"/>
+                        <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_project_marketing" model="ir.actions.act_window">
+            <field name="name">Publicaciones Paga</field>
+            <field name="res_model">project.marketing</field>
+            <field name="view_mode">kanban,list,form</field>
+            <field name="context">{'group_by': 'marketing_state'}</field>
+        </record>
+
+        <record id="view_project_marketing_dashboard_kanban" model="ir.ui.view">
+            <field name="name">project.marketing.dashboard.kanban</field>
+            <field name="model">project.marketing.dashboard</field>
+            <field name="arch" type="xml">
+                <kanban class="o_project_kanban o_kanban_small_column" default_group_by="stage" group_create="false" group_delete="false">
+                    <header>
+                        <button name="action_open_import_wizard"
+                                type="object"
+                                string="Importar"
+                                icon="fa-download"
+                                display="always"
+                                class="btn-primary"/>
+                    </header>
+                    <field name="provider"/>
+                    <field name="campaign_name"/>
+                    <field name="task_id"/>
+                    <field name="partner_id"/>
+                    <field name="total_budget"/>
+                    <field name="currency_id"/>
+                    <field name="running_ads_count"/>
+                    <field name="state"/>
+                    <field name="stage"/>
+                    <templates>
+                        <t t-name="card" class="mb-2">
+                            <a type="object"
+                               name="action_open_marketing_form"
+                               class="oe_kanban_global_click text-decoration-none">
+                                <div class="o_project_kanban_main d-flex align-items-baseline gap-1 ms-1">
+                                    <div class="min-w-0 pb-4 me-2">
+                                        <span class="text-truncate d-block fs-4 fw-bold" t-att-title="record.campaign_name.value">
+                                            <field name="campaign_name"/>
+                                        </span>
+                                        <span class="text-muted d-flex align-items-baseline" t-if="record.partner_id.value">
+                                            <span class="fa fa-user me-2" aria-label="Cliente" title="Cliente"></span>
+                                            <field class="text-truncate" name="partner_id"/>
+                                        </span>
+                                        <div class="text-muted" t-if="record.task_id.value">
+                                            <span class="fa fa-tasks me-2" aria-label="Tarea" title="Tarea"></span>
+                                            <field name="task_id"/>
+                                        </div>
+                                        <div class="text-muted">
+                                            <span class="fa fa-bullhorn me-2" aria-label="Proveedor" title="Proveedor"></span>
+                                            <field name="provider"/>
+                                        </div>
+                                        <div class="text-muted">
+                                            <span class="fa fa-money me-2" aria-label="Monto" title="Monto"></span>
+                                            <field name="total_budget"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <footer class="mt-auto pt-0 ms-1">
+                                    <div class="d-flex align-items-center">
+                                        <div class="o_project_kanban_boxes d-flex align-items-baseline">
+                                            <div class="o_project_kanban_box me-1">
+                                                <div>
+                                                    <span class="badge rounded-pill text-bg-light">
+                                                        <field name="stage"/>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </footer>
+                            </a>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <record id="view_project_marketing_dashboard_tree" model="ir.ui.view">
+            <field name="name">project.marketing.dashboard.list</field>
+            <field name="model">project.marketing.dashboard</field>
+            <field name="arch" type="xml">
+                <list create="false" edit="false" delete="false">
+                    <field name="provider"/>
+                    <field name="campaign_name"/>
+                    <field name="partner_id"/>
+                    <field name="task_id"/>
+                    <field name="total_budget"/>
+                    <field name="stage"/>
+                    <field name="running_ads_count"/>
+                    <field name="state" widget="badge"
+                           decoration-success="state == 'ACTIVE'"
+                           decoration-warning="state == 'PROGRAMADO' or state == 'PAUSED'"
+                           decoration-danger="state == 'ERROR'"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="action_project_marketing_dashboard" model="ir.actions.act_window">
+            <field name="name">Dashboard</field>
+            <field name="res_model">project.marketing.dashboard</field>
+            <field name="view_mode">kanban,list</field>
+            <field name="domain">[]</field>
+            <field name="context">{'group_by': 'stage'}</field>
+        </record>
+
+        <record id="action_marketing_meta_campaign" model="ir.actions.act_window">
+            <field name="name">Campañas</field>
+            <field name="res_model">marketing.meta.campaign</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[
+                ('active', '=', True),
+                ('effective_status', '=', 'ACTIVE'),
+                ('has_active_marketing_record', '=', True)
+            ]</field>
+        </record>
+
+        <record id="action_marketing_meta_adset" model="ir.actions.act_window">
+            <field name="name">Conjuntos Meta</field>
+            <field name="res_model">marketing.meta.adset</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <record id="action_marketing_meta_ad" model="ir.actions.act_window">
+            <field name="name">Ads Meta</field>
+            <field name="res_model">marketing.meta.ad</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem id="menu_project_marketing_root"
+                  name="Publicaciones Paga"
+                  parent="project.menu_main_pm"
+                  sequence="51"
+                  action="action_project_marketing"/>
+
+        <menuitem id="menu_project_marketing_dashboard"
+                  name="Dashboard"
+                  parent="menu_project_marketing_root"
+                  sequence="5"
+                  action="action_project_marketing_dashboard"/>
+
+        <menuitem id="menu_project_marketing_campaigns"
+                  name="Campañas"
+                  parent="menu_project_marketing_root"
+                  sequence="10"
+                  action="action_marketing_meta_campaign"/>
+
+        <menuitem id="menu_project_marketing_adsets"
+                  name="Conjuntos Meta"
+                  parent="menu_project_marketing_root"
+                  sequence="20"
+                  action="action_marketing_meta_adset"/>
+
+        <menuitem id="menu_project_marketing_ads"
+                  name="Ads Meta"
+                  parent="menu_project_marketing_root"
+                  sequence="30"
+                  action="action_marketing_meta_ad"/>
+    </data>
+</odoo>

@@ -2,6 +2,7 @@
 import urllib.parse
 import secrets
 import time
+from datetime import datetime, timedelta
 
 import boto3
 import botocore
@@ -12,6 +13,11 @@ from odoo.http import request
 
 API_VERSION = None
 OAUTH_STATE_TTL = 600
+META_SYSTEM_USER_TOKEN_KEY = "gl_facebook.meta_system_user_access_token"
+META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY = "gl_facebook.meta_system_user_token_expires_at"
+META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY = "gl_facebook.meta_system_user_token_last_check"
+META_SYSTEM_USER_TOKEN_STATE_KEY = "gl_facebook.meta_system_user_token_state"
+META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY = "gl_facebook.meta_system_user_token_last_error"
 
 
 class ResConfigSettings(models.TransientModel):
@@ -22,6 +28,33 @@ class ResConfigSettings(models.TransientModel):
     facebook_app_secret = fields.Char(string="Facebook APP Secret", config_parameter="gl_facebook.secret")
     facebook_redirect_uri = fields.Char(string="Facebook Redirect URI", config_parameter="facebook_redirect", default="http://localhost:8018/facebook-auth/")
     facebook_api_version = fields.Char(string="Facebook API Version", config_parameter="gl_facebook.api_version")
+    meta_system_user_access_token = fields.Char(
+        string="Meta System User Access Token",
+        config_parameter=META_SYSTEM_USER_TOKEN_KEY,
+    )
+    meta_system_user_token_expires_at = fields.Datetime(
+        string="Meta System User Expira",
+        config_parameter=META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY,
+    )
+    meta_system_user_token_last_check = fields.Datetime(
+        string="Ultima revision token Meta System User",
+        config_parameter=META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY,
+        readonly=True,
+    )
+    meta_system_user_token_state = fields.Char(
+        string="Estado token Meta System User",
+        config_parameter=META_SYSTEM_USER_TOKEN_STATE_KEY,
+        readonly=True,
+    )
+    meta_system_user_token_last_error = fields.Char(
+        string="Ultimo error token Meta System User",
+        config_parameter=META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY,
+        readonly=True,
+    )
+    meta_system_user_token_status = fields.Char(
+        string="Resumen token Meta System User",
+        compute="_compute_meta_system_user_token_status",
+    )
 
     aws_access_key = fields.Char(string="AWS Clave de acceso", config_parameter="gl_aws.api_key")
     aws_secret = fields.Char(string="AWS Clave de acceso secreta", config_parameter="gl_aws.secret")
@@ -53,6 +86,126 @@ class ResConfigSettings(models.TransientModel):
     chatgpt_api_key = fields.Char("ChatGPT API Key", config_parameter="chatgpt.api_key")
     chatgpt_base_url = fields.Char("ChatGPT Base URL", config_parameter="chatgpt.base_url", default="https://api.openai.com/v1")
     chatgpt_model = fields.Char("ChatGPT Modelo", config_parameter="chatgpt.model", default="gpt-4.1-mini")
+
+    @api.depends(
+        "meta_system_user_access_token",
+        "meta_system_user_token_expires_at",
+        "meta_system_user_token_last_check",
+        "meta_system_user_token_state",
+        "meta_system_user_token_last_error",
+    )
+    def _compute_meta_system_user_token_status(self):
+        now = datetime.utcnow()
+        for rec in self:
+            if not rec.meta_system_user_access_token:
+                rec.meta_system_user_token_status = "No configurado"
+                continue
+
+            expires_at = fields.Datetime.to_datetime(rec.meta_system_user_token_expires_at)
+            state = (rec.meta_system_user_token_state or "").strip().lower()
+
+            if state == "invalid":
+                rec.meta_system_user_token_status = "Invalido: revisa permisos, app o token"
+            elif expires_at:
+                if expires_at <= now:
+                    rec.meta_system_user_token_status = "Vencido"
+                else:
+                    remaining = expires_at - now
+                    days_left = max(0, remaining.days)
+                    if days_left <= 7:
+                        rec.meta_system_user_token_status = f"Por vencer: {days_left} dias restantes"
+                    else:
+                        rec.meta_system_user_token_status = f"Vigente: {days_left} dias restantes"
+            else:
+                rec.meta_system_user_token_status = "Configurado sin fecha de expiracion"
+
+    def set_values(self):
+        icp = self.env["ir.config_parameter"].sudo()
+        previous_token = icp.get_param(META_SYSTEM_USER_TOKEN_KEY)
+        super().set_values()
+
+        current_token = (self.meta_system_user_access_token or "").strip()
+        current_expiry = self.meta_system_user_token_expires_at
+
+        if not current_token:
+            icp.set_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY, "")
+            icp.set_param(META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY, "")
+            icp.set_param(META_SYSTEM_USER_TOKEN_STATE_KEY, "")
+            icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, "")
+            return
+
+        if current_token != (previous_token or "").strip() and not current_expiry:
+            expires_at = datetime.utcnow() + timedelta(days=60)
+            icp.set_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY, fields.Datetime.to_string(expires_at))
+            self.meta_system_user_token_expires_at = expires_at
+
+    @api.model
+    def _cron_meta_system_user_token_maintenance(self):
+        icp = self.env["ir.config_parameter"].sudo()
+        token = (icp.get_param(META_SYSTEM_USER_TOKEN_KEY) or "").strip()
+        now = datetime.utcnow()
+
+        if not token:
+            icp.set_param(META_SYSTEM_USER_TOKEN_STATE_KEY, "missing")
+            icp.set_param(META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY, fields.Datetime.to_string(now))
+            icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, "")
+            return True
+
+        expires_at_raw = icp.get_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY)
+        expires_at = fields.Datetime.to_datetime(expires_at_raw) if expires_at_raw else False
+
+        if not expires_at:
+            expires_at = now + timedelta(days=60)
+            icp.set_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY, fields.Datetime.to_string(expires_at))
+
+        state = "valid"
+        error_message = ""
+
+        if expires_at <= now:
+            state = "expired"
+        elif expires_at <= (now + timedelta(days=7)):
+            state = "expiring_soon"
+
+        app_id = (icp.get_param("gl_facebook.app_id") or "").strip()
+        app_secret = (icp.get_param("gl_facebook.secret") or "").strip()
+        if app_id and app_secret:
+            try:
+                debug_response = requests.get(
+                    "https://graph.facebook.com/debug_token",
+                    params={
+                        "input_token": token,
+                        "access_token": f"{app_id}|{app_secret}",
+                    },
+                    timeout=20,
+                )
+                debug_data = debug_response.json()
+                if debug_response.status_code == 200:
+                    token_data = debug_data.get("data") or {}
+                    if token_data.get("is_valid") is False:
+                        state = "invalid"
+                        error_message = "Meta indico que el token ya no es valido."
+                    elif token_data.get("expires_at"):
+                        meta_expires_at = datetime.utcfromtimestamp(int(token_data["expires_at"]))
+                        expires_at = meta_expires_at
+                        icp.set_param(
+                            META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY,
+                            fields.Datetime.to_string(meta_expires_at),
+                        )
+                        if meta_expires_at <= now:
+                            state = "expired"
+                        elif meta_expires_at <= (now + timedelta(days=7)):
+                            state = "expiring_soon"
+                        else:
+                            state = "valid"
+                else:
+                    error_message = f"No se pudo validar el token con Meta: {debug_data}"
+            except requests.exceptions.RequestException as err:
+                error_message = f"Error validando token Meta: {err}"
+
+        icp.set_param(META_SYSTEM_USER_TOKEN_STATE_KEY, state)
+        icp.set_param(META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY, fields.Datetime.to_string(now))
+        icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, error_message)
+        return True
 
     def _create_oauth_state(self, provider):
         if not request or not request.session:

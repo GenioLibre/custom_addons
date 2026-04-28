@@ -18,6 +18,18 @@
                             <field name="facebook_redirect_uri" title="APP Key"/>
                             <label class="col-lg-3 mt-3" string="Facebook Page Access Tokens" for="user_access_token"/>
                             <field name="user_access_token" title="APP Key"/>
+                            <label class="col-lg-3 mt-3" string="Meta System User Token" for="meta_system_user_access_token"/>
+                            <field name="meta_system_user_access_token" password="True" title="Meta System User Token"/>
+                            <label class="col-lg-3 mt-3" string="Meta Token Expira" for="meta_system_user_token_expires_at"/>
+                            <field name="meta_system_user_token_expires_at" title="Meta Token Expira"/>
+                            <label class="col-lg-3 mt-3" string="Meta Token Estado" for="meta_system_user_token_status"/>
+                            <field name="meta_system_user_token_status" readonly="1"/>
+                            <label class="col-lg-3 mt-3" string="Ultima revision token Meta" for="meta_system_user_token_last_check"/>
+                            <field name="meta_system_user_token_last_check" readonly="1"/>
+                            <label class="col-lg-3 mt-3" string="Estado tecnico token Meta" for="meta_system_user_token_state"/>
+                            <field name="meta_system_user_token_state" readonly="1"/>
+                            <label class="col-lg-3 mt-3" string="Ultimo error token Meta" for="meta_system_user_token_last_error"/>
+                            <field name="meta_system_user_token_last_error" readonly="1"/>
                             <label class="col-lg-3 mt-3" string="API Version" for="facebook_api_version"/>
                             <field name="facebook_api_version"/>
                             <div class="content-group">

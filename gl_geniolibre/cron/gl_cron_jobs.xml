@@ -95,4 +95,15 @@ else:
         <field name="active">True</field>
         <field name="priority">10</field>
     </record>
+    <record id="ir_cron_meta_system_user_token_maintenance" model="ir.cron">
+        <field name="name">GL Revisar Token Meta System User</field>
+        <field name="model_id" ref="base.model_res_config_settings"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_meta_system_user_token_maintenance()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active">True</field>
+        <field name="priority">10</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
 </odoo>
