@@ -100,7 +100,6 @@ class SaleOrder(models.Model):
             rec.is_image_true = True if rec.env[
                 'ir.config_parameter'].sudo().get_param('sale_product_image.is_show_product_image_in_sale_report') else False
 
-
     def importar_excel(self):
         """Importa un archivo Excel con los registros de camisetas, validando y creando cada línea."""
         if not self.archivo_excel:

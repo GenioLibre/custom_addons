@@ -258,7 +258,7 @@
                             <page string="Observaciones">
                                 <group>
                                     <field name="error_message" widget="text" readonly="1"/>
-                                    <field name="notes" widget="text" readonly="imported_from_meta"/>
+                                    <field name="notes" widget="text"/>
                                 </group>
                             </page>
                         </notebook>
