@@ -1498,8 +1498,6 @@ class ProjectMarketingDashboard(models.Model):
         if not marketing_record:
             raise ValidationError("No se encontró un registro activo de Publicaciones Paga para esta campaña.")
 
-        marketing_record._sync_meta_data_on_open()
-
         return {
             "type": "ir.actions.act_window",
             "name": "Publicaciones Paga",
