@@ -222,6 +222,12 @@
                             </page>
                             <page string="Metricas del Anuncio">
                                 <group>
+                                    <group>
+                                        <button name="action_sync_campaign_metrics" type="object" string="Actualizar" icon="fa-refresh"
+                                                class="btn-secondary" invisible="not campaign_id"/>
+                                    </group>
+                                </group>
+                                <group>
                                     <group string="Resumen">
                                         <field name="campaign_spend" readonly="1"/>
                                         <field name="campaign_reach" readonly="1"/>

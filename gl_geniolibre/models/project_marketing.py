@@ -215,6 +215,28 @@ def _pick_campaign_result_metrics(actions, cost_per_action_type):
     }
 
 
+def _prepare_meta_campaign_metrics_vals(item):
+    insights = ((item.get("insights") or {}).get("data") or [{}])[0]
+    actions = insights.get("actions") or []
+    cost_per_action_type = insights.get("cost_per_action_type") or []
+    result_metrics = _pick_campaign_result_metrics(actions, cost_per_action_type)
+    return {
+        "spend": float(insights.get("spend") or 0.0),
+        "reach": int(float(insights.get("reach") or 0)),
+        "impressions": int(float(insights.get("impressions") or 0)),
+        "frequency": float(insights.get("frequency") or 0.0),
+        "result_action_type": result_metrics.get("result_action_type"),
+        "results": result_metrics.get("results") or 0.0,
+        "cost_per_result": result_metrics.get("cost_per_result") or 0.0,
+        "clicks": int(float(insights.get("clicks") or 0)),
+        "ctr": float(insights.get("ctr") or 0.0),
+        "cpc": float(insights.get("cpc") or 0.0),
+        "cpm": float(insights.get("cpm") or 0.0),
+        "actions_json": json.dumps(actions),
+        "cost_per_action_type_json": json.dumps(cost_per_action_type),
+    }
+
+
 def _is_meta_creative_payload_incomplete(creative):
     creative = creative or {}
     object_story_spec = creative.get("object_story_spec") or {}
@@ -945,10 +967,6 @@ class ProjectMarketing(models.Model):
             special_ad_categories = item.get("special_ad_categories") or []
             daily_budget = item.get("daily_budget")
             lifetime_budget = item.get("lifetime_budget")
-            insights = ((item.get("insights") or {}).get("data") or [{}])[0]
-            actions = insights.get("actions") or []
-            cost_per_action_type = insights.get("cost_per_action_type") or []
-            result_metrics = _pick_campaign_result_metrics(actions, cost_per_action_type)
             vals = {
                 "provider": "meta",
                 "name": item.get("name") or external_id,
@@ -964,21 +982,9 @@ class ProjectMarketing(models.Model):
                 "daily_budget": daily_budget or False,
                 "lifetime_budget": lifetime_budget or False,
                 "bid_strategy": item.get("bid_strategy"),
-                "spend": float(insights.get("spend") or 0.0),
-                "reach": int(float(insights.get("reach") or 0)),
-                "impressions": int(float(insights.get("impressions") or 0)),
-                "frequency": float(insights.get("frequency") or 0.0),
-                "result_action_type": result_metrics.get("result_action_type"),
-                "results": result_metrics.get("results") or 0.0,
-                "cost_per_result": result_metrics.get("cost_per_result") or 0.0,
-                "clicks": int(float(insights.get("clicks") or 0)),
-                "ctr": float(insights.get("ctr") or 0.0),
-                "cpc": float(insights.get("cpc") or 0.0),
-                "cpm": float(insights.get("cpm") or 0.0),
-                "actions_json": json.dumps(actions),
-                "cost_per_action_type_json": json.dumps(cost_per_action_type),
                 "raw_payload": json.dumps(item),
             }
+            vals.update(_prepare_meta_campaign_metrics_vals(item))
             existing = Campaign.search([
                 ("external_id", "=", external_id),
                 ("account_id", "=", self.ad_account_id.id),
@@ -991,6 +997,27 @@ class ProjectMarketing(models.Model):
             if self.campaign_id and self.campaign_id.external_id == external_id:
                 self.campaign_status_manual = item.get("configured_status") or False
 
+        self.sync_date = fields.Datetime.now()
+        return True
+
+    def action_sync_campaign_metrics(self):
+        self.ensure_one()
+        if not self.ad_account_id or not self.campaign_id or not self.campaign_id.external_id:
+            raise ValidationError("Selecciona primero una campaña válida.")
+
+        token = self._get_meta_access_token()
+        api_version = self._get_meta_api_version()
+        url = f"https://graph.facebook.com/{api_version}/{self.campaign_id.external_id}"
+        params = {
+            "access_token": token,
+            "fields": "id,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type}",
+        }
+        response = requests.get(url, params=params, timeout=30)
+        data = response.json()
+        if response.status_code != 200:
+            raise ValidationError(f"No se pudieron actualizar las métricas: {data}")
+
+        self.campaign_id.sudo().write(_prepare_meta_campaign_metrics_vals(data))
         self.sync_date = fields.Datetime.now()
         return True
 
