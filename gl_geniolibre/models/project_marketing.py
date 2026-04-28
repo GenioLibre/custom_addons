@@ -246,6 +246,15 @@ def _is_meta_creative_payload_incomplete(creative):
     )
 
 
+def _safe_json_loads(value, default):
+    if not value:
+        return default
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return default
+
+
 class MarketingMetaCampaign(models.Model):
     _name = "marketing.meta.campaign"
     _description = "Campaña"
@@ -758,13 +767,69 @@ class ProjectMarketing(models.Model):
     def _get_marketing_state_from_meta_status(self, configured_status, effective_status):
         configured_status = (configured_status or "").upper()
         effective_status = (effective_status or "").upper()
-        if configured_status in ("ARCHIVED", "DELETED") or effective_status in ("ARCHIVED", "DELETED"):
+        if configured_status in ("ARCHIVED", "DELETED", "COMPLETED") or effective_status in ("ARCHIVED", "DELETED", "COMPLETED"):
             return "terminado"
         if configured_status == "PAUSED" or effective_status == "PAUSED":
             return "pausado"
         if effective_status == "ACTIVE":
             return "publicado"
         return "por_publicitar"
+
+    def action_review_meta_status(self):
+        for record in self.filtered(lambda r: r.platform == "meta" and r.meta_ad_id and r.meta_ad_id.external_id):
+            token = record._get_meta_access_token()
+            api_version = record._get_meta_api_version()
+            url = f"https://graph.facebook.com/{api_version}/{record.meta_ad_id.external_id}"
+            params = {
+                "access_token": token,
+                "fields": "id,name,configured_status,effective_status,campaign{id,configured_status,effective_status},adset{id,configured_status,effective_status}",
+            }
+            response = requests.get(url, params=params, timeout=20)
+            data = response.json()
+            if response.status_code != 200:
+                record.error_message = str(data)
+                continue
+
+            campaign_data = data.get("campaign") or {}
+            adset_data = data.get("adset") or {}
+
+            if record.campaign_id and campaign_data:
+                record.campaign_id.sudo().write({
+                    "configured_status": campaign_data.get("configured_status"),
+                    "effective_status": campaign_data.get("effective_status"),
+                })
+            if record.adset_id and adset_data:
+                record.adset_id.sudo().write({
+                    "configured_status": adset_data.get("configured_status"),
+                    "effective_status": adset_data.get("effective_status"),
+                })
+            if record.meta_ad_id:
+                record.meta_ad_id.sudo().write({
+                    "name": data.get("name") or record.meta_ad_id.name,
+                    "configured_status": data.get("configured_status"),
+                    "effective_status": data.get("effective_status"),
+                })
+
+            if (
+                record._get_marketing_state_from_meta_status(
+                    campaign_data.get("configured_status"),
+                    campaign_data.get("effective_status"),
+                ) == "pausado"
+                or record._get_marketing_state_from_meta_status(
+                    adset_data.get("configured_status"),
+                    adset_data.get("effective_status"),
+                ) == "pausado"
+            ):
+                record.marketing_state = "pausado"
+            else:
+                record.marketing_state = record._get_marketing_state_from_meta_status(
+                    data.get("configured_status"),
+                    data.get("effective_status"),
+                )
+
+            record.error_message = False
+            record.sync_date = fields.Datetime.now()
+        return True
 
     def _fetch_meta_creative_details(self, creative_id):
         self.ensure_one()
@@ -804,6 +869,63 @@ class ProjectMarketing(models.Model):
             "url": url,
             "target": "new",
         }
+
+    def action_print_marketing_report(self):
+        self.ensure_one()
+
+        since = self.start_date or fields.Date.context_today(self)
+        until = self.end_date or since
+        actions_map = {
+            item.get("action_type"): item.get("value")
+            for item in _safe_json_loads(self.campaign_actions_json, [])
+            if isinstance(item, dict) and item.get("action_type")
+        }
+        thumbnail_url = self.ad_image_url or "/gl_geniolibre/static/src/img/banner_meta_ads.jpg"
+
+        meta_campaign = {
+            "name": self.campaign_name_meta or self.name,
+            "thumbnail_url": thumbnail_url,
+            "impressions": self.campaign_impressions or 0,
+            "reach": self.campaign_reach or 0,
+            "clicks": self.campaign_clicks or 0,
+            "spend": self.campaign_spend or 0.0,
+            "ctr": self.campaign_ctr or 0.0,
+            "cpc": self.campaign_cpc or 0.0,
+            "cpm": self.campaign_cpm or 0.0,
+            "cpp": round((self.campaign_spend / self.campaign_reach), 2) if self.campaign_reach else 0.0,
+            "actions": actions_map,
+        }
+        meta_summary = {
+            "total_campaigns": 1 if self.campaign_id else 0,
+            "account_currency": (self.currency_id.name or "").upper(),
+            "impressions": self.campaign_impressions or 0,
+            "clicks": self.campaign_clicks or 0,
+            "reach": self.campaign_reach or 0,
+            "spend": self.campaign_spend or 0.0,
+            "ctr": self.campaign_ctr or 0.0,
+            "cpc": self.campaign_cpc or 0.0,
+            "cpm": self.campaign_cpm or 0.0,
+            "cpp": meta_campaign["cpp"],
+            "frequency": self.campaign_frequency or 0.0,
+            "total_conversaciones": self.campaign_results or 0.0,
+        }
+        data = {
+            "partner_id": self.partner_id.id,
+            "report_period": {
+                "since": fields.Date.to_string(since),
+                "until": fields.Date.to_string(until),
+            },
+            "facebook_data": False,
+            "instagram_data": False,
+            "tiktok_data": False,
+            "google_ads_data": False,
+            "linkedin_data": False,
+            "meta_ads_data": {
+                "summary": meta_summary,
+                "campaigns": [meta_campaign],
+            },
+        }
+        return self.env.ref("gl_geniolibre.gl_print_marketing_report").report_action(self, data={"data": data})
 
     def _ensure_meta_ready(self):
         self.ensure_one()
@@ -1544,6 +1666,21 @@ class ProjectMarketingDashboard(models.Model):
             "view_mode": "form",
             "view_id": self.env.ref("gl_geniolibre.view_project_marketing_import_wizard_form").id,
             "target": "new",
+        }
+
+    @api.model
+    def action_review_marketing_statuses(self, *args):
+        self.env["project.marketing"].search([
+            ("active", "=", True),
+            ("platform", "=", "meta"),
+            ("meta_ad_id", "!=", False),
+        ]).action_review_meta_status()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Dashboard",
+            "res_model": "project.marketing.dashboard",
+            "view_mode": "kanban,list",
+            "target": "current",
         }
 
     @api.model

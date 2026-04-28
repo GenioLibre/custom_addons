@@ -72,6 +72,8 @@
             <field name="arch" type="xml">
                 <form>
                     <header>
+                        <button name="action_print_marketing_report" type="object" string="Imprimir Reporte" icon="fa-print"
+                                class="btn-secondary"/>
                         <button name="action_open_meta_ads_manager" type="object" string="Abrir en Meta" icon="fa-external-link"
                                 class="btn-secondary" invisible="not ad_account_id or not campaign_id or not adset_id or not meta_ad_id"/>
                         <button name="action_revisar" type="object" string="Revisar" icon="fa-check"
@@ -442,6 +444,12 @@
                                 icon="fa-download"
                                 display="always"
                                 class="btn-primary"/>
+                        <button name="action_review_marketing_statuses"
+                                type="object"
+                                string="Revisar Estados"
+                                icon="fa-refresh"
+                                display="always"
+                                class="btn-secondary"/>
                     </header>
                     <field name="provider"/>
                     <field name="campaign_name"/>
