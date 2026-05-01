@@ -607,9 +607,10 @@ class ProjectMarketing(models.Model):
     @api.depends("task_id.fb_post_id", "task_id.inst_post_id")
     def _compute_source_post_data(self):
         for record in self:
-            if record.task_id.fb_post_id:
+            facebook_post_id = record.task_id._get_facebook_effective_post_id() if record.task_id else False
+            if facebook_post_id:
                 record.source_post_type = "facebook_post"
-                record.source_post_id = record.task_id.fb_post_id
+                record.source_post_id = facebook_post_id
             elif record.task_id.inst_post_id:
                 record.source_post_type = "instagram_media"
                 record.source_post_id = record.task_id.inst_post_id
@@ -1620,6 +1621,7 @@ class ProjectMarketingDashboard(models.Model):
     task_id = fields.Many2one("project.task", string="Tarea", readonly=True)
     partner_id = fields.Many2one("res.partner", string="Cliente", readonly=True)
     total_budget = fields.Monetary(string="Monto Total", readonly=True)
+    total_spend = fields.Monetary(string="Monto Gastado", readonly=True)
     currency_id = fields.Many2one("res.currency", string="Moneda", readonly=True)
     running_ads_count = fields.Integer(string="Ads Corriendo", readonly=True)
     state = fields.Char(string="Estado", readonly=True)
@@ -1706,6 +1708,7 @@ class ProjectMarketingDashboard(models.Model):
                     pm.task_id AS task_id,
                     pm.partner_id AS partner_id,
                     COALESCE(pm.budget, 0) AS total_budget,
+                    COALESCE(mc.spend, 0) AS total_spend,
                     pm.currency_id AS currency_id,
                     CASE WHEN pm.marketing_state = 'publicado' THEN 1 ELSE 0 END AS running_ads_count,
                     CASE

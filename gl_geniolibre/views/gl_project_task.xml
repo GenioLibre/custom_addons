@@ -248,6 +248,12 @@
             <field name="model">project.task</field>
             <field name="inherit_id" ref="project.view_task_tree2"/>
             <field name="arch" type="xml">
+                <xpath expr="//field[@name='activity_ids']" position="attributes">
+                    <attribute name="optional">hide</attribute>
+                </xpath>
+                <xpath expr="//field[@name='date_last_stage_update']" position="attributes">
+                    <attribute name="optional">hide</attribute>
+                </xpath>
                 <xpath expr="//field[@name='project_id']" position="before">
 
                     <field name="post_estado" widget="badge" string="Estado de Publicación"
@@ -256,6 +262,8 @@
                            decoration-danger="post_estado == 'Error'"
                            decoration-success="post_estado == 'Publicado'" invisible="tipo == 'otro'"/>
                     <field name="fecha_publicacion" string="Fecha de Publicación" invisible="tipo == 'otro'"/>
+                    <field name="red_social_ids" string="Redes Sociales" widget="many2many_tags"
+                           options="{'no_create_edit': True}" optional="hide" invisible="tipo == 'otro'"/>
                 </xpath>
             </field>
         </record>

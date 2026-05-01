@@ -1206,6 +1206,15 @@ class project_task(models.Model):
     def write(self, vals):  
         vals = self._normalize_tiktok_privacy_vals(self._normalize_tiktok_commercial_vals(vals))
         preferred_attachment_orders = {}
+        records_to_unschedule = self.env['project.task']
+
+        if 'stage_id' in vals or 'state' in vals:
+            target_state = vals.get('state')
+            for record in self:
+                if record.post_estado != "Programado":
+                    continue
+                if 'stage_id' in vals or ('state' in vals and target_state != "03_approved"):
+                    records_to_unschedule |= record
 
         if vals.get("activar_publicidad_paga"):
             target_state = vals.get("post_estado")
@@ -1317,6 +1326,11 @@ class project_task(models.Model):
             for rec in self:
                 self.env['project.marketing'].sudo().sync_from_task(rec)
 
+        if records_to_unschedule:
+            records_to_unschedule.with_context(skip_marketing_sync=True).write({
+                'post_estado': 'Pendiente'
+            })
+
         return result
 
     @api.constrains('activar_publicidad_paga', 'post_estado')
@@ -1337,6 +1351,9 @@ class project_task(models.Model):
 
             if self.state != "03_approved":
                 raise ValidationError("El estado de la Tarea debe ser 'Aprobado' para poder programar el post.")
+
+            if not self.red_social_ids:
+                raise ValidationError("Debe seleccionar al menos una red social para poder programar el post.")
 
             # Eliminar la siguiente línea: Odoo manejará el commit de la transacción.
             self.post_estado = "Programado"  # Opcional: Si este metodo se llama desde un botón y quieres dar feedback  # podrías devolver una acción de notificación, pero para la lógica del modelo  # simplemente cambiar el estado es suficiente.  # Mensaje simple
@@ -1398,6 +1415,25 @@ class project_task(models.Model):
         combined_text = f"{formatted_description}\n\n{plain_hashtags}"
         return combined_text.replace('\u200b', '').replace('\t', '').strip()
 
+    def _get_facebook_pending_media_ids(self):
+        self.ensure_one()
+        try:
+            value = (self.fb_post_id or "").strip()
+            if not value.startswith("["):
+                return []
+            media_ids = json.loads(value)
+            if isinstance(media_ids, list):
+                return [str(media_id).strip() for media_id in media_ids if str(media_id).strip()]
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+        return []
+
+    def _get_facebook_effective_post_id(self):
+        self.ensure_one()
+        if self._get_facebook_pending_media_ids():
+            return False
+        return (self.fb_post_id or "").strip() or False
+
     def _run_facebook_flow(self, from_cron=False):
 
         API_VERSION = self.env['ir.config_parameter'].sudo().get_param('gl_facebook.api_version')
@@ -1415,18 +1451,12 @@ class project_task(models.Model):
             # 2) FACEBOOK FEED (FOTOS)
             if self.fb_estado == "Revisando" and self.tipo == "feed" and self.fb_post_id and not self.fb_post_url:
 
-                media_ids = None
-                try:
-                    val = (self.fb_post_id or "").strip()
-                    if val.startswith("["):
-                        media_ids = json.loads(val)
-                except (json.JSONDecodeError, ValueError, TypeError):
-                    media_ids = None
+                media_ids = self._get_facebook_pending_media_ids()
 
                 if media_ids:
                     fb_feed_url = f"{base_url}/{self.partner_facebook_page_id}/feed"
 
-                    params = {
+                    payload = {
                         "access_token": self.partner_page_access_token,
                         "message": combined_text or "",
                         "attached_media": json.dumps([{"media_fbid": mid} for mid in media_ids]),
@@ -1434,7 +1464,7 @@ class project_task(models.Model):
                     }
 
                     try:
-                        resp = requests.post(fb_feed_url, params=params, timeout=20)
+                        resp = requests.post(fb_feed_url, data=payload, timeout=20)
                         resp.raise_for_status()
                         data = resp.json()
                     except requests.exceptions.RequestException as e:
@@ -1465,8 +1495,9 @@ class project_task(models.Model):
                         raise ValidationError(f"Facebook Feed: error al publicar. Detalle: {data}")
 
             # URL Facebook Feed
-            if self.fb_post_id and self.fb_estado == "Publicado" and not self.fb_post_url:
-                self.fb_post_url = f"https://www.facebook.com/{self.fb_post_id}"
+            effective_fb_post_id = self._get_facebook_effective_post_id()
+            if effective_fb_post_id and self.fb_estado == "Publicado" and not self.fb_post_url:
+                self.fb_post_url = f"https://www.facebook.com/{effective_fb_post_id}"
 
             # 2.2) FACEBOOK STORIES (VIDEO)
             if self.tipo == "video_stories" and self.fb_post_id:

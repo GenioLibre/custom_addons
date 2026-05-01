@@ -1,50 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <record id="view_project_marketing_kanban" model="ir.ui.view">
-            <field name="name">project.marketing.kanban</field>
-            <field name="model">project.marketing</field>
-            <field name="arch" type="xml">
-                <kanban default_group_by="marketing_state" class="o_kanban_small_column">
-                    <field name="name"/>
-                    <field name="partner_id"/>
-                    <field name="task_id"/>
-                    <field name="marketing_state"/>
-                    <field name="scheduled_activation"/>
-                    <field name="budget"/>
-                    <field name="currency_id"/>
-                    <templates>
-                        <t t-name="card">
-                            <div class="oe_kanban_global_click">
-                                <field name="marketing_state" widget="badge"
-                                       decoration-success="marketing_state == 'publicado'"
-                                       decoration-warning="marketing_state == 'pausado'"
-                                       decoration-info="marketing_state == 'terminado'"/>
-                                <strong class="d-block mt-2">
-                                    <field name="name"/>
-                                </strong>
-                                <div class="text-muted">
-                                    <field name="partner_id"/>
-                                </div>
-                                <div class="mt-2">
-                                    <span>Tarea:</span>
-                                    <field name="task_id"/>
-                                </div>
-                                <div>
-                                    <span>Programado:</span>
-                                    <field name="scheduled_activation"/>
-                                </div>
-                                <div>
-                                    <span>Monto:</span>
-                                    <field name="budget"/>
-                                </div>
-                            </div>
-                        </t>
-                    </templates>
-                </kanban>
-            </field>
-        </record>
-
         <record id="view_project_marketing_tree" model="ir.ui.view">
             <field name="name">project.marketing.list</field>
             <field name="model">project.marketing</field>
@@ -456,6 +412,7 @@
                     <field name="task_id"/>
                     <field name="partner_id"/>
                     <field name="total_budget"/>
+                    <field name="total_spend"/>
                     <field name="currency_id"/>
                     <field name="running_ads_count"/>
                     <field name="state"/>
@@ -483,8 +440,14 @@
                                             <field name="provider"/>
                                         </div>
                                         <div class="text-muted">
-                                            <span class="fa fa-money me-2" aria-label="Monto" title="Monto"></span>
-                                            <field name="total_budget"/>
+                                            <span class="fa fa-money me-2" aria-label="Presupuesto" title="Presupuesto"></span>
+                                            <span>Presupuesto: </span>
+                                            <field name="total_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        </div>
+                                        <div class="text-muted">
+                                            <span class="fa fa-line-chart me-2" aria-label="Gastado" title="Gastado"></span>
+                                            <span>Gastado: </span>
+                                            <field name="total_spend" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                         </div>
                                     </div>
                                 </div>
