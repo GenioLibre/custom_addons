@@ -365,6 +365,7 @@
                         </group>
                         <group string="Cadena Meta">
                             <group>
+                                <button name="action_sync_accounts" type="object" string="Actualizar Cuentas" icon="fa-refresh" class="btn-secondary"/>
                                 <field name="ad_account_id"/>
                                 <field name="campaign_id"/>
                             </group>

@@ -1927,6 +1927,18 @@ class ProjectMarketingImportWizard(models.TransientModel):
             "adset_id": self.adset_id.id,
         })
 
+    def action_sync_accounts(self):
+        self.ensure_one()
+        self._build_marketing_sync_proxy().action_sync_accounts()
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "project.marketing.import.wizard",
+            "view_mode": "form",
+            "res_id": self.id,
+            "view_id": self.env.ref("gl_geniolibre.view_project_marketing_import_wizard_form").id,
+            "target": "new",
+        }
+
     @api.onchange("ad_account_id")
     def _onchange_ad_account_id(self):
         self.campaign_id = False
