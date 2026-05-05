@@ -1894,24 +1894,21 @@ class ProjectMarketingImportWizard(models.TransientModel):
     name = fields.Char(string="Nombre", required=True)
     partner_id = fields.Many2one("res.partner", string="Cliente", required=True)
     task_id = fields.Many2one("project.task", string="Tarea")
-    ad_account_id = fields.Many2one("facebook.ad.account", string="Cuenta Publicitaria", required=True)
+    ad_account_id = fields.Many2one("facebook.ad.account", string="Cuenta Publicitaria")
     campaign_id = fields.Many2one(
         "marketing.meta.campaign",
         string="Campaña",
         domain="[('account_id', '=', ad_account_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
-        required=True,
     )
     adset_id = fields.Many2one(
         "marketing.meta.adset",
         string="Conjunto",
         domain="[('campaign_id', '=', campaign_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
-        required=True,
     )
     meta_ad_id = fields.Many2one(
         "marketing.meta.ad",
         string="Anuncio",
         domain="[('adset_id', '=', adset_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
-        required=True,
     )
     import_notes = fields.Text(string="Notas")
 
@@ -1977,6 +1974,18 @@ class ProjectMarketingImportWizard(models.TransientModel):
 
     def action_import_chain(self):
         self.ensure_one()
+        if not self.name:
+            raise ValidationError("Debes ingresar un nombre.")
+        if not self.partner_id:
+            raise ValidationError("Debes seleccionar un cliente.")
+        if not self.ad_account_id:
+            raise ValidationError("Debes seleccionar una cuenta publicitaria.")
+        if not self.campaign_id:
+            raise ValidationError("Debes seleccionar una campaña.")
+        if not self.adset_id:
+            raise ValidationError("Debes seleccionar un conjunto.")
+        if not self.meta_ad_id:
+            raise ValidationError("Debes seleccionar un anuncio.")
         if self.marketing_id:
             marketing = self.marketing_id
         else:
