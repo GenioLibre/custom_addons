@@ -5,7 +5,7 @@
             <field name="name">project.marketing.list</field>
             <field name="model">project.marketing</field>
             <field name="arch" type="xml">
-                <list>
+                <list open_form_view="True">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="task_id"/>
@@ -411,6 +411,7 @@
                                 class="btn-secondary"/>
                     </header>
                     <field name="provider"/>
+                    <field name="name"/>
                     <field name="campaign_name"/>
                     <field name="task_id"/>
                     <field name="partner_id"/>
@@ -427,9 +428,13 @@
                                class="oe_kanban_global_click text-decoration-none">
                                 <div class="o_project_kanban_main d-flex align-items-baseline gap-1 ms-1">
                                     <div class="min-w-0 pb-4 me-2">
-                                        <span class="text-truncate d-block fs-4 fw-bold" t-att-title="record.campaign_name.value">
-                                            <field name="campaign_name"/>
+                                        <span class="text-truncate d-block fs-4 fw-bold" t-att-title="record.name.value">
+                                            <field name="name"/>
                                         </span>
+                                        <div class="text-muted" t-if="record.campaign_name.value">
+                                            <span class="fa fa-bullhorn me-2" aria-label="Campaña" title="Campaña"></span>
+                                            <field class="text-truncate" name="campaign_name"/>
+                                        </div>
                                         <span class="text-muted d-flex align-items-baseline" t-if="record.partner_id.value">
                                             <span class="fa fa-user me-2" aria-label="Cliente" title="Cliente"></span>
                                             <field class="text-truncate" name="partner_id"/>
@@ -439,7 +444,7 @@
                                             <field name="task_id"/>
                                         </div>
                                         <div class="text-muted">
-                                            <span class="fa fa-bullhorn me-2" aria-label="Proveedor" title="Proveedor"></span>
+                                            <span class="fa fa-tags me-2" aria-label="Proveedor" title="Proveedor"></span>
                                             <field name="provider"/>
                                         </div>
                                         <div class="text-muted">
@@ -480,7 +485,9 @@
             <field name="model">project.marketing.dashboard</field>
             <field name="arch" type="xml">
                 <list create="false" edit="false" delete="false">
+                    <button name="action_open_marketing_form" type="object" string="Abrir" icon="fa-external-link"/>
                     <field name="provider"/>
+                    <field name="name"/>
                     <field name="campaign_name"/>
                     <field name="partner_id"/>
                     <field name="task_id"/>

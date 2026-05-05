@@ -1765,6 +1765,7 @@ class ProjectMarketingDashboard(models.Model):
         readonly=True,
     )
     marketing_record_id = fields.Many2one("project.marketing", string="Registro Marketing", readonly=True)
+    name = fields.Char(string="Nombre", readonly=True)
     campaign_id = fields.Many2one("marketing.meta.campaign", string="Campaña Meta", readonly=True)
     campaign_name = fields.Char(string="Nombre de la Campaña", readonly=True)
     task_id = fields.Many2one("project.task", string="Tarea", readonly=True)
@@ -1852,6 +1853,7 @@ class ProjectMarketingDashboard(models.Model):
                     pm.id AS id,
                     pm.platform AS provider,
                     pm.id AS marketing_record_id,
+                    pm.name AS name,
                     pm.campaign_id AS campaign_id,
                     COALESCE(mc.name, pm.name) AS campaign_name,
                     pm.task_id AS task_id,
