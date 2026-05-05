@@ -13,6 +13,7 @@
                            decoration-success="marketing_state == 'publicado'"
                            decoration-warning="marketing_state == 'pausado'"
                            decoration-info="marketing_state == 'terminado'"/>
+                    <field name="delivery_status_detail"/>
                     <field name="scheduled_activation"/>
                     <field name="budget"/>
                     <field name="campaign_id"/>
@@ -52,6 +53,7 @@
                                 <field name="task_id"/>
                                 <field name="platform"/>
                                 <field name="marketing_state" readonly="1"/>
+                                <field name="delivery_status_detail" readonly="1"/>
                             </group>
                             <group>
                                 <field name="scheduled_activation" invisible="1"/>
@@ -515,12 +517,20 @@
             <field name="name">Conjuntos Meta</field>
             <field name="res_model">marketing.meta.adset</field>
             <field name="view_mode">list,form</field>
+            <field name="domain">[
+                ('active', '=', True),
+                ('effective_status', '=', 'ACTIVE')
+            ]</field>
         </record>
 
         <record id="action_marketing_meta_ad" model="ir.actions.act_window">
             <field name="name">Ads Meta</field>
             <field name="res_model">marketing.meta.ad</field>
             <field name="view_mode">list,form</field>
+            <field name="domain">[
+                ('active', '=', True),
+                ('effective_status', '=', 'ACTIVE')
+            ]</field>
         </record>
 
         <menuitem id="menu_project_marketing_root"

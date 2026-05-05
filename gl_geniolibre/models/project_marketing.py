@@ -3,7 +3,7 @@
 import json
 import logging
 import re
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -255,6 +255,32 @@ def _safe_json_loads(value, default):
         return default
 
 
+def _parse_meta_datetime(value):
+    if not value:
+        return False
+    raw_value = str(value).strip()
+    candidates = [raw_value]
+    if re.match(r".*[+-]\d{4}$", raw_value):
+        candidates.append("%s:%s" % (raw_value[:-2], raw_value[-2:]))
+    for candidate in candidates:
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            if parsed.tzinfo:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except ValueError:
+            continue
+    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S"):
+        try:
+            parsed = datetime.strptime(raw_value, fmt)
+            if parsed.tzinfo:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except ValueError:
+            continue
+    return False
+
+
 class MarketingMetaCampaign(models.Model):
     _name = "marketing.meta.campaign"
     _description = "Campaña"
@@ -276,6 +302,8 @@ class MarketingMetaCampaign(models.Model):
     effective_status = fields.Char(string="Estado Efectivo")
     buying_type = fields.Char(string="Tipo de Compra")
     objective = fields.Char(string="Objetivo")
+    start_time = fields.Char(string="Start Time")
+    stop_time = fields.Char(string="Stop Time")
     special_ad_categories = fields.Char(string="Special Ad Categories")
     budget_strategy = fields.Char(string="Budget Strategy")
     budget_mode = fields.Char(string="Budget Mode")
@@ -295,6 +323,8 @@ class MarketingMetaCampaign(models.Model):
     cpm = fields.Float(string="CPM")
     actions_json = fields.Text(string="Actions JSON")
     cost_per_action_type_json = fields.Text(string="Cost Per Action Type JSON")
+    recommendations_json = fields.Text(string="Recommendations JSON")
+    issues_info_json = fields.Text(string="Issues Info JSON")
     status = fields.Char(string="Estado", compute="_compute_status", store=False)
     marketing_record_ids = fields.One2many("project.marketing", "campaign_id", string="Registros Marketing")
     has_active_marketing_record = fields.Boolean(
@@ -362,6 +392,9 @@ class MarketingMetaAdset(models.Model):
     age_min = fields.Integer(string="Age Min")
     age_max = fields.Integer(string="Age Max")
     placement_mode = fields.Char(string="Placement Mode")
+    recommendations_json = fields.Text(string="Recommendations JSON")
+    issues_info_json = fields.Text(string="Issues Info JSON")
+    learning_stage_info_json = fields.Text(string="Learning Stage Info JSON")
     raw_payload = fields.Text(string="Payload")
     active = fields.Boolean(default=True)
 
@@ -408,6 +441,9 @@ class MarketingMetaAd(models.Model):
     whatsapp_number = fields.Char(string="Numero de WhatsApp")
     image_url = fields.Char(string="Image URL")
     preview_url = fields.Char(string="Preview URL")
+    recommendations_json = fields.Text(string="Recommendations JSON")
+    issues_info_json = fields.Text(string="Issues Info JSON")
+    ad_review_feedback_json = fields.Text(string="Ad Review Feedback JSON")
     raw_payload = fields.Text(string="Payload")
     active = fields.Boolean(default=True)
 
@@ -498,7 +534,7 @@ class ProjectMarketing(models.Model):
     campaign_id = fields.Many2one(
         "marketing.meta.campaign",
         string="Campaña",
-        domain="[('account_id', '=', ad_account_id)]",
+        domain="[('account_id', '=', ad_account_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
         tracking=True,
     )
     campaign_name_edit = fields.Char(string="Nombre de Campaña", tracking=True)
@@ -516,6 +552,8 @@ class ProjectMarketing(models.Model):
     campaign_buying_type = fields.Char(related="campaign_id.buying_type", string="Buying Type", readonly=True)
     campaign_objective = fields.Char(related="campaign_id.objective", string="Objective", readonly=True)
     campaign_status = fields.Char(related="campaign_id.status", string="Status", readonly=True)
+    campaign_start_time = fields.Char(related="campaign_id.start_time", string="Start Time Campaña", readonly=True)
+    campaign_stop_time = fields.Char(related="campaign_id.stop_time", string="Stop Time Campaña", readonly=True)
     campaign_special_ad_categories = fields.Char(related="campaign_id.special_ad_categories", string="Special Ad Categories", readonly=True)
     campaign_budget_strategy = fields.Char(related="campaign_id.budget_strategy", string="Budget Strategy", readonly=True)
     campaign_budget_mode = fields.Char(related="campaign_id.budget_mode", string="Budget Mode", readonly=True)
@@ -539,7 +577,7 @@ class ProjectMarketing(models.Model):
     adset_id = fields.Many2one(
         "marketing.meta.adset",
         string="Conjunto",
-        domain="[('campaign_id', '=', campaign_id)]",
+        domain="[('campaign_id', '=', campaign_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
         tracking=True,
     )
     adset_name_edit = fields.Char(string="Nombre del Adset", tracking=True)
@@ -565,7 +603,7 @@ class ProjectMarketing(models.Model):
     meta_ad_id = fields.Many2one(
         "marketing.meta.ad",
         string="Anuncio",
-        domain="[('adset_id', '=', adset_id)]",
+        domain="[('adset_id', '=', adset_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
         tracking=True,
     )
     ad_name = fields.Char(string="Nombre del Anuncio", tracking=True)
@@ -582,6 +620,7 @@ class ProjectMarketing(models.Model):
     ad_preview_url = fields.Char(string="Preview URL", related="meta_ad_id.preview_url", readonly=True)
     ad_image_url = fields.Char(related="meta_ad_id.image_url", string="Image URL", readonly=True)
     ad_image_preview = fields.Html(string="Imagen del anuncio", compute="_compute_ad_image_preview", sanitize=False)
+    delivery_status_detail = fields.Char(string="Entrega", compute="_compute_delivery_status_detail")
     source_post_type = fields.Selection(
         [
             ("facebook_post", "Facebook Post"),
@@ -765,16 +804,91 @@ class ProjectMarketing(models.Model):
     def _get_meta_access_token(self):
         return _get_meta_marketing_access_token(self.env)
 
-    def _get_marketing_state_from_meta_status(self, configured_status, effective_status):
+    def _get_meta_entity_state(self, configured_status, effective_status, start_time=False, end_time=False):
         configured_status = (configured_status or "").upper()
         effective_status = (effective_status or "").upper()
+        now = fields.Datetime.now()
+        parsed_start = _parse_meta_datetime(start_time)
+        parsed_end = _parse_meta_datetime(end_time)
+        if parsed_end and parsed_end <= now:
+            return "terminado"
         if configured_status in ("ARCHIVED", "DELETED", "COMPLETED") or effective_status in ("ARCHIVED", "DELETED", "COMPLETED"):
             return "terminado"
-        if configured_status == "PAUSED" or effective_status == "PAUSED":
+        if configured_status == "PAUSED" or effective_status in ("PAUSED", "CAMPAIGN_PAUSED", "ADSET_PAUSED"):
             return "pausado"
+        if effective_status == "DISAPPROVED":
+            return "por_publicitar"
+        if parsed_start and parsed_start > now:
+            return "por_publicitar"
         if effective_status == "ACTIVE":
             return "publicado"
         return "por_publicitar"
+
+    def _get_marketing_state_from_meta_status(self, configured_status, effective_status, start_time=False, end_time=False):
+        return self._get_meta_entity_state(
+            configured_status,
+            effective_status,
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+    def _get_marketing_state_from_meta_nodes(self, campaign_data=None, adset_data=None, ad_data=None):
+        adset_state = self._get_meta_entity_state(
+            (adset_data or {}).get("configured_status"),
+            (adset_data or {}).get("effective_status"),
+            (adset_data or {}).get("start_time"),
+            (adset_data or {}).get("end_time"),
+        ) if adset_data else False
+        ad_state = self._get_meta_entity_state(
+            (ad_data or {}).get("configured_status"),
+            (ad_data or {}).get("effective_status"),
+        ) if ad_data else False
+        if "terminado" in (adset_state, ad_state):
+            return "terminado"
+        if "pausado" in (adset_state, ad_state):
+            return "pausado"
+        if adset_state == "por_publicitar":
+            return "por_publicitar"
+        if ad_state == "publicado":
+            return "publicado"
+        return ad_state or adset_state or "por_publicitar"
+
+    @api.depends(
+        "adset_id.configured_status",
+        "adset_id.effective_status",
+        "adset_id.start_time",
+        "adset_id.end_time",
+        "meta_ad_id.configured_status",
+        "meta_ad_id.effective_status",
+    )
+    def _compute_delivery_status_detail(self):
+        now = fields.Datetime.now()
+        for record in self:
+            adset_end = _parse_meta_datetime(record.adset_id.end_time)
+            adset_start = _parse_meta_datetime(record.adset_id.start_time)
+            ad_effective = (record.meta_ad_id.effective_status or "").upper()
+            adset_effective = (record.adset_id.effective_status or "").upper()
+            ad_configured = (record.meta_ad_id.configured_status or "").upper()
+            adset_configured = (record.adset_id.configured_status or "").upper()
+
+            if adset_end and adset_end <= now:
+                record.delivery_status_detail = "Finalizado por fecha del conjunto"
+            elif "DISAPPROVED" in (ad_effective, adset_effective):
+                record.delivery_status_detail = "Rechazado por Meta"
+            elif "PENDING_REVIEW" in (ad_effective, adset_effective):
+                record.delivery_status_detail = "En revisión por Meta"
+            elif adset_configured == "PAUSED" or adset_effective in ("PAUSED", "ADSET_PAUSED"):
+                record.delivery_status_detail = "Pausado por conjunto"
+            elif ad_configured == "PAUSED" or ad_effective == "PAUSED":
+                record.delivery_status_detail = "Anuncio pausado"
+            elif adset_start and adset_start > now:
+                record.delivery_status_detail = "Programado por conjunto"
+            elif ad_effective == "ACTIVE":
+                record.delivery_status_detail = "Entrega activa"
+            elif record.meta_ad_id:
+                record.delivery_status_detail = "Sin entrega activa"
+            else:
+                record.delivery_status_detail = False
 
     def action_review_meta_status(self):
         for record in self.filtered(lambda r: r.platform == "meta" and r.meta_ad_id and r.meta_ad_id.external_id):
@@ -783,7 +897,7 @@ class ProjectMarketing(models.Model):
             url = f"https://graph.facebook.com/{api_version}/{record.meta_ad_id.external_id}"
             params = {
                 "access_token": token,
-                "fields": "id,name,configured_status,effective_status,campaign{id,configured_status,effective_status},adset{id,configured_status,effective_status}",
+                "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,campaign{id,status,configured_status,effective_status,start_time,stop_time,recommendations,issues_info},adset{id,status,configured_status,effective_status,start_time,end_time,recommendations,issues_info,learning_stage_info}",
             }
             response = requests.get(url, params=params, timeout=20)
             data = response.json()
@@ -798,35 +912,35 @@ class ProjectMarketing(models.Model):
                 record.campaign_id.sudo().write({
                     "configured_status": campaign_data.get("configured_status"),
                     "effective_status": campaign_data.get("effective_status"),
+                    "start_time": campaign_data.get("start_time") or False,
+                    "stop_time": campaign_data.get("stop_time") or False,
+                    "recommendations_json": json.dumps(campaign_data.get("recommendations"), ensure_ascii=False) if campaign_data.get("recommendations") else False,
+                    "issues_info_json": json.dumps(campaign_data.get("issues_info"), ensure_ascii=False) if campaign_data.get("issues_info") else False,
                 })
             if record.adset_id and adset_data:
                 record.adset_id.sudo().write({
                     "configured_status": adset_data.get("configured_status"),
                     "effective_status": adset_data.get("effective_status"),
+                    "start_time": adset_data.get("start_time") or False,
+                    "end_time": adset_data.get("end_time") or False,
+                    "recommendations_json": json.dumps(adset_data.get("recommendations"), ensure_ascii=False) if adset_data.get("recommendations") else False,
+                    "issues_info_json": json.dumps(adset_data.get("issues_info"), ensure_ascii=False) if adset_data.get("issues_info") else False,
+                    "learning_stage_info_json": json.dumps(adset_data.get("learning_stage_info"), ensure_ascii=False) if adset_data.get("learning_stage_info") else False,
                 })
             if record.meta_ad_id:
                 record.meta_ad_id.sudo().write({
                     "name": data.get("name") or record.meta_ad_id.name,
                     "configured_status": data.get("configured_status"),
                     "effective_status": data.get("effective_status"),
+                    "recommendations_json": json.dumps(data.get("recommendations"), ensure_ascii=False) if data.get("recommendations") else False,
+                    "issues_info_json": json.dumps(data.get("issues_info"), ensure_ascii=False) if data.get("issues_info") else False,
+                    "ad_review_feedback_json": json.dumps(data.get("ad_review_feedback"), ensure_ascii=False) if data.get("ad_review_feedback") else False,
                 })
-
-            if (
-                record._get_marketing_state_from_meta_status(
-                    campaign_data.get("configured_status"),
-                    campaign_data.get("effective_status"),
-                ) == "pausado"
-                or record._get_marketing_state_from_meta_status(
-                    adset_data.get("configured_status"),
-                    adset_data.get("effective_status"),
-                ) == "pausado"
-            ):
-                record.marketing_state = "pausado"
-            else:
-                record.marketing_state = record._get_marketing_state_from_meta_status(
-                    data.get("configured_status"),
-                    data.get("effective_status"),
-                )
+            record.marketing_state = record._get_marketing_state_from_meta_nodes(
+                campaign_data=campaign_data,
+                adset_data=adset_data,
+                ad_data=data,
+            )
 
             record.error_message = False
             record.sync_date = fields.Datetime.now()
@@ -1073,7 +1187,7 @@ class ProjectMarketing(models.Model):
         url = f"https://graph.facebook.com/{api_version}/act_{self.ad_account_id.account_id}/campaigns"
         params = {
             "access_token": token,
-            "fields": "id,name,configured_status,effective_status,buying_type,objective,special_ad_categories,daily_budget,lifetime_budget,bid_strategy,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type}",
+            "fields": "id,name,status,configured_status,effective_status,buying_type,objective,special_ad_categories,daily_budget,lifetime_budget,bid_strategy,start_time,stop_time,recommendations,issues_info,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type}",
             "limit": 500,
         }
         response = requests.get(url, params=params, timeout=30)
@@ -1099,12 +1213,16 @@ class ProjectMarketing(models.Model):
                 "effective_status": item.get("effective_status"),
                 "buying_type": item.get("buying_type"),
                 "objective": item.get("objective"),
+                "start_time": item.get("start_time") or False,
+                "stop_time": item.get("stop_time") or False,
                 "special_ad_categories": ", ".join(special_ad_categories) if isinstance(special_ad_categories, list) else str(special_ad_categories),
                 "budget_strategy": "daily" if daily_budget else ("lifetime" if lifetime_budget else "adset_budget"),
                 "budget_mode": "campaign_level" if (daily_budget or lifetime_budget) else "adset_level",
                 "daily_budget": daily_budget or False,
                 "lifetime_budget": lifetime_budget or False,
                 "bid_strategy": item.get("bid_strategy"),
+                "recommendations_json": json.dumps(item.get("recommendations"), ensure_ascii=False) if item.get("recommendations") else False,
+                "issues_info_json": json.dumps(item.get("issues_info"), ensure_ascii=False) if item.get("issues_info") else False,
                 "raw_payload": json.dumps(item),
             }
             vals.update(_prepare_meta_campaign_metrics_vals(item))
@@ -1166,7 +1284,7 @@ class ProjectMarketing(models.Model):
         url = f"https://graph.facebook.com/{api_version}/{self.campaign_id.external_id}/adsets"
         params = {
             "access_token": token,
-            "fields": "id,name,configured_status,effective_status,campaign_id,daily_budget,lifetime_budget,start_time,end_time,optimization_goal,billing_event,bid_strategy,destination_type,promoted_object,targeting{age_min,age_max,geo_locations{countries,cities,custom_locations},publisher_platforms,facebook_positions,instagram_positions,audience_network_positions,messenger_positions,interests,behaviors,life_events,flexible_spec,exclusions}",
+            "fields": "id,name,status,configured_status,effective_status,campaign_id,daily_budget,lifetime_budget,start_time,end_time,optimization_goal,billing_event,bid_strategy,destination_type,promoted_object,recommendations,issues_info,learning_stage_info,targeting{age_min,age_max,geo_locations{countries,cities,custom_locations},publisher_platforms,facebook_positions,instagram_positions,audience_network_positions,messenger_positions,interests,behaviors,life_events,flexible_spec,exclusions}",
             "limit": 500,
         }
         response = requests.get(url, params=params, timeout=30)
@@ -1274,6 +1392,9 @@ class ProjectMarketing(models.Model):
                         "messenger_positions",
                     )
                 ) else "automatic",
+                "recommendations_json": json.dumps(item.get("recommendations"), indent=2, ensure_ascii=False) if item.get("recommendations") else False,
+                "issues_info_json": json.dumps(item.get("issues_info"), indent=2, ensure_ascii=False) if item.get("issues_info") else False,
+                "learning_stage_info_json": json.dumps(item.get("learning_stage_info"), indent=2, ensure_ascii=False) if item.get("learning_stage_info") else False,
                 "raw_payload": json.dumps(item),
             }
             existing = Adset.search([
@@ -1354,7 +1475,7 @@ class ProjectMarketing(models.Model):
         url = f"https://graph.facebook.com/{api_version}/{self.adset_id.external_id}/ads"
         params = {
             "access_token": token,
-            "fields": "id,name,configured_status,effective_status,creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
+            "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
             "limit": 500,
         }
         response = requests.get(url, params=params, timeout=30)
@@ -1392,6 +1513,9 @@ class ProjectMarketing(models.Model):
                 "whatsapp_number": creative_data.get("whatsapp_number"),
                 "image_url": creative.get("image_url") or creative.get("thumbnail_url"),
                 "preview_url": item.get("preview_shareable_link"),
+                "recommendations_json": json.dumps(item.get("recommendations"), ensure_ascii=False) if item.get("recommendations") else False,
+                "issues_info_json": json.dumps(item.get("issues_info"), ensure_ascii=False) if item.get("issues_info") else False,
+                "ad_review_feedback_json": json.dumps(item.get("ad_review_feedback"), ensure_ascii=False) if item.get("ad_review_feedback") else False,
                 "raw_payload": json.dumps(item),
             }
             existing = Ad.search([
@@ -1493,7 +1617,7 @@ class ProjectMarketing(models.Model):
             url = f"https://graph.facebook.com/{api_version}/{record.meta_ad_id.external_id}"
             params = {
                 "access_token": token,
-                "fields": "id,name,configured_status,effective_status,creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link",
+                "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,campaign{id,status,configured_status,effective_status,start_time,stop_time,recommendations,issues_info},adset{id,status,configured_status,effective_status,start_time,end_time,recommendations,issues_info,learning_stage_info},creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link",
             }
             response = requests.get(url, params=params, timeout=20)
             data = response.json()
@@ -1502,6 +1626,8 @@ class ProjectMarketing(models.Model):
                 record.error_message = str(data)
                 raise ValidationError(f"No se pudo revisar el anuncio: {data}")
 
+            campaign_data = data.get("campaign") or {}
+            adset_data = data.get("adset") or {}
             creative = data.get("creative") or {}
             if creative.get("id") and _is_meta_creative_payload_incomplete(creative):
                 fetched_creative = record._fetch_meta_creative_details(creative.get("id"))
@@ -1511,6 +1637,25 @@ class ProjectMarketing(models.Model):
                         **fetched_creative,
                     }
             creative_data = _extract_meta_creative_destinations(creative)
+            if record.campaign_id and campaign_data:
+                record.campaign_id.sudo().write({
+                    "configured_status": campaign_data.get("configured_status"),
+                    "effective_status": campaign_data.get("effective_status"),
+                    "start_time": campaign_data.get("start_time") or False,
+                    "stop_time": campaign_data.get("stop_time") or False,
+                    "recommendations_json": json.dumps(campaign_data.get("recommendations"), ensure_ascii=False) if campaign_data.get("recommendations") else False,
+                    "issues_info_json": json.dumps(campaign_data.get("issues_info"), ensure_ascii=False) if campaign_data.get("issues_info") else False,
+                })
+            if record.adset_id and adset_data:
+                record.adset_id.sudo().write({
+                    "configured_status": adset_data.get("configured_status"),
+                    "effective_status": adset_data.get("effective_status"),
+                    "start_time": adset_data.get("start_time") or False,
+                    "end_time": adset_data.get("end_time") or False,
+                    "recommendations_json": json.dumps(adset_data.get("recommendations"), ensure_ascii=False) if adset_data.get("recommendations") else False,
+                    "issues_info_json": json.dumps(adset_data.get("issues_info"), ensure_ascii=False) if adset_data.get("issues_info") else False,
+                    "learning_stage_info_json": json.dumps(adset_data.get("learning_stage_info"), ensure_ascii=False) if adset_data.get("learning_stage_info") else False,
+                })
             record.meta_ad_id.write({
                 "name": data.get("name") or record.meta_ad_id.name,
                 "configured_status": data.get("configured_status"),
@@ -1526,11 +1671,15 @@ class ProjectMarketing(models.Model):
                 "whatsapp_number": creative_data.get("whatsapp_number") or record.meta_ad_id.whatsapp_number,
                 "image_url": creative.get("image_url") or creative.get("thumbnail_url") or record.meta_ad_id.image_url,
                 "preview_url": data.get("preview_shareable_link") or record.meta_ad_id.preview_url,
+                "recommendations_json": json.dumps(data.get("recommendations"), ensure_ascii=False) if data.get("recommendations") else False,
+                "issues_info_json": json.dumps(data.get("issues_info"), ensure_ascii=False) if data.get("issues_info") else False,
+                "ad_review_feedback_json": json.dumps(data.get("ad_review_feedback"), ensure_ascii=False) if data.get("ad_review_feedback") else False,
                 "raw_payload": json.dumps(data),
             })
-            record.marketing_state = record._get_marketing_state_from_meta_status(
-                data.get("configured_status"),
-                data.get("effective_status"),
+            record.marketing_state = record._get_marketing_state_from_meta_nodes(
+                campaign_data=campaign_data,
+                adset_data=adset_data,
+                ad_data=data,
             )
             record.error_message = False
             record.sync_date = fields.Datetime.now()
@@ -1749,19 +1898,19 @@ class ProjectMarketingImportWizard(models.TransientModel):
     campaign_id = fields.Many2one(
         "marketing.meta.campaign",
         string="Campaña",
-        domain="[('account_id', '=', ad_account_id)]",
+        domain="[('account_id', '=', ad_account_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
         required=True,
     )
     adset_id = fields.Many2one(
         "marketing.meta.adset",
         string="Conjunto",
-        domain="[('campaign_id', '=', campaign_id)]",
+        domain="[('campaign_id', '=', campaign_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
         required=True,
     )
     meta_ad_id = fields.Many2one(
         "marketing.meta.ad",
         string="Anuncio",
-        domain="[('adset_id', '=', adset_id)]",
+        domain="[('adset_id', '=', adset_id), ('active', '=', True), ('effective_status', '=', 'ACTIVE')]",
         required=True,
     )
     import_notes = fields.Text(string="Notas")
