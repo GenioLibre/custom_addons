@@ -417,6 +417,7 @@
                     <field name="partner_id"/>
                     <field name="total_budget"/>
                     <field name="total_spend"/>
+                    <field name="total_results"/>
                     <field name="currency_id"/>
                     <field name="running_ads_count"/>
                     <field name="state"/>
@@ -457,6 +458,11 @@
                                             <span>Gastado: </span>
                                             <field name="total_spend" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                         </div>
+                                        <div class="text-muted">
+                                            <span class="fa fa-bar-chart me-2" aria-label="Resultados" title="Resultados"></span>
+                                            <span>Resultados: </span>
+                                            <field name="total_results"/>
+                                        </div>
                                     </div>
                                 </div>
                                 <footer class="mt-auto pt-0 ms-1">
@@ -492,6 +498,8 @@
                     <field name="partner_id"/>
                     <field name="task_id"/>
                     <field name="total_budget"/>
+                    <field name="total_spend"/>
+                    <field name="total_results"/>
                     <field name="stage"/>
                     <field name="running_ads_count"/>
                     <field name="state" widget="badge"

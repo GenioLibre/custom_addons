@@ -941,6 +941,11 @@ class ProjectMarketing(models.Model):
                 adset_data=adset_data,
                 ad_data=data,
             )
+            if record.campaign_id and record.campaign_id.external_id:
+                try:
+                    record.action_sync_campaign_metrics()
+                except Exception as exc:
+                    _logger.warning("No se pudieron actualizar métricas de campaña para %s: %s", record.id, exc)
 
             record.error_message = False
             record.sync_date = fields.Datetime.now()
@@ -1772,6 +1777,7 @@ class ProjectMarketingDashboard(models.Model):
     partner_id = fields.Many2one("res.partner", string="Cliente", readonly=True)
     total_budget = fields.Monetary(string="Monto Total", readonly=True)
     total_spend = fields.Monetary(string="Monto Gastado", readonly=True)
+    total_results = fields.Float(string="Resultados", readonly=True)
     currency_id = fields.Many2one("res.currency", string="Moneda", readonly=True)
     running_ads_count = fields.Integer(string="Ads Corriendo", readonly=True)
     state = fields.Char(string="Estado", readonly=True)
@@ -1860,6 +1866,7 @@ class ProjectMarketingDashboard(models.Model):
                     pm.partner_id AS partner_id,
                     COALESCE(pm.budget, 0) AS total_budget,
                     COALESCE(mc.spend, 0) AS total_spend,
+                    COALESCE(mc.results, 0) AS total_results,
                     pm.currency_id AS currency_id,
                     CASE WHEN pm.marketing_state = 'publicado' THEN 1 ELSE 0 END AS running_ads_count,
                     CASE
