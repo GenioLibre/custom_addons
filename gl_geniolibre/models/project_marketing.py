@@ -180,7 +180,7 @@ def _extract_meta_creative_destinations(creative):
     }
 
 
-def _pick_campaign_result_metrics(actions, cost_per_action_type):
+def _pick_result_metrics(actions, cost_per_action_type):
     priority = [
         "onsite_conversion.total_messaging_connection",
         "onsite_conversion.messaging_conversation_started_7d",
@@ -215,11 +215,11 @@ def _pick_campaign_result_metrics(actions, cost_per_action_type):
     }
 
 
-def _prepare_meta_campaign_metrics_vals(item):
+def _prepare_meta_insights_vals(item):
     insights = ((item.get("insights") or {}).get("data") or [{}])[0]
     actions = insights.get("actions") or []
     cost_per_action_type = insights.get("cost_per_action_type") or []
-    result_metrics = _pick_campaign_result_metrics(actions, cost_per_action_type)
+    result_metrics = _pick_result_metrics(actions, cost_per_action_type)
     return {
         "spend": float(insights.get("spend") or 0.0),
         "reach": int(float(insights.get("reach") or 0)),
@@ -444,6 +444,19 @@ class MarketingMetaAd(models.Model):
     recommendations_json = fields.Text(string="Recommendations JSON")
     issues_info_json = fields.Text(string="Issues Info JSON")
     ad_review_feedback_json = fields.Text(string="Ad Review Feedback JSON")
+    spend = fields.Float(string="Spend")
+    reach = fields.Integer(string="Reach")
+    impressions = fields.Integer(string="Impressions")
+    frequency = fields.Float(string="Frequency")
+    result_action_type = fields.Char(string="Result Action Type")
+    results = fields.Float(string="Results")
+    cost_per_result = fields.Float(string="Cost Per Result")
+    clicks = fields.Integer(string="Clicks")
+    ctr = fields.Float(string="CTR")
+    cpc = fields.Float(string="CPC")
+    cpm = fields.Float(string="CPM")
+    actions_json = fields.Text(string="Actions JSON")
+    cost_per_action_type_json = fields.Text(string="Cost Per Action Type JSON")
     raw_payload = fields.Text(string="Payload")
     active = fields.Boolean(default=True)
 
@@ -560,19 +573,19 @@ class ProjectMarketing(models.Model):
     campaign_daily_budget = fields.Char(related="campaign_id.daily_budget", string="Daily Budget", readonly=True)
     campaign_lifetime_budget = fields.Char(related="campaign_id.lifetime_budget", string="Lifetime Budget", readonly=True)
     campaign_bid_strategy = fields.Char(related="campaign_id.bid_strategy", string="Bid Strategy", readonly=True)
-    campaign_spend = fields.Float(related="campaign_id.spend", string="Spend", readonly=True)
-    campaign_reach = fields.Integer(related="campaign_id.reach", string="Reach", readonly=True)
-    campaign_impressions = fields.Integer(related="campaign_id.impressions", string="Impressions", readonly=True)
-    campaign_frequency = fields.Float(related="campaign_id.frequency", string="Frequency", readonly=True)
-    campaign_result_action_type = fields.Char(related="campaign_id.result_action_type", string="Tipo de resultado", readonly=True)
-    campaign_results = fields.Float(related="campaign_id.results", string="Results", readonly=True)
-    campaign_cost_per_result = fields.Float(related="campaign_id.cost_per_result", string="Cost Per Result", readonly=True)
-    campaign_clicks = fields.Integer(related="campaign_id.clicks", string="Clicks", readonly=True)
-    campaign_ctr = fields.Float(related="campaign_id.ctr", string="CTR", readonly=True)
-    campaign_cpc = fields.Float(related="campaign_id.cpc", string="CPC", readonly=True)
-    campaign_cpm = fields.Float(related="campaign_id.cpm", string="CPM", readonly=True)
-    campaign_actions_json = fields.Text(related="campaign_id.actions_json", string="Actions JSON", readonly=True)
-    campaign_cost_per_action_type_json = fields.Text(related="campaign_id.cost_per_action_type_json", string="Cost Per Action Type JSON", readonly=True)
+    ad_spend = fields.Float(related="meta_ad_id.spend", string="Spend", readonly=True)
+    ad_reach = fields.Integer(related="meta_ad_id.reach", string="Reach", readonly=True)
+    ad_impressions = fields.Integer(related="meta_ad_id.impressions", string="Impressions", readonly=True)
+    ad_frequency = fields.Float(related="meta_ad_id.frequency", string="Frequency", readonly=True)
+    ad_result_action_type = fields.Char(related="meta_ad_id.result_action_type", string="Tipo de resultado", readonly=True)
+    ad_results = fields.Float(related="meta_ad_id.results", string="Results", readonly=True)
+    ad_cost_per_result = fields.Float(related="meta_ad_id.cost_per_result", string="Cost Per Result", readonly=True)
+    ad_clicks = fields.Integer(related="meta_ad_id.clicks", string="Clicks", readonly=True)
+    ad_ctr = fields.Float(related="meta_ad_id.ctr", string="CTR", readonly=True)
+    ad_cpc = fields.Float(related="meta_ad_id.cpc", string="CPC", readonly=True)
+    ad_cpm = fields.Float(related="meta_ad_id.cpm", string="CPM", readonly=True)
+    ad_actions_json = fields.Text(related="meta_ad_id.actions_json", string="Actions JSON", readonly=True)
+    ad_cost_per_action_type_json = fields.Text(related="meta_ad_id.cost_per_action_type_json", string="Cost Per Action Type JSON", readonly=True)
     campaign_notes = fields.Text(string="Notas de Campaña")
     adset_id = fields.Many2one(
         "marketing.meta.adset",
@@ -941,11 +954,11 @@ class ProjectMarketing(models.Model):
                 adset_data=adset_data,
                 ad_data=data,
             )
-            if record.campaign_id and record.campaign_id.external_id:
+            if record.meta_ad_id and record.meta_ad_id.external_id:
                 try:
-                    record.action_sync_campaign_metrics()
+                    record.action_sync_ad_metrics()
                 except Exception as exc:
-                    _logger.warning("No se pudieron actualizar métricas de campaña para %s: %s", record.id, exc)
+                    _logger.warning("No se pudieron actualizar métricas del anuncio para %s: %s", record.id, exc)
 
             record.error_message = False
             record.sync_date = fields.Datetime.now()
@@ -997,37 +1010,37 @@ class ProjectMarketing(models.Model):
         until = self.end_date or since
         actions_map = {
             item.get("action_type"): item.get("value")
-            for item in _safe_json_loads(self.campaign_actions_json, [])
+            for item in _safe_json_loads(self.ad_actions_json, [])
             if isinstance(item, dict) and item.get("action_type")
         }
         thumbnail_url = self.ad_image_url or "/gl_geniolibre/static/src/img/banner_meta_ads.jpg"
 
         meta_campaign = {
-            "name": self.campaign_name_meta or self.name,
+            "name": self.ad_name_meta or self.name,
             "thumbnail_url": thumbnail_url,
-            "impressions": self.campaign_impressions or 0,
-            "reach": self.campaign_reach or 0,
-            "clicks": self.campaign_clicks or 0,
-            "spend": self.campaign_spend or 0.0,
-            "ctr": self.campaign_ctr or 0.0,
-            "cpc": self.campaign_cpc or 0.0,
-            "cpm": self.campaign_cpm or 0.0,
-            "cpp": round((self.campaign_spend / self.campaign_reach), 2) if self.campaign_reach else 0.0,
+            "impressions": self.ad_impressions or 0,
+            "reach": self.ad_reach or 0,
+            "clicks": self.ad_clicks or 0,
+            "spend": self.ad_spend or 0.0,
+            "ctr": self.ad_ctr or 0.0,
+            "cpc": self.ad_cpc or 0.0,
+            "cpm": self.ad_cpm or 0.0,
+            "cpp": round((self.ad_spend / self.ad_reach), 2) if self.ad_reach else 0.0,
             "actions": actions_map,
         }
         meta_summary = {
             "total_campaigns": 1 if self.campaign_id else 0,
             "account_currency": (self.currency_id.name or "").upper(),
-            "impressions": self.campaign_impressions or 0,
-            "clicks": self.campaign_clicks or 0,
-            "reach": self.campaign_reach or 0,
-            "spend": self.campaign_spend or 0.0,
-            "ctr": self.campaign_ctr or 0.0,
-            "cpc": self.campaign_cpc or 0.0,
-            "cpm": self.campaign_cpm or 0.0,
+            "impressions": self.ad_impressions or 0,
+            "clicks": self.ad_clicks or 0,
+            "reach": self.ad_reach or 0,
+            "spend": self.ad_spend or 0.0,
+            "ctr": self.ad_ctr or 0.0,
+            "cpc": self.ad_cpc or 0.0,
+            "cpm": self.ad_cpm or 0.0,
             "cpp": meta_campaign["cpp"],
-            "frequency": self.campaign_frequency or 0.0,
-            "total_conversaciones": self.campaign_results or 0.0,
+            "frequency": self.ad_frequency or 0.0,
+            "total_conversaciones": self.ad_results or 0.0,
         }
         data = {
             "partner_id": self.partner_id.id,
@@ -1230,7 +1243,7 @@ class ProjectMarketing(models.Model):
                 "issues_info_json": json.dumps(item.get("issues_info"), ensure_ascii=False) if item.get("issues_info") else False,
                 "raw_payload": json.dumps(item),
             }
-            vals.update(_prepare_meta_campaign_metrics_vals(item))
+            vals.update(_prepare_meta_insights_vals(item))
             existing = Campaign.search([
                 ("external_id", "=", external_id),
                 ("account_id", "=", self.ad_account_id.id),
@@ -1263,7 +1276,28 @@ class ProjectMarketing(models.Model):
         if response.status_code != 200:
             raise ValidationError(f"No se pudieron actualizar las métricas: {data}")
 
-        self.campaign_id.sudo().write(_prepare_meta_campaign_metrics_vals(data))
+        self.campaign_id.sudo().write(_prepare_meta_insights_vals(data))
+        self.sync_date = fields.Datetime.now()
+        return True
+
+    def action_sync_ad_metrics(self):
+        self.ensure_one()
+        if not self.meta_ad_id or not self.meta_ad_id.external_id:
+            raise ValidationError("Selecciona primero un anuncio válido.")
+
+        token = self._get_meta_access_token()
+        api_version = self._get_meta_api_version()
+        url = f"https://graph.facebook.com/{api_version}/{self.meta_ad_id.external_id}"
+        params = {
+            "access_token": token,
+            "fields": "id,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type}",
+        }
+        response = requests.get(url, params=params, timeout=30)
+        data = response.json()
+        if response.status_code != 200:
+            raise ValidationError(f"No se pudieron actualizar las métricas del anuncio: {data}")
+
+        self.meta_ad_id.sudo().write(_prepare_meta_insights_vals(data))
         self.sync_date = fields.Datetime.now()
         return True
 
@@ -1480,7 +1514,7 @@ class ProjectMarketing(models.Model):
         url = f"https://graph.facebook.com/{api_version}/{self.adset_id.external_id}/ads"
         params = {
             "access_token": token,
-            "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
+            "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type},creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
             "limit": 500,
         }
         response = requests.get(url, params=params, timeout=30)
@@ -1523,6 +1557,7 @@ class ProjectMarketing(models.Model):
                 "ad_review_feedback_json": json.dumps(item.get("ad_review_feedback"), ensure_ascii=False) if item.get("ad_review_feedback") else False,
                 "raw_payload": json.dumps(item),
             }
+            vals.update(_prepare_meta_insights_vals(item))
             existing = Ad.search([
                 ("external_id", "=", item.get("id")),
                 ("adset_id", "=", self.adset_id.id),
@@ -1757,7 +1792,7 @@ class ProjectMarketingDashboard(models.Model):
     _name = "project.marketing.dashboard"
     _description = "Dashboard de Publicaciones Paga"
     _auto = False
-    _order = "stage, campaign_name"
+    _order = "stage, name"
 
     provider = fields.Selection(
         [
@@ -1865,8 +1900,8 @@ class ProjectMarketingDashboard(models.Model):
                     pm.task_id AS task_id,
                     pm.partner_id AS partner_id,
                     COALESCE(pm.budget, 0) AS total_budget,
-                    COALESCE(mc.spend, 0) AS total_spend,
-                    COALESCE(mc.results, 0) AS total_results,
+                    COALESCE(ma.spend, 0) AS total_spend,
+                    COALESCE(ma.results, 0) AS total_results,
                     pm.currency_id AS currency_id,
                     CASE WHEN pm.marketing_state = 'publicado' THEN 1 ELSE 0 END AS running_ads_count,
                     CASE
@@ -1888,6 +1923,8 @@ class ProjectMarketingDashboard(models.Model):
                 FROM project_marketing pm
                 LEFT JOIN marketing_meta_campaign mc
                     ON mc.id = pm.campaign_id
+                LEFT JOIN marketing_meta_ad ma
+                    ON ma.id = pm.meta_ad_id
                 WHERE pm.active = TRUE
             )
             """

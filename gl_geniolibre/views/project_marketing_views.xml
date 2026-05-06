@@ -15,7 +15,8 @@
                            decoration-info="marketing_state == 'terminado'"/>
                     <field name="delivery_status_detail"/>
                     <field name="scheduled_activation"/>
-                    <field name="budget"/>
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                     <field name="campaign_id"/>
                     <field name="adset_id"/>
                     <field name="meta_ad_id"/>
@@ -183,33 +184,33 @@
                             <page string="Metricas del Anuncio">
                                 <group>
                                     <group>
-                                        <button name="action_sync_campaign_metrics" type="object" string="Actualizar" icon="fa-refresh"
-                                                class="btn-secondary" invisible="not campaign_id"/>
+                                        <button name="action_sync_ad_metrics" type="object" string="Actualizar" icon="fa-refresh"
+                                                class="btn-secondary" invisible="not meta_ad_id"/>
                                     </group>
                                 </group>
                                 <group>
                                     <group string="Resumen">
-                                        <field name="campaign_spend" readonly="1"/>
-                                        <field name="campaign_reach" readonly="1"/>
-                                        <field name="campaign_impressions" readonly="1"/>
-                                        <field name="campaign_frequency" readonly="1"/>
-                                        <field name="campaign_result_action_type" readonly="1"/>
-                                        <field name="campaign_results" readonly="1"/>
+                                        <field name="ad_spend" readonly="1"/>
+                                        <field name="ad_reach" readonly="1"/>
+                                        <field name="ad_impressions" readonly="1"/>
+                                        <field name="ad_frequency" readonly="1"/>
+                                        <field name="ad_result_action_type" readonly="1"/>
+                                        <field name="ad_results" readonly="1"/>
                                     </group>
                                     <group string="Rendimiento">
-                                        <field name="campaign_cost_per_result" readonly="1"/>
-                                        <field name="campaign_clicks" readonly="1"/>
-                                        <field name="campaign_ctr" readonly="1"/>
-                                        <field name="campaign_cpc" readonly="1"/>
-                                        <field name="campaign_cpm" readonly="1"/>
+                                        <field name="ad_cost_per_result" readonly="1"/>
+                                        <field name="ad_clicks" readonly="1"/>
+                                        <field name="ad_ctr" readonly="1"/>
+                                        <field name="ad_cpc" readonly="1"/>
+                                        <field name="ad_cpm" readonly="1"/>
                                     </group>
                                 </group>
                                 <group>
                                     <group>
-                                        <field name="campaign_actions_json" widget="text" readonly="1"/>
+                                        <field name="ad_actions_json" widget="text" readonly="1"/>
                                     </group>
                                     <group>
-                                        <field name="campaign_cost_per_action_type_json" widget="text" readonly="1"/>
+                                        <field name="ad_cost_per_action_type_json" widget="text" readonly="1"/>
                                     </group>
                                 </group>
                             </page>
@@ -497,8 +498,9 @@
                     <field name="campaign_name"/>
                     <field name="partner_id"/>
                     <field name="task_id"/>
-                    <field name="total_budget"/>
-                    <field name="total_spend"/>
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="total_budget" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    <field name="total_spend" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                     <field name="total_results"/>
                     <field name="stage"/>
                     <field name="running_ads_count"/>
