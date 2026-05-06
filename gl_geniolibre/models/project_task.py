@@ -671,6 +671,47 @@ class project_task(models.Model):
 
         return ordered_ids
 
+    def _resolve_attachment_order_from_commands(self, base_ids, final_ids, commands):
+        ordered_ids = list(base_ids or [])
+        final_ids = list(final_ids or [])
+        if not commands:
+            return final_ids or ordered_ids
+
+        new_ids = [attachment_id for attachment_id in final_ids if attachment_id not in ordered_ids]
+        new_ids.sort()
+        new_idx = 0
+
+        for command in commands:
+            if not isinstance(command, (list, tuple)) or not command:
+                continue
+
+            op_type = command[0]
+            if op_type == 0:
+                if new_idx >= len(new_ids):
+                    continue
+                attachment_id = new_ids[new_idx]
+                new_idx += 1
+                if attachment_id in ordered_ids:
+                    ordered_ids.remove(attachment_id)
+                ordered_ids.append(attachment_id)
+            elif op_type == 4 and len(command) > 1 and command[1]:
+                attachment_id = command[1]
+                if attachment_id in ordered_ids:
+                    ordered_ids.remove(attachment_id)
+                ordered_ids.append(attachment_id)
+            elif op_type in (2, 3) and len(command) > 1 and command[1]:
+                attachment_id = command[1]
+                if attachment_id in ordered_ids:
+                    ordered_ids.remove(attachment_id)
+            elif op_type == 5:
+                ordered_ids = []
+            elif op_type == 6 and len(command) > 2:
+                ordered_ids = list(command[2] or [])
+
+        missing_ids = [attachment_id for attachment_id in final_ids if attachment_id not in ordered_ids]
+        ordered_ids.extend(missing_ids)
+        return ordered_ids
+
     def _sync_attachment_lines(self, preferred_order_ids=None):
         line_model = self.env['gl.project.task.attachment.line']
         for rec in self:
@@ -1192,7 +1233,11 @@ class project_task(models.Model):
                 raise ValidationError("Solo puedes activar Publicidad Paga cuando el post ya está Publicado.")
         records = super().create(vals_list)
         for rec, vals in zip(records, vals_list):
-            preferred_order_ids = rec._build_attachment_order_from_commands([], vals.get('adjuntos_ids', []))
+            preferred_order_ids = rec._resolve_attachment_order_from_commands(
+                [],
+                rec.adjuntos_ids.ids,
+                vals.get('adjuntos_ids', []),
+            )
             rec._sync_attachment_lines(preferred_order_ids=preferred_order_ids)
             if rec.tipo in ("video_stories", "video_reels") and rec.adjuntos_ids:
                 rec.tiktok_video_duration = rec._calculate_video_duration_from_attachments()
@@ -1239,10 +1284,10 @@ class project_task(models.Model):
                     continue
 
                 if 'adjuntos_ids' in vals:
-                    preferred_attachment_orders[record.id] = record._build_attachment_order_from_commands(
-                        record._get_ordered_attachments().ids,
-                        vals['adjuntos_ids'],
-                    )
+                    preferred_attachment_orders[record.id] = {
+                        'base_ids': record._get_ordered_attachments().ids,
+                        'commands': vals['adjuntos_ids'],
+                    }
                     current_attachment_ids = set(record.adjuntos_ids.ids)
                     for command in vals['adjuntos_ids']:
                         op_type = command[0]
@@ -1303,7 +1348,13 @@ class project_task(models.Model):
 
         if 'adjuntos_ids' in vals:
             for rec in self:
-                rec._sync_attachment_lines(preferred_order_ids=preferred_attachment_orders.get(rec.id))
+                order_data = preferred_attachment_orders.get(rec.id) or {}
+                preferred_order_ids = rec._resolve_attachment_order_from_commands(
+                    order_data.get('base_ids', []),
+                    rec.adjuntos_ids.ids,
+                    order_data.get('commands', []),
+                )
+                rec._sync_attachment_lines(preferred_order_ids=preferred_order_ids)
 
         if {'adjuntos_ids', 'tipo'} & set(vals.keys()):
             for rec in self:
