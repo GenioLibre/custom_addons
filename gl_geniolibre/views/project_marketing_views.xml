@@ -492,7 +492,6 @@
             <field name="model">project.marketing.dashboard</field>
             <field name="arch" type="xml">
                 <list create="false" edit="false" delete="false">
-                    <button name="action_open_marketing_form" type="object" string="Abrir" icon="fa-external-link"/>
                     <field name="provider"/>
                     <field name="name"/>
                     <field name="campaign_name"/>

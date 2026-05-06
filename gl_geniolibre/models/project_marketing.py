@@ -180,22 +180,44 @@ def _extract_meta_creative_destinations(creative):
     }
 
 
-def _pick_result_metrics(actions, cost_per_action_type):
-    priority = [
-        "onsite_conversion.total_messaging_connection",
-        "onsite_conversion.messaging_conversation_started_7d",
-        "onsite_conversion.messaging_first_reply",
-        "onsite_conversion.messaging_user_depth_2_message_send",
-        "purchase",
-        "offsite_conversion.fb_pixel_purchase",
-        "lead",
-        "link_click",
-    ]
+def _pick_result_metrics(actions, cost_per_action_type, objective=False):
     action_map = {item.get("action_type"): item for item in actions if item.get("action_type")}
     cost_map = {item.get("action_type"): item for item in cost_per_action_type if item.get("action_type")}
+    objective = (objective or "").upper()
 
     selected_type = False
+    if "SALES" in objective or "VENTAS" in objective:
+        priority = [
+            "onsite_conversion.messaging_conversation_started_7d",
+            "onsite_conversion.total_messaging_connection",
+            "onsite_conversion.messaging_first_reply",
+            "onsite_conversion.messaging_user_depth_2_message_send",
+        ]
+    elif "ENGAGEMENT" in objective or "INTERACTION" in objective or "INTERACC" in objective:
+        priority = [
+            "link_click",
+        ]
+    else:
+        # Fallback general.
+        for item in cost_per_action_type:
+            action_type = item.get("action_type")
+            if action_type and action_type in action_map:
+                selected_type = action_type
+                break
+        priority = [
+            "purchase",
+            "offsite_conversion.fb_pixel_purchase",
+            "lead",
+            "onsite_conversion.messaging_conversation_started_7d",
+            "onsite_conversion.total_messaging_connection",
+            "onsite_conversion.messaging_first_reply",
+            "onsite_conversion.messaging_user_depth_2_message_send",
+            "link_click",
+        ]
+
     for action_type in priority:
+        if selected_type:
+            break
         if action_type in action_map:
             selected_type = action_type
             break
@@ -215,11 +237,11 @@ def _pick_result_metrics(actions, cost_per_action_type):
     }
 
 
-def _prepare_meta_insights_vals(item):
+def _prepare_meta_insights_vals(item, objective=False):
     insights = ((item.get("insights") or {}).get("data") or [{}])[0]
     actions = insights.get("actions") or []
     cost_per_action_type = insights.get("cost_per_action_type") or []
-    result_metrics = _pick_result_metrics(actions, cost_per_action_type)
+    result_metrics = _pick_result_metrics(actions, cost_per_action_type, objective=objective)
     return {
         "spend": float(insights.get("spend") or 0.0),
         "reach": int(float(insights.get("reach") or 0)),
@@ -910,7 +932,7 @@ class ProjectMarketing(models.Model):
             url = f"https://graph.facebook.com/{api_version}/{record.meta_ad_id.external_id}"
             params = {
                 "access_token": token,
-                "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,campaign{id,status,configured_status,effective_status,start_time,stop_time,recommendations,issues_info},adset{id,status,configured_status,effective_status,start_time,end_time,recommendations,issues_info,learning_stage_info}",
+                "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type},campaign{id,status,configured_status,effective_status,start_time,stop_time,recommendations,issues_info},adset{id,status,configured_status,effective_status,start_time,end_time,recommendations,issues_info,learning_stage_info}",
             }
             response = requests.get(url, params=params, timeout=20)
             data = response.json()
@@ -941,24 +963,21 @@ class ProjectMarketing(models.Model):
                     "learning_stage_info_json": json.dumps(adset_data.get("learning_stage_info"), ensure_ascii=False) if adset_data.get("learning_stage_info") else False,
                 })
             if record.meta_ad_id:
-                record.meta_ad_id.sudo().write({
+                ad_vals = {
                     "name": data.get("name") or record.meta_ad_id.name,
                     "configured_status": data.get("configured_status"),
                     "effective_status": data.get("effective_status"),
                     "recommendations_json": json.dumps(data.get("recommendations"), ensure_ascii=False) if data.get("recommendations") else False,
                     "issues_info_json": json.dumps(data.get("issues_info"), ensure_ascii=False) if data.get("issues_info") else False,
                     "ad_review_feedback_json": json.dumps(data.get("ad_review_feedback"), ensure_ascii=False) if data.get("ad_review_feedback") else False,
-                })
+                }
+                ad_vals.update(_prepare_meta_insights_vals(data, objective=record.campaign_id.objective))
+                record.meta_ad_id.sudo().write(ad_vals)
             record.marketing_state = record._get_marketing_state_from_meta_nodes(
                 campaign_data=campaign_data,
                 adset_data=adset_data,
                 ad_data=data,
             )
-            if record.meta_ad_id and record.meta_ad_id.external_id:
-                try:
-                    record.action_sync_ad_metrics()
-                except Exception as exc:
-                    _logger.warning("No se pudieron actualizar métricas del anuncio para %s: %s", record.id, exc)
 
             record.error_message = False
             record.sync_date = fields.Datetime.now()
@@ -1243,7 +1262,7 @@ class ProjectMarketing(models.Model):
                 "issues_info_json": json.dumps(item.get("issues_info"), ensure_ascii=False) if item.get("issues_info") else False,
                 "raw_payload": json.dumps(item),
             }
-            vals.update(_prepare_meta_insights_vals(item))
+            vals.update(_prepare_meta_insights_vals(item, objective=item.get("objective")))
             existing = Campaign.search([
                 ("external_id", "=", external_id),
                 ("account_id", "=", self.ad_account_id.id),
@@ -1276,7 +1295,7 @@ class ProjectMarketing(models.Model):
         if response.status_code != 200:
             raise ValidationError(f"No se pudieron actualizar las métricas: {data}")
 
-        self.campaign_id.sudo().write(_prepare_meta_insights_vals(data))
+        self.campaign_id.sudo().write(_prepare_meta_insights_vals(data, objective=self.campaign_id.objective))
         self.sync_date = fields.Datetime.now()
         return True
 
@@ -1297,7 +1316,7 @@ class ProjectMarketing(models.Model):
         if response.status_code != 200:
             raise ValidationError(f"No se pudieron actualizar las métricas del anuncio: {data}")
 
-        self.meta_ad_id.sudo().write(_prepare_meta_insights_vals(data))
+        self.meta_ad_id.sudo().write(_prepare_meta_insights_vals(data, objective=self.campaign_id.objective))
         self.sync_date = fields.Datetime.now()
         return True
 
@@ -1557,7 +1576,7 @@ class ProjectMarketing(models.Model):
                 "ad_review_feedback_json": json.dumps(item.get("ad_review_feedback"), ensure_ascii=False) if item.get("ad_review_feedback") else False,
                 "raw_payload": json.dumps(item),
             }
-            vals.update(_prepare_meta_insights_vals(item))
+            vals.update(_prepare_meta_insights_vals(item, objective=self.campaign_id.objective))
             existing = Ad.search([
                 ("external_id", "=", item.get("id")),
                 ("adset_id", "=", self.adset_id.id),
@@ -1657,7 +1676,7 @@ class ProjectMarketing(models.Model):
             url = f"https://graph.facebook.com/{api_version}/{record.meta_ad_id.external_id}"
             params = {
                 "access_token": token,
-                "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,campaign{id,status,configured_status,effective_status,start_time,stop_time,recommendations,issues_info},adset{id,status,configured_status,effective_status,start_time,end_time,recommendations,issues_info,learning_stage_info},creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link",
+                "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type},campaign{id,status,configured_status,effective_status,start_time,stop_time,recommendations,issues_info},adset{id,status,configured_status,effective_status,start_time,end_time,recommendations,issues_info,learning_stage_info},creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link",
             }
             response = requests.get(url, params=params, timeout=20)
             data = response.json()
@@ -1715,6 +1734,7 @@ class ProjectMarketing(models.Model):
                 "issues_info_json": json.dumps(data.get("issues_info"), ensure_ascii=False) if data.get("issues_info") else False,
                 "ad_review_feedback_json": json.dumps(data.get("ad_review_feedback"), ensure_ascii=False) if data.get("ad_review_feedback") else False,
                 "raw_payload": json.dumps(data),
+                **_prepare_meta_insights_vals(data, objective=record.campaign_id.objective),
             })
             record.marketing_state = record._get_marketing_state_from_meta_nodes(
                 campaign_data=campaign_data,

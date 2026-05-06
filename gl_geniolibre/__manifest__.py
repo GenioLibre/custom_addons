@@ -51,6 +51,7 @@
         "web.assets_backend": [
             'gl_geniolibre/static/src/js/gl_many2many_attachment_preview.js',
             'gl_geniolibre/static/src/js/clipboard.js',
+            'gl_geniolibre/static/src/js/project_marketing_dashboard_list_open.js',
             'gl_geniolibre/static/src/xml/gl_many2many_attachment_preview_template.xml',
         ],
         "web.report_assets_common": [
