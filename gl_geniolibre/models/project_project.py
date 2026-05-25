@@ -2109,7 +2109,32 @@ def merge_final_tiktok_data(chunk_results):
 
 def merge_final_metaads_data(chunks):
 
-    # Solo para depuración
+    def _to_float(value):
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return 0.0
+        if isinstance(value, list):
+            for item in value:
+                if not isinstance(item, dict):
+                    continue
+                if item.get('action_type') == 'contact_total':
+                    try:
+                        return float(item.get('value', 0))
+                    except (TypeError, ValueError):
+                        return 0.0
+            for item in value:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    return float(item.get('value', 0))
+                except (TypeError, ValueError):
+                    continue
+        return 0.0
+
     all_campaigns = []
     total_impressions = total_clicks = total_spend = total_reach = total_cost_per_conversion = 0
     total_conversaciones = 0
@@ -2119,17 +2144,18 @@ def merge_final_metaads_data(chunks):
         campaigns = chunk.get('campaigns', [])
         for c in campaigns:
             # Filtrar campañas vacías
-            if (not c.get('impressions') or float(c.get('impressions', 0)) == 0) and (
-                    not c.get('clicks') or float(c.get('clicks', 0)) == 0):
+            impressions = _to_float(c.get('impressions', 0))
+            clicks = _to_float(c.get('clicks', 0))
+            if (not c.get('impressions') or impressions == 0) and (not c.get('clicks') or clicks == 0):
                 continue
 
             # Convertir valores a float/int
-            c['impressions'] = float(c.get('impressions', 0))
-            c['clicks'] = float(c.get('clicks', 0))
-            c['spend'] = float(c.get('spend', 0))
-            c['reach'] = float(c.get('reach', 0))
-            c['frequency'] = float(c.get('frequency', 0))
-            c['cost_per_conversion'] = float(c.get('cost_per_conversion', 0))
+            c['impressions'] = impressions
+            c['clicks'] = clicks
+            c['spend'] = _to_float(c.get('spend', 0))
+            c['reach'] = _to_float(c.get('reach', 0))
+            c['frequency'] = _to_float(c.get('frequency', 0))
+            c['cost_per_conversion'] = _to_float(c.get('cost_per_conversion', 0))
 
             # Calcular métricas por campaña
             c['ctr'] = round((c['clicks'] / c['impressions'] * 100) if c['impressions'] else 0, 2)
