@@ -114,3 +114,10 @@ th[data-name="total_class_count"] .o_column_title {
     min-width: 760px;
   }
 }
+
+.o_list_renderer .o_data_row .iem_member_list_extra_image img,
+.o_list_renderer .o_data_row img[name="extra_image"] {
+  max-height: 50px;
+  width: auto;
+  object-fit: contain;
+}

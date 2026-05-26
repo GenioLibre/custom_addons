@@ -7,6 +7,7 @@ import xlsxwriter
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
+from odoo.osv import expression
 
 
 class ChurchMember(models.Model):
@@ -196,6 +197,27 @@ class ChurchMember(models.Model):
                 "sticky": False,
             },
         }
+
+    def _member_list_scope_domain(self):
+        list_id = self.env.context.get("member_list_scope_id") or self.env.context.get("default_list_id")
+        if not list_id:
+            return []
+        member_list = self.env["iem.church.member.list"].browse(int(list_id)).exists()
+        if not member_list:
+            return []
+        return member_list._member_domain_by_scope()
+
+    @api.model
+    def _search(self, domain, offset=0, limit=None, order=None):
+        scope_domain = self._member_list_scope_domain()
+        if scope_domain:
+            domain = expression.AND([domain, scope_domain])
+        return super()._search(
+            domain,
+            offset=offset,
+            limit=limit,
+            order=order,
+        )
 
     def _check_scope_for_user(self, vals=None):
         if self.env.context.get("skip_scope_check"):

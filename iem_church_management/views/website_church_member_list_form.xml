@@ -1,0 +1,515 @@
+<odoo>
+    <template id="church_member_list_public_form" name="Registro publico de listas de membresia">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <section class="s_title pt32 pb16">
+                    <div class="container">
+                        <h1 class="text-center">Registro en Listas</h1>
+                        <p class="text-center text-muted">
+                            Completa los pasos para registrar un miembro en una lista habilitada.
+                        </p>
+                    </div>
+                </section>
+                <section class="s_text pb32">
+                    <div class="container">
+                        <t t-if="success">
+                            <div class="alert alert-success" role="alert">
+                                Gracias. El registro en la lista fue enviado correctamente.
+                            </div>
+                        </t>
+                        <t t-if="error">
+                            <div class="alert alert-danger" role="alert">
+                                <t t-esc="error"/>
+                            </div>
+                        </t>
+                        <t t-if="not online_lists">
+                            <div class="alert alert-warning" role="alert">
+                                No hay listas habilitadas para registro online.
+                            </div>
+                        </t>
+                        <form t-if="online_lists" action="/church/lista/registro/submit" method="post" class="o_website_form" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                            <div class="mb-3">
+                                <strong id="iem_list_form_step_indicator">Paso 1 de 3</strong>
+                            </div>
+                            <div id="iem_list_form_client_message" class="alert d-none" role="alert"></div>
+
+                            <div class="row js-list-step" data-step="0">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Clave de acceso</label>
+                                    <div class="input-group">
+                                        <input type="password" name="access_password" class="form-control" required="required"/>
+                                        <button type="button" id="iem_list_toggle_access_password" class="btn btn-outline-secondary">Mostrar</button>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" id="iem_list_validate_access" class="btn btn-primary">Validar clave</button>
+                                </div>
+                            </div>
+
+                            <div class="row js-list-step d-none" data-step="1">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Lista</label>
+                                    <select name="list_id" id="iem_list_select" class="form-select" required="required">
+                                        <option value="">Selecciona</option>
+                                        <t t-foreach="online_lists_data" t-as="list_data">
+                                            <option
+                                                t-att-value="list_data['id']"
+                                                t-att-selected="form.get('list_id') == str(list_data['id'])"
+                                                t-att-data-show-boolean="1 if list_data['show_boolean_extra'] else 0"
+                                                t-att-data-show-amount="1 if list_data['show_amount_extra'] else 0"
+                                                t-att-data-show-text="1 if list_data['show_text_extra'] else 0"
+                                                t-att-data-show-image="1 if list_data['show_image_extra'] else 0"
+                                                t-att-data-has-extra-step="1 if list_data['has_extra_step'] else 0"
+                                                t-att-data-boolean-label="list_data['boolean_extra_label']"
+                                                t-att-data-amount-label="list_data['amount_extra_label']"
+                                                t-att-data-text-label="list_data['text_extra_label']"
+                                                t-att-data-image-label="list_data['image_extra_label']"
+                                                t-att-data-currency-symbol="list_data['currency_symbol']"
+                                            >
+                                                <t t-esc="list_data['name']"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Miembro</label>
+                                    <input
+                                        type="hidden"
+                                        name="member_id"
+                                        id="iem_list_member_id"
+                                        t-att-value="selected_member.id if selected_member else ''"
+                                    />
+                                    <input
+                                        type="text"
+                                        id="iem_list_member_query"
+                                        class="form-control mb-2"
+                                        placeholder="Busca por nombre o documento"
+                                        autocomplete="off"
+                                        t-att-value="selected_member.display_name if selected_member else (form.get('member_query') or '')"
+                                    />
+                                    <div id="iem_list_member_selected" class="small text-success mb-2">
+                                        <t t-if="selected_member">
+                                            Seleccionado: <t t-esc="selected_member.display_name"/>
+                                        </t>
+                                    </div>
+                                    <div id="iem_list_member_results" class="list-group d-none"></div>
+                                    <small id="iem_list_member_help" class="text-muted">Escribe al menos 3 letras para buscar.</small>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Info de la Lista</label>
+                                    <div id="iem_list_info_box" class="border rounded p-3 bg-light">
+                                        Selecciona una lista para ver su información.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row js-list-step d-none" data-step="2">
+                                <div class="col-12 col-md-6 mb-3 d-none" id="iem_list_boolean_row">
+                                    <label class="form-label" for="iem_list_extra_boolean" id="iem_list_boolean_label">Si/No</label>
+                                    <select name="extra_boolean" id="iem_list_extra_boolean" class="form-select">
+                                        <option value="">Selecciona</option>
+                                        <option value="true" t-att-selected="form.get('extra_boolean') == 'true'">Sí</option>
+                                        <option value="false" t-att-selected="form.get('extra_boolean') == 'false'">No</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3 d-none" id="iem_list_amount_row">
+                                    <label class="form-label" for="iem_list_extra_amount" id="iem_list_amount_label">Monto</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text" id="iem_list_currency_symbol">S/</span>
+                                        <input type="number" step="0.01" name="extra_amount" id="iem_list_extra_amount" class="form-control" t-att-value="form.get('extra_amount') or ''"/>
+                                    </div>
+                                </div>
+                                <div class="col-12 mb-3 d-none" id="iem_list_text_row">
+                                    <label class="form-label" for="iem_list_extra_text" id="iem_list_text_label">Notas</label>
+                                    <input type="text" name="extra_text" id="iem_list_extra_text" class="form-control" t-att-value="form.get('extra_text') or ''"/>
+                                </div>
+                                <div class="col-12 col-md-6 mb-3 d-none" id="iem_list_image_row">
+                                    <label class="form-label" for="iem_list_extra_image" id="iem_list_image_label">Imagen</label>
+                                    <div class="mb-2">
+                                        <img id="iem_list_image_preview" src="" alt="Vista previa" class="img-thumbnail d-none" style="max-height: 120px; width: auto;"/>
+                                    </div>
+                                    <input type="file" name="extra_image" id="iem_list_extra_image" class="form-control" accept="image/*"/>
+                                </div>
+                            </div>
+
+                            <div class="d-none">
+                                <label>No completar este campo</label>
+                                <input type="text" name="website" tabindex="-1" autocomplete="off"/>
+                            </div>
+
+                            <div class="d-none" id="iem_list_info_templates">
+                                <t t-foreach="online_lists_data" t-as="list_data">
+                                    <div t-att-data-list-id="list_data['id']" class="js-list-info-template">
+                                        <t t-if="list_data['info_items']">
+                                            <ul class="mb-0 ps-3">
+                                                <t t-foreach="list_data['info_items']" t-as="item">
+                                                    <li>
+                                                        <strong><t t-esc="item['label']"/>:</strong>
+                                                        <t t-esc="item['value']"/>
+                                                    </li>
+                                                </t>
+                                            </ul>
+                                        </t>
+                                        <t t-if="not list_data['info_items']">
+                                            <span>Sin información adicional.</span>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" id="iem_list_prev_step" class="btn btn-secondary d-none">Anterior</button>
+                                <button type="button" id="iem_list_next_step" class="btn btn-primary d-none">Siguiente</button>
+                                <button type="submit" id="iem_list_submit_form" class="btn btn-primary d-none">Registrar</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+            <script type="text/javascript">
+                (function () {
+                    const steps = Array.from(document.querySelectorAll(".js-list-step"));
+                    const indicator = document.getElementById("iem_list_form_step_indicator");
+                    const prevBtn = document.getElementById("iem_list_prev_step");
+                    const nextBtn = document.getElementById("iem_list_next_step");
+                    const submitBtn = document.getElementById("iem_list_submit_form");
+                    const validateAccessBtn = document.getElementById("iem_list_validate_access");
+                    const clientMessage = document.getElementById("iem_list_form_client_message");
+                    const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+                    const accessPasswordInput = document.querySelector('input[name="access_password"]');
+                    const toggleAccessPasswordBtn = document.getElementById("iem_list_toggle_access_password");
+                    const listSelect = document.getElementById("iem_list_select");
+                    const listInfoBox = document.getElementById("iem_list_info_box");
+                    const memberIdInput = document.getElementById("iem_list_member_id");
+                    const memberQueryInput = document.getElementById("iem_list_member_query");
+                    const memberSelected = document.getElementById("iem_list_member_selected");
+                    const memberResults = document.getElementById("iem_list_member_results");
+                    const memberHelp = document.getElementById("iem_list_member_help");
+                    const booleanRow = document.getElementById("iem_list_boolean_row");
+                    const amountRow = document.getElementById("iem_list_amount_row");
+                    const textRow = document.getElementById("iem_list_text_row");
+                    const imageRow = document.getElementById("iem_list_image_row");
+                    const booleanLabel = document.getElementById("iem_list_boolean_label");
+                    const amountLabel = document.getElementById("iem_list_amount_label");
+                    const textLabel = document.getElementById("iem_list_text_label");
+                    const imageLabel = document.getElementById("iem_list_image_label");
+                    const currencySymbol = document.getElementById("iem_list_currency_symbol");
+                    const booleanInput = document.getElementById("iem_list_extra_boolean");
+                    const amountInput = document.getElementById("iem_list_extra_amount");
+                    const textInput = document.getElementById("iem_list_extra_text");
+                    const imageInput = document.getElementById("iem_list_extra_image");
+                    const imagePreview = document.getElementById("iem_list_image_preview");
+                    const accessValidated = <t t-out="'true' if access_validated else 'false'"/>;
+                    if (!steps.length || !indicator || !prevBtn || !nextBtn || !submitBtn || !listSelect || !memberQueryInput || !memberIdInput || !memberResults) {
+                        return;
+                    }
+
+                    let currentStep = 0;
+                    let searchTimer = null;
+
+                    function showClientMessage(type, text) {
+                        if (!clientMessage) {
+                            return;
+                        }
+                        if (!text) {
+                            clientMessage.classList.add("d-none");
+                            clientMessage.textContent = "";
+                            clientMessage.classList.remove("alert-success", "alert-danger", "alert-warning", "alert-info");
+                            return;
+                        }
+                        clientMessage.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
+                        clientMessage.classList.add(type === "success" ? "alert-success" : "alert-danger");
+                        clientMessage.textContent = text;
+                    }
+
+                    async function postAndReadJson(url, params) {
+                        const body = new URLSearchParams();
+                        Object.keys(params || {}).forEach((key) => {
+                            body.append(key, params[key] || "");
+                        });
+                        if (csrfTokenInput) {
+                            body.append("csrf_token", csrfTokenInput.value || "");
+                        }
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            body: body.toString(),
+                            credentials: "same-origin",
+                        });
+                        return response.json();
+                    }
+
+                    function selectedListOption() {
+                        return listSelect.selectedOptions.length ? listSelect.selectedOptions[0] : null;
+                    }
+
+                    function hasExtraStep() {
+                        const option = selectedListOption();
+                        return option &amp;&amp; option.value &amp;&amp; option.dataset.hasExtraStep === "1";
+                    }
+
+                    function totalSteps() {
+                        return hasExtraStep() ? 3 : 2;
+                    }
+
+                    function setStep(step) {
+                        currentStep = step;
+                        steps.forEach((el) => {
+                            el.classList.toggle("d-none", Number(el.dataset.step) !== currentStep);
+                        });
+                        indicator.textContent = `Paso ${currentStep + 1} de ${totalSteps()}`;
+                        prevBtn.classList.toggle("d-none", currentStep === 0);
+                        nextBtn.classList.toggle("d-none", currentStep === 0 || currentStep >= totalSteps() - 1);
+                        submitBtn.classList.toggle("d-none", currentStep !== totalSteps() - 1);
+                        if (validateAccessBtn) {
+                            validateAccessBtn.classList.toggle("d-none", currentStep !== 0);
+                        }
+                        updateStepRequiredFields();
+                    }
+
+                    function updateRequiredState(element, enabled) {
+                        if (!element) {
+                            return;
+                        }
+                        element.required = !!enabled;
+                    }
+
+                    function updateStepRequiredFields() {
+                        updateRequiredState(accessPasswordInput, currentStep === 0);
+                        updateRequiredState(listSelect, currentStep === 1);
+                        updateRequiredState(booleanInput, currentStep === 2 &amp;&amp; !booleanRow.classList.contains("d-none"));
+                        updateRequiredState(amountInput, currentStep === 2 &amp;&amp; !amountRow.classList.contains("d-none"));
+                        updateRequiredState(textInput, currentStep === 2 &amp;&amp; !textRow.classList.contains("d-none"));
+                        updateRequiredState(imageInput, currentStep === 2 &amp;&amp; !imageRow.classList.contains("d-none"));
+                    }
+
+                    function applyListConfiguration() {
+                        const option = selectedListOption();
+                        const listId = option &amp;&amp; option.value ? option.value : "";
+                        const infoTemplate = listId ? document.querySelector(`.js-list-info-template[data-list-id="${listId}"]`) : null;
+                        listInfoBox.innerHTML = infoTemplate ? infoTemplate.innerHTML : "Selecciona una lista para ver su información.";
+
+                        const showBoolean = !!(option &amp;&amp; option.dataset.showBoolean === "1");
+                        const showAmount = !!(option &amp;&amp; option.dataset.showAmount === "1");
+                        const showText = !!(option &amp;&amp; option.dataset.showText === "1");
+                        const showImage = !!(option &amp;&amp; option.dataset.showImage === "1");
+
+                        booleanRow.classList.toggle("d-none", !showBoolean);
+                        amountRow.classList.toggle("d-none", !showAmount);
+                        textRow.classList.toggle("d-none", !showText);
+                        imageRow.classList.toggle("d-none", !showImage);
+
+                        booleanLabel.textContent = option &amp;&amp; option.dataset.booleanLabel ? option.dataset.booleanLabel : "Si/No";
+                        amountLabel.textContent = option &amp;&amp; option.dataset.amountLabel ? option.dataset.amountLabel : "Monto";
+                        textLabel.textContent = option &amp;&amp; option.dataset.textLabel ? option.dataset.textLabel : "Notas";
+                        imageLabel.textContent = option &amp;&amp; option.dataset.imageLabel ? option.dataset.imageLabel : "Imagen";
+                        if (currencySymbol) {
+                            currencySymbol.textContent = option &amp;&amp; option.dataset.currencySymbol ? option.dataset.currencySymbol : "";
+                        }
+
+                        updateStepRequiredFields();
+
+                        if (currentStep >= totalSteps()) {
+                            setStep(totalSteps() - 1);
+                        } else {
+                            setStep(currentStep);
+                        }
+                    }
+
+                    function hideMemberResults() {
+                        memberResults.classList.add("d-none");
+                        memberResults.innerHTML = "";
+                    }
+
+                    function setSelectedMember(memberId, memberName, alreadyAdded) {
+                        memberIdInput.value = memberId || "";
+                        memberQueryInput.value = memberName || "";
+                        if (memberSelected) {
+                            memberSelected.textContent = memberName ? `Seleccionado: ${memberName}` : "";
+                        }
+                        if (alreadyAdded === "1") {
+                            showClientMessage("error", "El miembro ya fue agregado a esta lista.");
+                            return;
+                        }
+                        showClientMessage("", "");
+                    }
+
+                    function renderMemberResults(members) {
+                        memberResults.innerHTML = "";
+                        if (!(members || []).length) {
+                            const empty = document.createElement("div");
+                            empty.className = "list-group-item text-muted";
+                            empty.textContent = "No se encontraron miembros.";
+                            memberResults.appendChild(empty);
+                            memberResults.classList.remove("d-none");
+                            return;
+                        }
+                        (members || []).forEach((member) => {
+                            const button = document.createElement("button");
+                            button.type = "button";
+                            button.className = `list-group-item list-group-item-action${member.already_added ? " text-muted" : ""}`;
+                            button.textContent = member.already_added ? `${member.name} (Ya agregado)` : member.name;
+                            button.dataset.memberId = String(member.id);
+                            button.dataset.memberName = member.name;
+                            button.dataset.alreadyAdded = member.already_added ? "1" : "0";
+                            button.addEventListener("click", function () {
+                                setSelectedMember(
+                                    button.dataset.memberId || "",
+                                    button.dataset.memberName || "",
+                                    button.dataset.alreadyAdded || "0"
+                                );
+                                hideMemberResults();
+                            });
+                            memberResults.appendChild(button);
+                        });
+                        memberResults.classList.remove("d-none");
+                    }
+
+                    async function searchMembers() {
+                        const listId = listSelect.value;
+                        if (!listId) {
+                            hideMemberResults();
+                            return;
+                        }
+                        const query = memberQueryInput ? (memberQueryInput.value || "").trim() : "";
+                        if (query.length &lt; 3) {
+                            hideMemberResults();
+                            return;
+                        }
+                        try {
+                            const payload = await postAndReadJson("/church/lista/registro/search_members", {
+                                list_id: listId,
+                                query,
+                            });
+                            if (!payload.ok) {
+                                showClientMessage("error", payload.message || "No se pudieron cargar los miembros.");
+                                return;
+                            }
+                            renderMemberResults(payload.members || []);
+                        } catch (err) {
+                            showClientMessage("error", "No se pudieron cargar los miembros en este momento.");
+                        }
+                    }
+
+                    function renderImagePreview(file) {
+                        if (!imagePreview) {
+                            return;
+                        }
+                        if (!file) {
+                            imagePreview.src = "";
+                            imagePreview.classList.add("d-none");
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            imagePreview.src = event.target &amp;&amp; event.target.result ? event.target.result : "";
+                            imagePreview.classList.toggle("d-none", !imagePreview.src);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+
+                    if (toggleAccessPasswordBtn &amp;&amp; accessPasswordInput) {
+                        toggleAccessPasswordBtn.addEventListener("click", function () {
+                            const visible = accessPasswordInput.type === "text";
+                            accessPasswordInput.type = visible ? "password" : "text";
+                            toggleAccessPasswordBtn.textContent = visible ? "Mostrar" : "Ocultar";
+                        });
+                    }
+
+                    if (validateAccessBtn) {
+                        validateAccessBtn.addEventListener("click", async function () {
+                            try {
+                                const payload = await postAndReadJson("/church/lista/registro/validate_access", {
+                                    access_password: accessPasswordInput ? accessPasswordInput.value : "",
+                                });
+                                if (!payload.ok) {
+                                    showClientMessage("error", payload.message || "La clave no es correcta. El formulario no será guardado.");
+                                    return;
+                                }
+                                showClientMessage("success", "Clave validada correctamente.");
+                                setStep(1);
+                            } catch (err) {
+                                showClientMessage("error", "No se pudo validar la clave en este momento.");
+                            }
+                        });
+                    }
+
+                    listSelect.addEventListener("change", function () {
+                        applyListConfiguration();
+                        showClientMessage("", "");
+                        setSelectedMember("", "", "0");
+                        hideMemberResults();
+                    });
+
+                    if (memberQueryInput) {
+                        memberQueryInput.addEventListener("input", function () {
+                            memberIdInput.value = "";
+                            if (memberSelected) {
+                                memberSelected.textContent = "";
+                            }
+                            clearTimeout(searchTimer);
+                            searchTimer = window.setTimeout(searchMembers, 250);
+                        });
+                    }
+
+                    document.addEventListener("click", function (event) {
+                        if (
+                            memberResults.contains(event.target) ||
+                            event.target === memberQueryInput
+                        ) {
+                            return;
+                        }
+                        hideMemberResults();
+                    });
+
+                    if (imageInput) {
+                        imageInput.addEventListener("change", function () {
+                            const file = imageInput.files &amp;&amp; imageInput.files.length ? imageInput.files[0] : null;
+                            renderImagePreview(file);
+                        });
+                    }
+
+                    nextBtn.addEventListener("click", function () {
+                        if (currentStep === 1) {
+                            if (!listSelect.value) {
+                                showClientMessage("error", "Selecciona una lista.");
+                                return;
+                            }
+                            if (!memberIdInput.value) {
+                                showClientMessage("error", "Selecciona un miembro.");
+                                return;
+                            }
+                        }
+                        showClientMessage("", "");
+                        if (currentStep &lt; totalSteps() - 1) {
+                            setStep(currentStep + 1);
+                        }
+                    });
+
+                    prevBtn.addEventListener("click", function () {
+                        if (currentStep > 0) {
+                            showClientMessage("", "");
+                            setStep(currentStep - 1);
+                        }
+                    });
+
+                    applyListConfiguration();
+                    renderImagePreview(null);
+                    if (memberIdInput.value &amp;&amp; memberQueryInput.value) {
+                        setSelectedMember(memberIdInput.value, memberQueryInput.value, "0");
+                    }
+                    if (accessValidated === "true") {
+                        setStep(1);
+                    } else {
+                        setStep(0);
+                    }
+                })();
+            </script>
+        </t>
+    </template>
+</odoo>

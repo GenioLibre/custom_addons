@@ -20,6 +20,11 @@ class IemChurchMemberList(models.Model):
         required=True,
         tracking=True,
     )
+    website_registration_enabled = fields.Boolean(
+        string="Habilitado para Registro Online",
+        default=False,
+        tracking=True,
+    )
     creator_access_level = fields.Integer(
         string="Nivel del creador",
         compute="_compute_creator_access_level",
@@ -100,7 +105,8 @@ class IemChurchMemberList(models.Model):
     amount_extra_label = fields.Char(string="Título Monto", tracking=True)
     show_text_extra = fields.Boolean(string="Usar campo Texto", default=True, tracking=True)
     text_extra_label = fields.Char(string="Título Texto", tracking=True)
-
+    show_image_extra = fields.Boolean(string="Usar campo Imagen", default=True, tracking=True)
+    image_extra_label = fields.Char(string="Título Imagen", tracking=True)
     currency_id = fields.Many2one(
         "res.currency",
         string="Moneda",
@@ -117,6 +123,9 @@ class IemChurchMemberList(models.Model):
     member_count = fields.Integer(compute="_compute_member_counts", string="Total miembros")
     filter_member_count = fields.Integer(compute="_compute_member_counts", string="Por filtro")
     manual_member_count = fields.Integer(compute="_compute_member_counts", string="Manuales")
+    can_edit_predio = fields.Boolean(compute="_compute_scope_edit_flags")
+    can_edit_red = fields.Boolean(compute="_compute_scope_edit_flags")
+    can_edit_discipulado = fields.Boolean(compute="_compute_scope_edit_flags")
 
     @api.model
     def fields_view_get(self, view_id=None, view_type="form", toolbar=False, submenu=False):
@@ -138,10 +147,13 @@ class IemChurchMemberList(models.Model):
             return result
 
         arch = etree.XML(result["arch"])
+        member_line_field = result.get("fields", {}).get("member_line_ids", {})
+        member_line_views = member_line_field.get("views", {})
         label_map = {
             "extra_boolean": record.boolean_extra_label,
             "extra_amount": record.amount_extra_label,
             "extra_text": record.text_extra_label,
+            "extra_image": record.image_extra_label,
         }
         for field_name, label in label_map.items():
             if not label:
@@ -167,6 +179,16 @@ class IemChurchMemberList(models.Model):
     def _compute_creator_scope_role(self):
         for rec in self:
             rec.creator_scope_role = rec._scope_role_for_user(rec.create_uid)
+
+    def _compute_scope_edit_flags(self):
+        role = self._scope_role_for_user(self.env.user)
+        can_edit_predio = role == "admin"
+        can_edit_red = role in {"admin", "pastor_gobierno"}
+        can_edit_discipulado = role in {"admin", "pastor_gobierno", "pastor"}
+        for rec in self:
+            rec.can_edit_predio = can_edit_predio
+            rec.can_edit_red = can_edit_red
+            rec.can_edit_discipulado = can_edit_discipulado
 
     @api.model
     def _access_level_for_user(self, user):
@@ -237,6 +259,7 @@ class IemChurchMemberList(models.Model):
             if not self._can_manage_visibility():
                 vals["visibility"] = "private"
             self._apply_scope_defaults(vals)
+            self._check_scope_field_edit_permissions(vals)
             self._apply_scope_snapshot(vals)
             self._check_scope_for_user(vals)
         records = super().create(vals_list)
@@ -254,6 +277,7 @@ class IemChurchMemberList(models.Model):
         scope_fields = {"predio_id", "red_id", "discipulado_id"}
         if scope_fields & set(vals.keys()):
             for rec in self:
+                rec._check_scope_field_edit_permissions(vals)
                 merged_vals = {
                     "predio_id": vals.get("predio_id", rec.predio_id.id),
                     "red_id": vals.get("red_id", rec.red_id.id),
@@ -370,6 +394,38 @@ class IemChurchMemberList(models.Model):
                 )
             ):
                 raise UserError(message)
+
+    def _check_scope_field_edit_permissions(self, vals):
+        role = self._scope_role_for_user(self.env.user)
+        if role == "admin":
+            return
+
+        locked_fields_by_role = {
+            "pastor_gobierno": {"predio_id"},
+            "pastor": {"predio_id", "red_id"},
+            "discipulador": {"predio_id", "red_id", "discipulado_id"},
+        }
+        locked_fields = locked_fields_by_role.get(role, set())
+        if not locked_fields:
+            return
+
+        partner = self.env.user.partner_id
+        allowed_values = {
+            "predio_id": partner.predio_id.id or False,
+            "red_id": partner.red_id.id or False,
+            "discipulado_id": partner.discipulado_id.id or False,
+        }
+
+        for field_name in locked_fields:
+            if field_name not in vals:
+                continue
+            new_value = vals.get(field_name) or False
+            if self:
+                current_values = set(self.mapped(field_name).ids)
+                if new_value in current_values and len(current_values) == 1:
+                    continue
+            if new_value != allowed_values[field_name]:
+                raise UserError(_("No tienes permiso para modificar este campo en la lista."))
 
     def _member_domain_from_filter(self):
         self.ensure_one()
@@ -499,6 +555,30 @@ class IemChurchMemberList(models.Model):
             raise UserError(_("La lista no tiene miembros para imprimir."))
         return self.env.ref("iem_church_management.action_report_church_member_registration").report_action(members)
 
+    def _member_domain_by_scope(self):
+        self.ensure_one()
+        domain = [("is_member", "=", True)]
+        if self.predio_id:
+            domain.append(("predio_id", "=", self.predio_id.id))
+        if self.red_id:
+            domain.append(("red_id", "=", self.red_id.id))
+        if self.discipulado_id:
+            domain.append(("discipulado_id", "=", self.discipulado_id.id))
+        return domain
+
+    def _website_member_domain(self):
+        self.ensure_one()
+        return self._member_domain_by_scope()
+
+    def _website_has_extra_step(self):
+        self.ensure_one()
+        return bool(
+            self.show_boolean_extra
+            or self.show_amount_extra
+            or self.show_text_extra
+            or self.show_image_extra
+        )
+
 
 class IemChurchMemberListLine(models.Model):
     _name = "iem.church.member.list.line"
@@ -535,9 +615,10 @@ class IemChurchMemberListLine(models.Model):
         readonly=True,
     )
 
-    extra_boolean = fields.Boolean()
-    extra_amount = fields.Monetary( currency_field="currency_id")
-    extra_text = fields.Char()
+    extra_boolean = fields.Boolean(string="Si/No")
+    extra_amount = fields.Monetary(string="Monto", currency_field="currency_id")
+    extra_text = fields.Char(string="Notas")
+    extra_image = fields.Binary(string="Imagen", attachment=True)
     currency_id = fields.Many2one(related="list_id.currency_id", store=True, readonly=True)
 
     predio_id = fields.Many2one(related="member_id.predio_id", store=True, readonly=True)
@@ -545,13 +626,27 @@ class IemChurchMemberListLine(models.Model):
     discipulado_id = fields.Many2one(related="member_id.discipulado_id", store=True, readonly=True)
     celula_id = fields.Many2one(related="member_id.celula_id", store=True, readonly=True)
 
+    @api.onchange("list_id")
+    def _onchange_list_id_member_domain(self):
+        if not self.list_id:
+            return {"domain": {"member_id": [("is_member", "=", True)]}}
+        return {"domain": {"member_id": self.list_id._member_domain_by_scope()}}
+
     @api.model
     def fields_view_get(self, view_id=None, view_type="form", toolbar=False, submenu=False):
         result = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
+        params = self.env.context.get("params") or {}
+        record_id = (
+            params.get("id")
+            or self.env.context.get("active_id")
+            or self.env.context.get("id")
+        )
+        line = self.browse(record_id).exists() if record_id else self.env["iem.church.member.list.line"]
         label_map = {
-            "extra_boolean": self.env.context.get("list_boolean_label"),
-            "extra_amount": self.env.context.get("list_amount_label"),
-            "extra_text": self.env.context.get("list_text_label"),
+            "extra_boolean": self.env.context.get("list_boolean_label") or (line.list_id.boolean_extra_label if line else False),
+            "extra_amount": self.env.context.get("list_amount_label") or (line.list_id.amount_extra_label if line else False),
+            "extra_text": self.env.context.get("list_text_label") or (line.list_id.text_extra_label if line else False),
+            "extra_image": self.env.context.get("list_image_label") or (line.list_id.image_extra_label if line else False),
         }
         if not any(label_map.values()) or not result.get("arch"):
             return result
@@ -560,6 +655,8 @@ class IemChurchMemberListLine(models.Model):
         for field_name, label in label_map.items():
             if not label:
                 continue
+            if result.get("fields", {}).get(field_name):
+                result["fields"][field_name]["string"] = label
             for node in arch.xpath(f"//field[@name='{field_name}']"):
                 node.set("string", label)
         result["arch"] = etree.tostring(arch, encoding="unicode")
@@ -577,7 +674,7 @@ class IemChurchMemberListLine(models.Model):
     def write(self, vals):
         self._check_member_scope_for_write(vals)
         res = super().write(vals)
-        tracked_fields = {"extra_boolean", "extra_amount", "extra_text"}
+        tracked_fields = {"extra_boolean", "extra_amount", "extra_text", "extra_image"}
         if tracked_fields & set(vals.keys()):
             for rec in self:
                 changes = []
@@ -590,6 +687,9 @@ class IemChurchMemberListLine(models.Model):
                 if "extra_text" in vals:
                     label = rec.list_id.text_extra_label or _("Texto")
                     changes.append(_("%s: %s") % (label, rec.extra_text or "-"))
+                if "extra_image" in vals:
+                    label = rec.list_id.image_extra_label or _("Imagen")
+                    changes.append(_("%s: %s") % (label, _("Cargada") if rec.extra_image else _("Eliminada")))
                 if changes:
                     rec.list_id.message_post(
                         body=_("Actualización de %s -> %s")
@@ -609,6 +709,7 @@ class IemChurchMemberListLine(models.Model):
             for body in bodies:
                 list_rec.message_post(body=body)
         return res
+
 
     @api.model
     def _check_member_scope_for_vals_list(self, vals_list):

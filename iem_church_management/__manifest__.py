@@ -31,6 +31,7 @@
         "views/res_partner_view.xml",
         "views/res_users_view.xml",
         "views/website_church_member_form.xml",
+        "views/website_church_member_list_form.xml",
     ],
     "assets": {
         "web.assets_backend": [
