@@ -15,13 +15,13 @@ from odoo.tools import html2plaintext
 from odoo import models, fields, api
 from datetime import datetime
 from odoo.exceptions import ValidationError
+from .res_config_settings import get_linkedin_api_version
 
 import mimetypes
 
 _logger = logging.getLogger(__name__)
 
 API_VERSION = None
-LinkedIn_Version = "202505"
 CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB recomendado para vídeos
 META_SYSTEM_USER_TOKEN_KEY = "gl_facebook.meta_system_user_access_token"
 TIKTOK_PRIVACY_SELECTION = [
@@ -895,7 +895,6 @@ class project_task(models.Model):
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
         response_json = response.json()
-        print("TikTok creator_info/query response:", response_json)
         return response_json
 
     def _fetch_tiktok_user_info(self, access_token):
@@ -926,7 +925,6 @@ class project_task(models.Model):
             query_resp = requests.post(query_url, headers=headers, json=query_payload, timeout=20)
             query_resp.raise_for_status()
             query_data = query_resp.json()
-            print("TikTok video/query response:", query_data)
             videos = query_data.get("data", {}).get("videos") or []
             if videos and videos[0].get("share_url"):
                 return videos[0].get("share_url")
@@ -938,7 +936,6 @@ class project_task(models.Model):
         list_resp = requests.post(list_url, headers=headers, json=list_payload, timeout=20)
         list_resp.raise_for_status()
         list_data = list_resp.json()
-        print("TikTok video/list response:", list_data)
 
         videos = list_data.get("data", {}).get("videos") or []
         if not videos:
@@ -1747,30 +1744,9 @@ class project_task(models.Model):
                         "fields": "status_code",
                     }
                     try:
-                        print("Instagram status request:", {
-                            "task_id": self.id,
-                            "ig_estado": self.ig_estado,
-                            "inst_post_id": self.inst_post_id,
-                            "token_source": token_source,
-                            "status_url": status_url,
-                            "status_params": status_params,
-                        })
                         resp = requests.get(status_url, params=status_params, timeout=20)
-                        print("Instagram status response:", {
-                            "task_id": self.id,
-                            "inst_post_id": self.inst_post_id,
-                            "token_source": token_source,
-                            "http_status": resp.status_code,
-                            "response_text": resp.text,
-                        })
                         resp.raise_for_status()
                         sdata = resp.json()
-                        print("Instagram status json:", {
-                            "task_id": self.id,
-                            "inst_post_id": self.inst_post_id,
-                            "token_source": token_source,
-                            "json": sdata,
-                        })
                         break
                     except requests.exceptions.HTTPError as e:
                         last_http_error = e
@@ -1779,29 +1755,9 @@ class project_task(models.Model):
                             "access_token": instagram_access_token,
                             "fields": "permalink",
                         }
-                        print("Instagram permalink fallback request:", {
-                            "task_id": self.id,
-                            "inst_post_id": self.inst_post_id,
-                            "token_source": token_source,
-                            "link_url": link_url,
-                            "link_params": link_params,
-                        })
                         link_resp = requests.get(link_url, params=link_params, timeout=20)
-                        print("Instagram permalink fallback response:", {
-                            "task_id": self.id,
-                            "inst_post_id": self.inst_post_id,
-                            "token_source": token_source,
-                            "http_status": link_resp.status_code,
-                            "response_text": link_resp.text,
-                        })
                         if link_resp.ok:
                             link_data = link_resp.json()
-                            print("Instagram permalink fallback json:", {
-                                "task_id": self.id,
-                                "inst_post_id": self.inst_post_id,
-                                "token_source": token_source,
-                                "json": link_data,
-                            })
                             if link_data.get("permalink"):
                                 self.inst_post_url = link_data["permalink"]
                                 self.ig_estado = "Publicado"
@@ -1814,11 +1770,6 @@ class project_task(models.Model):
 
                 if not sdata:
                     if last_error_info.get("code") == 100 and last_error_info.get("error_subcode") == 33:
-                        print("Instagram status fallback processing:", {
-                            "task_id": self.id,
-                            "inst_post_id": self.inst_post_id,
-                            "error": last_error_info,
-                        })
                         self.ig_estado = "Revisando"
                         self.ig_error = (
                             "Instagram aun procesa el archivo o todavia no permite consultar el contenedor. "
@@ -1861,21 +1812,7 @@ class project_task(models.Model):
                         "access_token": instagram_access_token,
                         "creation_id": self.inst_post_id,
                     }
-                    print("Instagram publish request:", {
-                        "task_id": self.id,
-                        "inst_post_id": self.inst_post_id,
-                        "token_source": token_source,
-                        "publish_url": publish_url,
-                        "publish_params": publish_params,
-                    })
                     resp2 = requests.post(publish_url, params=publish_params, timeout=20)
-                    print("Instagram publish response:", {
-                        "task_id": self.id,
-                        "inst_post_id": self.inst_post_id,
-                        "token_source": token_source,
-                        "http_status": resp2.status_code,
-                        "response_text": resp2.text,
-                    })
                     if resp2.ok:
                         pdata = resp2.json()
                         break
@@ -1888,12 +1825,6 @@ class project_task(models.Model):
                                 "Instagram devolvio un error temporal al publicar. "
                                 "Se reintentara automaticamente."
                             )
-                            print("Instagram publish fallback processing:", {
-                                "task_id": self.id,
-                                "inst_post_id": self.inst_post_id,
-                                "http_status": last_publish_error.status_code,
-                                "response_text": last_publish_error.text,
-                            })
                             return True
                         last_publish_error.raise_for_status()
                     pdata = {}
@@ -1925,13 +1856,6 @@ class project_task(models.Model):
                         "fields": "permalink",
                     }
                     resp3 = requests.get(link_url, params=link_params, timeout=20)
-                    print("Instagram final permalink response:", {
-                        "task_id": self.id,
-                        "ig_media_id": ig_media_id,
-                        "token_source": token_source,
-                        "http_status": resp3.status_code,
-                        "response_text": resp3.text,
-                    })
                     if resp3.ok:
                         ldata = resp3.json()
                         break
@@ -1973,16 +1897,6 @@ class project_task(models.Model):
 
     def _run_tiktok_flow(self, from_cron=False):
         try:
-            print(
-                "TikTok _run_tiktok_flow state:",
-                {
-                    "task_id": self.id,
-                    "tt_estado": self.tt_estado,
-                    "tiktok_post_id": self.tiktok_post_id,
-                    "tiktok_post_url": self.tiktok_post_url,
-                    "from_cron": from_cron,
-                }
-            )
             # PROCESANDO → REVISANDO
             if self.tt_estado == "Procesando":
                 self.tt_estado = "Revisando"
@@ -1999,7 +1913,6 @@ class project_task(models.Model):
                 resp = requests.post(status_url, headers=headers, json=payload, timeout=20)
                 resp.raise_for_status()
                 data = resp.json()
-                print("TikTok status/fetch response:", data)
 
                 status = data.get("data", {}).get("status")
 
@@ -2313,25 +2226,7 @@ class project_task(models.Model):
                 last_container_error = None
                 for token_source, instagram_access_token in instagram_tokens:
                     params_with_token = dict(container_params, access_token=instagram_access_token)
-                    print("Instagram container_params:", {
-                        "task_id": self.id,
-                        "tipo": self.tipo,
-                        "partner_instagram_page_id": self.partner_instagram_page_id,
-                        "token_source": token_source,
-                        "container_url": container_url,
-                        "media_urls": media_urls,
-                        "cover_url": cover_url,
-                        "container_params": params_with_token,
-                    })
                     r = requests.post(container_url, params=params_with_token, timeout=20)
-                    print("Instagram container response:", {
-                        "task_id": self.id,
-                        "tipo": self.tipo,
-                        "partner_instagram_page_id": self.partner_instagram_page_id,
-                        "token_source": token_source,
-                        "http_status": r.status_code,
-                        "response_text": r.text,
-                    })
                     data = r.json()
                     if r.status_code == 200 and data.get("id"):
                         break
@@ -2340,11 +2235,6 @@ class project_task(models.Model):
                 if not data:
                     raise ValidationError(f"Error al crear contenedor IG: {last_container_error}")
                 container_id = data["id"]
-                print("Instagram container saved:", {
-                    "task_id": self.id,
-                    "partner_instagram_page_id": self.partner_instagram_page_id,
-                    "container_id": container_id,
-                })
 
             else:
                 # Carrusel (asumimos imágenes)
@@ -2359,14 +2249,6 @@ class project_task(models.Model):
                     for token_source, instagram_access_token in instagram_tokens:
                         params_with_token = dict(item_params, access_token=instagram_access_token)
                         rr = requests.post(container_url, params=params_with_token, timeout=20)
-                        print("Instagram carousel item response:", {
-                            "task_id": self.id,
-                            "partner_instagram_page_id": self.partner_instagram_page_id,
-                            "token_source": token_source,
-                            "image_url": url,
-                            "http_status": rr.status_code,
-                            "response_text": rr.text,
-                        })
                         d = rr.json()
                         if rr.status_code == 200 and d.get("id"):
                             break
@@ -2387,13 +2269,6 @@ class project_task(models.Model):
                 for token_source, instagram_access_token in instagram_tokens:
                     params_with_token = dict(carousel_params, access_token=instagram_access_token)
                     r = requests.post(container_url, params=params_with_token, timeout=20)
-                    print("Instagram carousel container response:", {
-                        "task_id": self.id,
-                        "partner_instagram_page_id": self.partner_instagram_page_id,
-                        "token_source": token_source,
-                        "http_status": r.status_code,
-                        "response_text": r.text,
-                    })
                     data = r.json()
                     if r.status_code == 200 and data.get("id"):
                         break
@@ -2402,24 +2277,12 @@ class project_task(models.Model):
                 if not data:
                     raise ValidationError(f"Error contenedor carrusel IG: {last_carousel_error}")
                 container_id = data["id"]
-                print("Instagram carousel container saved:", {
-                    "task_id": self.id,
-                    "partner_instagram_page_id": self.partner_instagram_page_id,
-                    "container_id": container_id,
-                    "children": carousel_ids,
-                })
 
             self.write({
                 "inst_post_id": container_id,
                 "inst_post_url": False,
                 "ig_estado": "Procesando",
                 "ig_error": False,
-            })
-            print("Instagram write state:", {
-                "task_id": self.id,
-                "partner_instagram_page_id": self.partner_instagram_page_id,
-                "inst_post_id": container_id,
-                "ig_estado": "Procesando",
             })
 
             return True
@@ -2476,7 +2339,7 @@ class project_task(models.Model):
         org_urn = f"urn:li:organization:{self.partner_linkedin_page_id}"
         headers = {
             "Authorization": f"Bearer {linkedin_access_token}",
-            "LinkedIn-Version": LinkedIn_Version,
+            "LinkedIn-Version": get_linkedin_api_version(self.env),
             "X-RestLi-Protocol-Version": "2.0.0",
             "Content-Type": "application/json",
         }

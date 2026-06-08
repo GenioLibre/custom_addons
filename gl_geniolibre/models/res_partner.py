@@ -11,8 +11,8 @@ from datetime import datetime
 from google.ads.googleads.client import GoogleAdsClient
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+from .res_config_settings import get_linkedin_api_version
 
-LinkedIn_Version = "202505"
 API_VERSION = None
 
 
@@ -376,7 +376,7 @@ class Partner(models.Model):
             "Authorization": f"Bearer {access_token}",
             "X-Restli-Protocol-Version": "2.0.0",
             "Content-Type": "application/json",
-            "LinkedIn-Version": LinkedIn_Version
+            "LinkedIn-Version": get_linkedin_api_version(self.env)
         }
 
         ######################### Lógica Principal #################################

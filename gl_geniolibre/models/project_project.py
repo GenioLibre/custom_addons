@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone, time, date
 from collections import defaultdict
 from google.ads.googleads.client import GoogleAdsClient
 from io import BytesIO
+from .res_config_settings import get_linkedin_api_version
 
 try:
     from PIL import Image
@@ -20,7 +21,6 @@ except ImportError:  # pragma: no cover - fallback si Pillow no está instalado
     Image = None
 
 API_VERSION = None
-LinkedIn_Version = "202505"
 _logger = logging.getLogger(__name__)
 
 if Image is None:
@@ -532,53 +532,124 @@ class project_project(models.Model):
             'profile_links_taps'
         ]
         base_url = f"https://graph.facebook.com/{API_VERSION}/{self.partner_instagram_page_id}/insights"
-        params = {
-            'access_token': self.partner_page_access_token,
-            'metric': ','.join(metrics_keys),
-            'period': 'day',
-            'metric_type': 'total_value',
-            'since': since,
-            'until': until
-        }
-        response = requests.get(base_url, params=params, timeout=15)
-        response.raise_for_status()
-        result = response.json()
-
-        # Función de paginación
-        def paginate_results(initial_result):
-            yield initial_result
-            next_url = initial_result.get('paging', {}).get('next')
-            while next_url:
-                response = requests.get(next_url, timeout=15)
-                response.raise_for_status()
-                result = response.json()
-                yield result
-                next_url = result.get('paging', {}).get('next')
-
         metrics = dict.fromkeys(metrics_keys, 0)
-        for page in paginate_results(result):
-            for metric in page.get('data', []):
-                name = metric.get('name')
-                if name in metrics:
-                    values = metric.get('values') or metric.get('total_value', {})
-                    if isinstance(values, list):
-                        metrics[name] += sum(entry.get('value', 0) for entry in values)
-                    else:
-                        metrics[name] += values.get('value', 0)
+
+        def _accumulate_metric_value(metric_payload):
+            total_value = metric_payload.get('total_value')
+            if isinstance(total_value, dict):
+                value = total_value.get('value', 0)
+                if isinstance(value, (int, float)):
+                    return value
+
+            values = metric_payload.get('values') or []
+            total = 0
+            for entry in values:
+                value = entry.get('value', 0)
+                if isinstance(value, (int, float)):
+                    total += value
+            return total
+
+        def _fetch_instagram_metric(metric_name):
+            param_variants = [
+                {
+                    'access_token': self.partner_page_access_token,
+                    'metric': metric_name,
+                    'period': 'day',
+                    'metric_type': 'total_value',
+                    'since': since,
+                    'until': until,
+                },
+                {
+                    'access_token': self.partner_page_access_token,
+                    'metric': metric_name,
+                    'period': 'day',
+                    'since': since,
+                    'until': until,
+                },
+            ]
+
+            for params in param_variants:
+                try:
+                    response = requests.get(base_url, params=params, timeout=15)
+                    response.raise_for_status()
+                    result = response.json()
+                    total = 0
+
+                    while True:
+                        for metric_data in result.get('data', []):
+                            if metric_data.get('name') == metric_name:
+                                total += _accumulate_metric_value(metric_data)
+
+                        next_url = result.get('paging', {}).get('next')
+                        if not next_url:
+                            break
+
+                        response = requests.get(next_url, timeout=15)
+                        response.raise_for_status()
+                        result = response.json()
+
+                    return total
+                except requests.exceptions.RequestException as e:
+                    _logger.warning("Instagram insight fallo para %s con params %s: %s", metric_name, params, e)
+
+            return 0
+
+        for metric_name in metrics_keys:
+            metrics[metric_name] = _fetch_instagram_metric(metric_name)
 
         # 3️⃣ Datos de posts
         media_url = f"https://graph.facebook.com/{API_VERSION}/{self.partner_instagram_page_id}/media"
         media_params = {
             'access_token': self.partner_page_access_token,
-            'fields': ('id,media_type,permalink,media_url,thumbnail_url,caption,timestamp,'
-                       'insights.metric('
-                       'impressions,reach,views,total_interactions,likes,comments,shares,'
-                       'saved,video_views,plays,ig_reels_video_view_total_time,profile_visits'
-                       ').period(day)'),
+            'fields': 'id,media_type,permalink,media_url,thumbnail_url,caption,timestamp,like_count,comments_count',
             'since': since,
             'until': until,
             'limit': 100,
         }
+
+        def _fetch_media_insights(media_id, media_type):
+            metric_candidates = {
+                'IMAGE': ['reach', 'total_interactions', 'saved'],
+                'VIDEO': ['reach', 'total_interactions', 'video_views', 'views'],
+                'REEL': ['reach', 'total_interactions', 'likes', 'comments', 'shares', 'saved', 'plays', 'views'],
+                'STORY': ['reach', 'replies', 'taps_forward', 'taps_back', 'exits'],
+                'CAROUSEL_ALBUM': ['reach', 'total_interactions', 'saved'],
+            }
+            metrics_to_try = metric_candidates.get(media_type, ['reach', 'total_interactions'])
+            insights_url = f"https://graph.facebook.com/{API_VERSION}/{media_id}/insights"
+            insights = {}
+
+            for metric_name in metrics_to_try:
+                insights_params = {
+                    'access_token': self.partner_page_access_token,
+                    'metric': metric_name,
+                }
+
+                try:
+                    response = requests.get(insights_url, params=insights_params, timeout=15)
+                    response.raise_for_status()
+                    result = response.json()
+                except requests.exceptions.RequestException as e:
+                    _logger.warning("Instagram media insight fallo para %s (%s) metric %s: %s", media_id, media_type, metric_name, e)
+                    continue
+
+                for item in result.get('data', []):
+                    values = item.get('values') or []
+                    total_value = item.get('total_value')
+                    value = 0
+
+                    if isinstance(total_value, dict):
+                        value = total_value.get('value', 0)
+                    elif values:
+                        first_value = values[0].get('value', 0)
+                        if isinstance(first_value, (int, float)):
+                            value = sum(v.get('value', 0) for v in values if isinstance(v.get('value', 0), (int, float)))
+                        else:
+                            value = first_value
+
+                    insights[item.get('name')] = value
+
+            return insights
 
         def paginate_media(url, params):
             while url:
@@ -592,10 +663,11 @@ class project_project(models.Model):
         posts = []
         for data in paginate_media(media_url, media_params):
             for post in data:
-                insights = {i['name']: i['values'][0]['value'] for i in post.get('insights', {}).get('data', [])}
+                media_type = post.get('media_type')
+                insights = _fetch_media_insights(post.get('id'), media_type)
                 posts.append({
                     'id': post.get('id'),
-                    'media_type': post.get('media_type'),
+                    'media_type': media_type,
                     'thumbnail_url': post.get('thumbnail_url'),
                     'permalink': post.get('permalink'),
                     'media_url': post.get('media_url'),
@@ -604,8 +676,8 @@ class project_project(models.Model):
                     'reach': insights.get('reach', 0),
                     'impressions': insights.get('impressions', 0),
                     'total_interactions': insights.get('total_interactions', 0),
-                    'likes': insights.get('likes', 0),
-                    'comments': insights.get('comments', 0),
+                    'likes': insights.get('likes', post.get('like_count', 0)),
+                    'comments': insights.get('comments', post.get('comments_count', 0)),
                     'shares': insights.get('shares', 0),
                     'saved': insights.get('saved', 0),
                     'video_views': insights.get('video_views', 0),
@@ -654,12 +726,13 @@ class project_project(models.Model):
 
         self.ensure_one()
 
-        def _get_ad_creative_image(campaign_id):
-            """Obtiene la URL de la imagen del primer anuncio de la campaña."""
-            ads_url = f"https://graph.facebook.com/{API_VERSION}/{campaign_id}/ads"
+        def _get_ad_creative_image(entity_id):
+            """Obtiene la URL de la imagen del primer anuncio de la entidad."""
+            ads_url = f"https://graph.facebook.com/{API_VERSION}/{entity_id}/ads"
             ads_params = {
                 'access_token': self.partner_page_access_token,
-                'fields': 'creative',
+                'fields': 'creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec,asset_feed_spec}',
+                'limit': 1,
             }
             try:
                 ads_response = requests.get(ads_url, params=ads_params).json()
@@ -667,19 +740,86 @@ class project_project(models.Model):
                 if not ads_data:
                     return None
 
-                creative_id = ads_data[0].get('creative', {}).get('id')
-                if not creative_id:
-                    return None
+                creative = ads_data[0].get('creative') or {}
+                creative_id = creative.get('id')
+                if creative_id:
+                    creative_url = f"https://graph.facebook.com/{API_VERSION}/{creative_id}"
+                    creative_params = {
+                        'access_token': self.partner_page_access_token,
+                        'fields': 'id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec,asset_feed_spec'
+                    }
+                    creative_response = requests.get(creative_url, params=creative_params).json()
+                    creative = {
+                        **creative,
+                        **creative_response,
+                    }
 
-                creative_url = f"https://graph.facebook.com/{API_VERSION}/{creative_id}"
-                creative_params = {
-                    'access_token': self.partner_page_access_token,
-                    'fields': 'object_story_spec,thumbnail_url,image_url'
-                }
-                creative_response = requests.get(creative_url, params=creative_params).json()
-                return creative_response.get('thumbnail_url')
+                selected_image_url = None
+                object_story_spec = creative.get('object_story_spec') or {}
+                asset_feed_spec = creative.get('asset_feed_spec') or {}
+
+                for image in asset_feed_spec.get('images') or []:
+                    selected_image_url = image.get('url') or image.get('url_128') or image.get('hash')
+                    if selected_image_url and selected_image_url.startswith('http'):
+                        break
+                    selected_image_url = None
+
+                if not selected_image_url:
+                    for block_key in ('link_data', 'photo_data', 'video_data', 'template_data'):
+                        block = object_story_spec.get(block_key) or {}
+                        selected_image_url = (
+                            block.get('picture')
+                            or block.get('image_url')
+                            or block.get('thumbnail_url')
+                        )
+                        if selected_image_url:
+                            break
+
+                if not selected_image_url:
+                    story_id = creative.get('effective_object_story_id') or creative.get('object_story_id')
+                    if story_id:
+                        story_url = f"https://graph.facebook.com/{API_VERSION}/{story_id}"
+                        story_params = {
+                            'access_token': self.partner_page_access_token,
+                            'fields': 'full_picture,picture,attachments{media,target,url,type,subattachments}'
+                        }
+                        story_data = requests.get(story_url, params=story_params, timeout=15).json()
+                        selected_image_url = story_data.get('full_picture') or story_data.get('picture')
+                        if not selected_image_url:
+                            attachments = story_data.get('attachments', {}).get('data', [])
+                            if attachments:
+                                media = attachments[0].get('media') or {}
+                                image = media.get('image') or {}
+                                selected_image_url = image.get('src')
+
+                if not selected_image_url:
+                    selected_image_url = creative.get('image_url') or creative.get('thumbnail_url')
+
+                return selected_image_url
             except (requests.exceptions.RequestException, ValueError, TypeError, KeyError):
                 return None
+
+        def _get_adset_ad_names(adset_id):
+            ads_url = f"https://graph.facebook.com/{API_VERSION}/{adset_id}/ads"
+            ads_params = {
+                'access_token': self.partner_page_access_token,
+                'fields': 'name',
+                'limit': 50,
+            }
+            try:
+                ads_response = requests.get(ads_url, params=ads_params, timeout=15).json()
+                ad_names = []
+                for index, ad in enumerate(ads_response.get('data', []), start=1):
+                    name = (ad.get('name') or '').strip()
+                    if not name:
+                        continue
+                    words = name.split()
+                    if len(words) > 10:
+                        name = " ".join(words[:10]) + "..."
+                    ad_names.append(f"{index}. {name}")
+                return ad_names
+            except (requests.exceptions.RequestException, ValueError, TypeError, KeyError):
+                return []
 
         if not self.partner_page_access_token:
             raise ValidationError("No hay Access Token configurado para esta página.")
@@ -687,6 +827,7 @@ class project_project(models.Model):
             raise ValidationError("Debe seleccionar al menos una campaña de Facebook para continuar.")
 
         all_campaigns_data = []
+        all_adsets_data = []
 
         # Convertir timestamps a fechas para la API
         since_date = datetime.fromtimestamp(int(since), tz=timezone.utc).strftime('%Y-%m-%d')
@@ -749,11 +890,46 @@ class project_project(models.Model):
 
                 all_campaigns_data.append(campaign_data)
 
+                adsets_url = f"https://graph.facebook.com/{API_VERSION}/{campaign.campaign_id}/adsets"
+                adsets_params = {
+                    'access_token': self.partner_page_access_token,
+                    'fields': (
+                        f'id,name,status,effective_status,insights.time_range({time_range_str})'
+                        '{impressions,clicks,spend,reach,frequency,actions,cost_per_conversion,account_currency}'
+                    ),
+                    'limit': 200,
+                }
+                adsets_response = requests.get(adsets_url, params=adsets_params, timeout=15)
+                adsets_response.raise_for_status()
+                adsets_result = adsets_response.json()
+
+                for adset in adsets_result.get('data', []):
+                    adset_insights = adset.get('insights', {}).get('data', [{}])[0]
+                    all_adsets_data.append({
+                        'adset_id': adset.get('id', ''),
+                        'campaign_id': data.get('id', ''),
+                        'campaign_name': data.get('name', ''),
+                        'name': adset.get('name', ''),
+                        'ad_names': _get_adset_ad_names(adset.get('id')),
+                        'thumbnail_url': _get_ad_creative_image(adset.get('id')),
+                        'status': adset.get('status', ''),
+                        'effective_status': adset.get('effective_status', ''),
+                        'account_currency': adset_insights.get('account_currency', campaign_data['account_currency']),
+                        'impressions': adset_insights.get('impressions', 0),
+                        'clicks': adset_insights.get('clicks', 0),
+                        'spend': adset_insights.get('spend', 0),
+                        'reach': adset_insights.get('reach', 0),
+                        'frequency': adset_insights.get('frequency', 0),
+                        'cost_per_conversion': adset_insights.get('cost_per_conversion', 0),
+                        'actions': adset_insights.get('actions', []),
+                    })
+
             except (requests.exceptions.RequestException, ValueError, TypeError, KeyError):
                 continue
 
         return {
-            'campaigns': all_campaigns_data
+            'campaigns': all_campaigns_data,
+            'adsets': all_adsets_data,
         }
 
     def get_google_ads_data(self, since, until):  # optimizado
@@ -1099,7 +1275,7 @@ class project_project(models.Model):
         org_urn = f"urn%3Ali%3Aorganization%3A{org_id_raw}"
         headers = {
             "Authorization": f"Bearer {access_token}",
-            "LinkedIn-Version": LinkedIn_Version,
+            "LinkedIn-Version": get_linkedin_api_version(self.env),
             "X-RestLi-Protocol-Version": "2.0.0",
             "Content-Type": "application/json",
         }
@@ -2119,36 +2295,37 @@ def merge_final_metaads_data(chunks):
         return 0.0
 
     all_campaigns = []
+    all_adsets = []
     total_impressions = total_clicks = total_spend = total_reach = total_cost_per_conversion = 0
     total_conversaciones = 0
     account_currency = 'PEN'
 
+    def _normalize_meta_record(record):
+        impressions = _to_float(record.get('impressions', 0))
+        clicks = _to_float(record.get('clicks', 0))
+        if (not record.get('impressions') or impressions == 0) and (not record.get('clicks') or clicks == 0):
+            return None
+
+        record['impressions'] = impressions
+        record['clicks'] = clicks
+        record['spend'] = _to_float(record.get('spend', 0))
+        record['reach'] = _to_float(record.get('reach', 0))
+        record['frequency'] = _to_float(record.get('frequency', 0))
+        record['cost_per_conversion'] = _to_float(record.get('cost_per_conversion', 0))
+        record['ctr'] = round((record['clicks'] / record['impressions'] * 100) if record['impressions'] else 0, 2)
+        record['cpc'] = round((record['spend'] / record['clicks']) if record['clicks'] else 0, 2)
+        record['cpm'] = round((record['spend'] / record['impressions'] * 1000) if record['impressions'] else 0, 2)
+        record['cpp'] = round((record['spend'] / record['reach']) if record['reach'] else 0, 2)
+        record['frequency'] = round(record['frequency'], 2)
+        record['actions'] = {a.get('action_type', ''): a.get('value', 0) for a in record.get('actions', [])}
+        return record
+
     for chunk in chunks:
         campaigns = chunk.get('campaigns', [])
         for c in campaigns:
-            # Filtrar campañas vacías
-            impressions = _to_float(c.get('impressions', 0))
-            clicks = _to_float(c.get('clicks', 0))
-            if (not c.get('impressions') or impressions == 0) and (not c.get('clicks') or clicks == 0):
+            c = _normalize_meta_record(c)
+            if not c:
                 continue
-
-            # Convertir valores a float/int
-            c['impressions'] = impressions
-            c['clicks'] = clicks
-            c['spend'] = _to_float(c.get('spend', 0))
-            c['reach'] = _to_float(c.get('reach', 0))
-            c['frequency'] = _to_float(c.get('frequency', 0))
-            c['cost_per_conversion'] = _to_float(c.get('cost_per_conversion', 0))
-
-            # Calcular métricas por campaña
-            c['ctr'] = round((c['clicks'] / c['impressions'] * 100) if c['impressions'] else 0, 2)
-            c['cpc'] = round((c['spend'] / c['clicks']) if c['clicks'] else 0, 2)
-            c['cpm'] = round((c['spend'] / c['impressions'] * 1000) if c['impressions'] else 0, 2)
-            c['cpp'] = round((c['spend'] / c['reach']) if c['reach'] else 0, 2)
-            c['frequency'] = round(c['frequency'], 2)
-
-            # Convertir actions a dict (para el XML)
-            c['actions'] = {a.get('action_type', ''): a.get('value', 0) for a in c.get('actions', [])}
 
             # Sumar totales
             total_impressions += c['impressions']
@@ -2165,6 +2342,13 @@ def merge_final_metaads_data(chunks):
                 account_currency = c['account_currency']
 
             all_campaigns.append(c)
+
+        adsets = chunk.get('adsets', [])
+        for adset in adsets:
+            adset = _normalize_meta_record(adset)
+            if not adset:
+                continue
+            all_adsets.append(adset)
 
     # Calcular métricas agregadas (summary)
     summary = {
@@ -2184,7 +2368,8 @@ def merge_final_metaads_data(chunks):
 
     return {
         'summary': summary,
-        'campaigns': all_campaigns
+        'campaigns': all_campaigns,
+        'adsets': all_adsets,
     }
 
 

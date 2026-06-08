@@ -116,6 +116,8 @@
                             <field name="linkedin_client_secret" title="Secret ID"/>
                             <label class="col-lg-3" string="Redirect URI" for="linkedin_redirect_uri"/>
                             <field name="linkedin_redirect_uri" title="Redirect URI"/>
+                            <label class="col-lg-3" string="API Version" for="linkedin_api_version"/>
+                            <field name="linkedin_api_version" title="LinkedIn API Version"/>
 
                             <label class="col-lg-3" string="Access Token" for="linkedin_access_token"/>
                             <field name="linkedin_access_token" title="Access Token"/>

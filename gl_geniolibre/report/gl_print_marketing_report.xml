@@ -6,7 +6,7 @@
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
         <!-- márgenes -->
-        <field name="margin_top">0</field>
+        <field name="margin_top">15</field>
         <field name="margin_bottom">15</field>
         <field name="margin_left">10</field>
         <field name="margin_right">10</field>
@@ -39,25 +39,47 @@
                     page-break-before: always;
                     }
                     .report-header {
+                    display: table;
+                    width: 100%;
+                    margin-bottom: 20px;
+                    margin-top: -10mm;
+                    table-layout: fixed;
+                    }
+
+                    .report-header-logo,
+                    .report-header-text {
+                    display: table-cell;
+                    vertical-align: middle;
+                    }
+
+                    .report-header-logo {
+                    width: 34%;
+                    text-align: left;
+                    }
+
+                    .report-header-text {
+                    width: 66%;
                     text-align: center;
-                    margin-bottom: 30px;
                     }
 
                     .report-header img {
-                    max-height: 80px;
-                    margin-bottom: 10px;
+                    max-height: 42mm;
+                    width: auto;
+                    object-fit: contain;
+                    margin: 0;
                     }
 
                     .report-header h1 {
-                    font-size: 24px;
+                    font-size: 32px;
                     font-weight: bold;
-                    margin: 10px 0;
+                    margin: 0 0 6px;
                     color: #2c3e50;
                     }
 
                     .report-header p {
                     font-size: 14px;
                     color: #555;
+                    margin: 0;
                     }
                     body {
                     font-family: 'Lato', 'Noto', 'Noto_Color', 'Roboto', 'Helvetica', 'Arial', sans-serif;
@@ -339,18 +361,19 @@
                     }
                 </style>
                 <div class="report-header">
-                    <!-- Logo del cliente -->
-                    <img t-if="data['partner_id']"
-                         t-att-src="'/web/image/res.partner/' + str(data['partner_id']) + '/image_1024'"
-                         alt="Partner Logo"
-                         style="max-height: 40mm; width: auto; object-fit: contain;margin-bottom: 0px;"/>
-                    <!-- Título -->
-                    <h1 style="margin: 0px 0 10px;font-size: 32px;">Reporte de Marketing:</h1>
-                    <p>
-                        <span t-esc="(datetime.datetime.strptime(data['report_period']['since'], '%Y-%m-%d').strftime('%d de %B del %Y')).capitalize()"/>
-                        al
-                        <span t-esc="(datetime.datetime.strptime(data['report_period']['until'], '%Y-%m-%d').strftime('%d de %B del %Y')).capitalize()"/>
-                    </p>
+                    <div class="report-header-logo">
+                        <img t-if="data['partner_id']"
+                             t-att-src="'/web/image/res.partner/' + str(data['partner_id']) + '/image_1024'"
+                             alt="Partner Logo"/>
+                    </div>
+                    <div class="report-header-text">
+                        <h1>Reporte de Marketing:</h1>
+                        <p>
+                            <span t-esc="(datetime.datetime.strptime(data['report_period']['since'], '%Y-%m-%d').strftime('%d de %B del %Y')).capitalize()"/>
+                            al
+                            <span t-esc="(datetime.datetime.strptime(data['report_period']['until'], '%Y-%m-%d').strftime('%d de %B del %Y')).capitalize()"/>
+                        </p>
+                    </div>
                 </div>
                 <!-- ############################################################# Sección de Facebook -->
                 <t t-if="data['facebook_data']">
@@ -973,7 +996,6 @@
                                             <td>
 
                                                 <div class="post-content text-center">
-                                                    <img t-att-src="camp['thumbnail_url']" class="post-image ¿"/>
                                                     <div class="post-message">
                                                         <t t-esc="camp['name']"/>
                                                     </div>
@@ -1040,6 +1062,16 @@
                                                 <div class="interactions-container"
                                                      style="flex-wrap: wrap; display: flex;">
                                                     <t t-foreach="camp['actions'].items()" t-as="action">
+                                                        <t t-if="action[0] in [
+                                                            'link_click',
+                                                            'landing_page_view',
+                                                            'onsite_conversion.messaging_conversation_started_7d',
+                                                            'onsite_conversion.total_messaging_connection',
+                                                            'post_engagement',
+                                                            'post_reaction',
+                                                            'video_view',
+                                                            'like'
+                                                        ]">
                                                         <t t-set="action_name" t-value="{
                                                   'like': 'Me gusta', 'link_click': 'Clics', 'view_content': 'Vistas', 'purchase': 'Compras',
                                                   'add_to_cart': 'Agregar al Carrito', 'initiate_checkout': 'Checkout', 'lead': 'Leads', 'comment': 'Comentarios',
@@ -1085,6 +1117,171 @@
                                                                 <t t-esc="action_name"/>
                                                             </div>
                                                         </div>
+                                                        </t>
+                                                    </t>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="top-posts-container" t-if="data['meta_ads_data'].get('adsets')">
+                            <h3>Detalles de Conjuntos de Anuncios</h3>
+
+                            <table class="top-posts-table">
+                                <thead>
+                                    <tr class="text-center header-meta-ads">
+                                        <th class="text-center content-header">Vista Previa</th>
+                                        <th class="text-center content-header">Conjunto</th>
+                                        <th class="text-center metric-header">Métricas</th>
+                                        <th class="text-center metric-header">Rendimiento</th>
+                                        <th class="text-center interactions-header">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="data['meta_ads_data']['adsets']" t-as="adset">
+                                        <tr>
+                                            <td style="vertical-align: top; text-align: center;">
+                                                <div t-if="adset.get('thumbnail_url')">
+                                                    <img t-att-src="adset['thumbnail_url']"
+                                                         class="post-image"
+                                                         style="width:85px;max-width:100%;height:auto;display:block;margin:0 auto;"/>
+                                                </div>
+                                            </td>
+                                            <td style="vertical-align: top;">
+                                                <div class="text-center">
+                                                    <div class="post-message" style="text-align: center;">
+                                                        <div><strong><t t-esc="adset['name']"/></strong></div>
+                                                        <div style="font-size: 11px; color: #666;">
+                                                            <t t-esc="adset.get('campaign_name', '')"/>
+                                                        </div>
+                                                        <div t-if="adset.get('ad_names')" style="font-size: 10px; color: #444; margin-top: 6px; line-height: 1.35;">
+                                                            <div style="font-weight: 600; margin-bottom: 2px;">Anuncios</div>
+                                                            <t t-foreach="adset.get('ad_names', [])" t-as="ad_name">
+                                                                <div>
+                                                                    <t t-esc="ad_name"/>
+                                                                </div>
+                                                            </t>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="metric-value">
+                                                <div class="interactions-container">
+                                                    <div class="interaction-metric">
+                                                        <div class="likes-count">
+                                                            <t t-esc="adset['impressions']"/>
+                                                        </div>
+                                                        <div class="metric-label">Impresiones</div>
+                                                    </div>
+                                                    <div class="interaction-metric">
+                                                        <div class="likes-count">
+                                                            <t t-esc="adset['reach']"/>
+                                                        </div>
+                                                        <div class="metric-label">Alcance</div>
+                                                    </div>
+                                                    <div class="interaction-metric">
+                                                        <div class="comments-count">
+                                                            <t t-esc="adset['clicks']"/>
+                                                        </div>
+                                                        <div class="metric-label">Clicks</div>
+                                                    </div>
+                                                    <div class="interaction-metric">
+                                                        <div class="shares-count">
+                                                            <t t-esc="adset['spend']"/>
+                                                        </div>
+                                                        <div class="metric-label">Gasto</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="metric-value">
+                                                <div class="interactions-container">
+                                                    <div class="interaction-metric">
+                                                        <div class="likes-count"><t t-esc="adset['ctr']"/>%</div>
+                                                        <div class="metric-label">CTR</div>
+                                                    </div>
+                                                    <div class="interaction-metric">
+                                                        <div class="comments-count">
+                                                            <t t-esc="adset['cpc']"/>
+                                                        </div>
+                                                        <div class="metric-label">CPC</div>
+                                                    </div>
+                                                    <div class="interaction-metric">
+                                                        <div class="shares-count">
+                                                            <t t-esc="adset['cpm']"/>
+                                                        </div>
+                                                        <div class="metric-label">CPM</div>
+                                                    </div>
+                                                    <div class="interaction-metric">
+                                                        <div class="saves-count">
+                                                            <t t-esc="adset['cpp']"/>
+                                                        </div>
+                                                        <div class="metric-label">CPP</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="interactions-container"
+                                                     style="flex-wrap: wrap; display: flex;">
+                                                    <t t-foreach="adset['actions'].items()" t-as="action">
+                                                        <t t-if="action[0] in [
+                                                            'link_click',
+                                                            'landing_page_view',
+                                                            'onsite_conversion.messaging_conversation_started_7d',
+                                                            'onsite_conversion.total_messaging_connection',
+                                                            'post_engagement',
+                                                            'post_reaction',
+                                                            'video_view',
+                                                            'like'
+                                                        ]">
+                                                        <t t-set="action_name" t-value="{
+                                                  'like': 'Me gusta', 'link_click': 'Clics', 'view_content': 'Vistas', 'purchase': 'Compras',
+                                                  'add_to_cart': 'Agregar al Carrito', 'initiate_checkout': 'Checkout', 'lead': 'Leads', 'comment': 'Comentarios',
+                                                  'post_engagement': 'Interacciones', 'video_view': 'Vistas de Video', 'post_reaction': 'Reacciones',
+                                                  'page_engagement': 'Engagements de Pagina', 'landing_page_view': 'Visitas a Landing', 'onsite_conversion.messaging_first_reply': 'Respuesta Inicial',
+                                                  'onsite_conversion.messaging_user_depth_2_message_send': 'Msg de Nivel 2', 'onsite_conversion.messaging_user_depth_3_message_send': 'Msg de Nivel 3',
+                                                  'onsite_conversion.messaging_user_depth_5_message_send': 'Msg de Nivel 5', 'onsite_conversion.messaging_conversation_started_7d': 'Conversaciones Iniciadas (7d)',
+                                                  'onsite_conversion.messaging_conversation_replied_7d': 'Conversaciones Respondidas (7d)', 'onsite_conversion.total_messaging_connection': 'Conexiones Totales',
+                                                  'onsite_conversion.messaging_business_calling_opt_in_sent': 'Opt-In Llamadas', 'onsite_conversion.messaging_welcome_message_view': 'Vieron Mensaje Bienvenida',
+                                                  'omni_landing_page_view': 'Omni Landing'
+                                                }.get(action[0], action[0].replace('_', ' ').replace('.', ' ').capitalize())"/>
+                                                        <t t-set="action_icon" t-value="{
+                                                  'like': '/gl_geniolibre/static/src/img/iconos/icon_like.png',
+                                                  'link_click': '/gl_geniolibre/static/src/img/iconos/icon_click.png',
+                                                  'view_content': '/gl_geniolibre/static/src/img/iconos/icon_view.png',
+                                                  'purchase': '/gl_geniolibre/static/src/img/iconos/icon_purchase.png',
+                                                  'add_to_cart': '/gl_geniolibre/static/src/img/iconos/icon_cart.png',
+                                                  'initiate_checkout': '/gl_geniolibre/static/src/img/iconos/icon_checkout.png',
+                                                  'lead': '/gl_geniolibre/static/src/img/iconos/icon_lead.png',
+                                                  'comment': '/gl_geniolibre/static/src/img/iconos/icon_comment.png',
+                                                  'post_engagement': '/gl_geniolibre/static/src/img/iconos/icon_interaction.png',
+                                                  'video_view': '/gl_geniolibre/static/src/img/iconos/icon_play.png',
+                                                  'post_reaction': '/gl_geniolibre/static/src/img/iconos/icon_reaction.png',
+                                                  'page_engagement': '/gl_geniolibre/static/src/img/iconos/icon_interaction.png',
+                                                  'landing_page_view': '/gl_geniolibre/static/src/img/iconos/icon_landing.png',
+                                                  'onsite_conversion.messaging_first_reply': '/gl_geniolibre/static/src/img/iconos/icon_message_reply.png',
+                                                  'onsite_conversion.messaging_user_depth_2_message_send': '/gl_geniolibre/static/src/img/iconos/icon_message_level.png',
+                                                  'onsite_conversion.messaging_user_depth_3_message_send': '/gl_geniolibre/static/src/img/iconos/icon_message_level.png',
+                                                  'onsite_conversion.messaging_user_depth_5_message_send': '/gl_geniolibre/static/src/img/iconos/icon_message_level.png',
+                                                  'onsite_conversion.messaging_conversation_started_7d': '/gl_geniolibre/static/src/img/iconos/icon_conversation_started.png',
+                                                  'onsite_conversion.messaging_conversation_replied_7d': '/gl_geniolibre/static/src/img/iconos/icon_conversation_replied.png',
+                                                  'onsite_conversion.total_messaging_connection': '/gl_geniolibre/static/src/img/iconos/icon_connection.png',
+                                                  'onsite_conversion.messaging_business_calling_opt_in_sent': '/gl_geniolibre/static/src/img/iconos/icon_call.png',
+                                                  'onsite_conversion.messaging_welcome_message_view': '/gl_geniolibre/static/src/img/iconos/icon_welcome_message.png',
+                                                  'omni_landing_page_view': '/gl_geniolibre/static/src/img/iconos/icon_landing.png'
+                                                }.get(action[0])"/>
+                                                        <div class="interaction-metric"
+                                                             style="min-width: 150px; margin-right: 10px; margin-bottom: 0px!important;">
+                                                            <div class="metric-label">
+                                                                <img t-if="action_icon" t-att-src="action_icon"
+                                                                     t-att-alt="action_name" class="report-icon"/>
+                                                                <t t-esc="action[1]"/>
+                                                                <t t-esc="action_name"/>
+                                                            </div>
+                                                        </div>
+                                                        </t>
                                                     </t>
                                                 </div>
                                             </td>

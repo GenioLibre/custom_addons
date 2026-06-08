@@ -5,8 +5,6 @@ from odoo import http
 from odoo.http import request
 from werkzeug.utils import redirect
 
-LinkedIn_Version = "202505"
-
 class LinkedInAuthController(http.Controller):
 
     @http.route('/linkedin-oauth', type='http', auth='public', website=True)

@@ -18,6 +18,13 @@ META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY = "gl_facebook.meta_system_user_token_expi
 META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY = "gl_facebook.meta_system_user_token_last_check"
 META_SYSTEM_USER_TOKEN_STATE_KEY = "gl_facebook.meta_system_user_token_state"
 META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY = "gl_facebook.meta_system_user_token_last_error"
+LINKEDIN_API_VERSION_KEY = "linkedin.api_version"
+DEFAULT_LINKEDIN_API_VERSION = "202504"
+
+
+def get_linkedin_api_version(env):
+    version = (env["ir.config_parameter"].sudo().get_param(LINKEDIN_API_VERSION_KEY) or "").strip()
+    return version or DEFAULT_LINKEDIN_API_VERSION
 
 
 class ResConfigSettings(models.TransientModel):
@@ -82,6 +89,11 @@ class ResConfigSettings(models.TransientModel):
     linkedin_redirect_uri = fields.Char("LinkedIn Redirect URI", config_parameter="linkedin.redirect_uri", default="http://localhost:8018/linkedin-oauth/")
     linkedin_access_token = fields.Char(string="LinkedIn Access Token", config_parameter='linkedin.access_token')
     linkedin_token_expiry = fields.Char(string="Token Expiry", config_parameter='linkedin.token_expiry')
+    linkedin_api_version = fields.Char(
+        string="LinkedIn API Version",
+        config_parameter=LINKEDIN_API_VERSION_KEY,
+        default=DEFAULT_LINKEDIN_API_VERSION,
+    )
 
     chatgpt_api_key = fields.Char("ChatGPT API Key", config_parameter="chatgpt.api_key")
     chatgpt_base_url = fields.Char("ChatGPT Base URL", config_parameter="chatgpt.base_url", default="https://api.openai.com/v1")
