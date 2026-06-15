@@ -134,11 +134,11 @@ class IemChurchWebsite(http.Controller):
             info_items.append({"label": "Discipulado", "value": member_list.discipulado_id.display_name})
         if member_list.celula_id:
             info_items.append({"label": "Célula", "value": member_list.celula_id.display_name})
-        if member_list.details:
-            info_items.append({"label": "Detalles", "value": member_list.details})
         return {
             "id": member_list.id,
             "name": member_list.name,
+            "details": member_list.details or "",
+            "has_details": bool(member_list.details),
             "info_items": info_items,
             "has_extra_step": member_list._website_has_extra_step(),
             "show_boolean_extra": member_list.show_boolean_extra,

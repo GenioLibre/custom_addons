@@ -67,9 +67,12 @@
                     </group>
                     <notebook>
                         <page string="Miembros">
-                            
+                            <group>
+                                <field name="member_line_search" placeholder="Buscar por nombre, código o documento" />
+                            </group>
                             <field
                                 name="member_line_ids"
+                                domain="['|', '|', ('member_name', 'ilike', member_line_search), ('member_document', 'ilike', member_line_search), ('member_code', 'ilike', member_line_search)]"
                                 context="{
                                     'default_list_id': id,
                                     'form_view_ref': 'iem_church_management.view_iem_church_member_list_line_form',

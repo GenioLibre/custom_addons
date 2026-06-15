@@ -120,6 +120,7 @@ class IemChurchMemberList(models.Model):
         "list_id",
         string="Miembros",
     )
+    member_line_search = fields.Char(string="Buscar en miembros")
     member_count = fields.Integer(compute="_compute_member_counts", string="Total miembros")
     filter_member_count = fields.Integer(compute="_compute_member_counts", string="Por filtro")
     manual_member_count = fields.Integer(compute="_compute_member_counts", string="Manuales")
@@ -621,6 +622,9 @@ class IemChurchMemberListLine(models.Model):
     extra_image = fields.Binary(string="Imagen", attachment=True)
     currency_id = fields.Many2one(related="list_id.currency_id", store=True, readonly=True)
 
+    member_name = fields.Char(related="member_id.name", store=True, readonly=True)
+    member_document = fields.Char(related="member_id.vat", store=True, readonly=True)
+    member_code = fields.Char(related="member_id.member_code", store=True, readonly=True)
     predio_id = fields.Many2one(related="member_id.predio_id", store=True, readonly=True)
     red_id = fields.Many2one(related="member_id.red_id", store=True, readonly=True)
     discipulado_id = fields.Many2one(related="member_id.discipulado_id", store=True, readonly=True)

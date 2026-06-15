@@ -62,11 +62,13 @@
                                                 t-att-data-show-text="1 if list_data['show_text_extra'] else 0"
                                                 t-att-data-show-image="1 if list_data['show_image_extra'] else 0"
                                                 t-att-data-has-extra-step="1 if list_data['has_extra_step'] else 0"
+                                                t-att-data-has-details="1 if list_data['has_details'] else 0"
                                                 t-att-data-boolean-label="list_data['boolean_extra_label']"
                                                 t-att-data-amount-label="list_data['amount_extra_label']"
                                                 t-att-data-text-label="list_data['text_extra_label']"
                                                 t-att-data-image-label="list_data['image_extra_label']"
                                                 t-att-data-currency-symbol="list_data['currency_symbol']"
+                                                t-att-data-details="list_data['details']"
                                             >
                                                 <t t-esc="list_data['name']"/>
                                             </option>
@@ -132,6 +134,10 @@
                                     </div>
                                     <input type="file" name="extra_image" id="iem_list_extra_image" class="form-control" accept="image/*"/>
                                 </div>
+                                <div class="col-12 mb-3 d-none" id="iem_list_details_row">
+                                    <label class="form-label" for="iem_list_details_preview">Detalles</label>
+                                    <textarea id="iem_list_details_preview" class="form-control" rows="6" readonly="readonly"></textarea>
+                                </div>
                             </div>
 
                             <div class="d-none">
@@ -196,11 +202,13 @@
                     const textLabel = document.getElementById("iem_list_text_label");
                     const imageLabel = document.getElementById("iem_list_image_label");
                     const currencySymbol = document.getElementById("iem_list_currency_symbol");
+                    const detailsRow = document.getElementById("iem_list_details_row");
                     const booleanInput = document.getElementById("iem_list_extra_boolean");
                     const amountInput = document.getElementById("iem_list_extra_amount");
                     const textInput = document.getElementById("iem_list_extra_text");
                     const imageInput = document.getElementById("iem_list_extra_image");
                     const imagePreview = document.getElementById("iem_list_image_preview");
+                    const detailsPreview = document.getElementById("iem_list_details_preview");
                     const accessValidated = <t t-out="'true' if access_validated else 'false'"/>;
                     if (!steps.length || !indicator || !prevBtn || !nextBtn || !submitBtn || !listSelect || !memberQueryInput || !memberIdInput || !memberResults) {
                         return;
@@ -253,8 +261,17 @@
                         return option &amp;&amp; option.value &amp;&amp; option.dataset.hasExtraStep === "1";
                     }
 
+                    function hasDetails() {
+                        const option = selectedListOption();
+                        return option &amp;&amp; option.value &amp;&amp; option.dataset.hasDetails === "1";
+                    }
+
+                    function hasFinalStep() {
+                        return hasExtraStep() || hasDetails();
+                    }
+
                     function totalSteps() {
-                        return hasExtraStep() ? 3 : 2;
+                        return hasFinalStep() ? 3 : 2;
                     }
 
                     function setStep(step) {
@@ -298,11 +315,13 @@
                         const showAmount = !!(option &amp;&amp; option.dataset.showAmount === "1");
                         const showText = !!(option &amp;&amp; option.dataset.showText === "1");
                         const showImage = !!(option &amp;&amp; option.dataset.showImage === "1");
+                        const showDetails = !!(option &amp;&amp; option.dataset.hasDetails === "1");
 
                         booleanRow.classList.toggle("d-none", !showBoolean);
                         amountRow.classList.toggle("d-none", !showAmount);
                         textRow.classList.toggle("d-none", !showText);
                         imageRow.classList.toggle("d-none", !showImage);
+                        detailsRow.classList.toggle("d-none", !showDetails);
 
                         booleanLabel.textContent = option &amp;&amp; option.dataset.booleanLabel ? option.dataset.booleanLabel : "Si/No";
                         amountLabel.textContent = option &amp;&amp; option.dataset.amountLabel ? option.dataset.amountLabel : "Monto";
@@ -310,6 +329,9 @@
                         imageLabel.textContent = option &amp;&amp; option.dataset.imageLabel ? option.dataset.imageLabel : "Imagen";
                         if (currencySymbol) {
                             currencySymbol.textContent = option &amp;&amp; option.dataset.currencySymbol ? option.dataset.currencySymbol : "";
+                        }
+                        if (detailsPreview) {
+                            detailsPreview.value = option &amp;&amp; option.dataset.details ? option.dataset.details : "";
                         }
 
                         updateStepRequiredFields();
@@ -422,8 +444,11 @@
                     }
 
                     if (validateAccessBtn) {
-                        validateAccessBtn.addEventListener("click", async function () {
+                        validateAccessBtn.addEventListener("click", async function (event) {
+                            event.preventDefault();
+                            event.stopPropagation();
                             try {
+                                validateAccessBtn.disabled = true;
                                 const payload = await postAndReadJson("/church/lista/registro/validate_access", {
                                     access_password: accessPasswordInput ? accessPasswordInput.value : "",
                                 });
@@ -435,6 +460,17 @@
                                 setStep(1);
                             } catch (err) {
                                 showClientMessage("error", "No se pudo validar la clave en este momento.");
+                            } finally {
+                                validateAccessBtn.disabled = false;
+                            }
+                        });
+                    }
+
+                    if (accessPasswordInput &amp;&amp; validateAccessBtn) {
+                        accessPasswordInput.addEventListener("keydown", function (event) {
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                                validateAccessBtn.click();
                             }
                         });
                     }
