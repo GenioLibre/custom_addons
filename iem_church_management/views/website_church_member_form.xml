@@ -467,8 +467,11 @@
                     }
 
                     if (validateAccessBtn) {
-                        validateAccessBtn.addEventListener("click", async function () {
+                        validateAccessBtn.addEventListener("click", async function (event) {
+                            event.preventDefault();
+                            event.stopPropagation();
                             try {
+                                validateAccessBtn.disabled = true;
                                 const payload = await postAndReadJson("/church/registro/validate_access", {
                                     access_password: accessPasswordInput ? accessPasswordInput.value : "",
                                 });
@@ -482,6 +485,17 @@
                                 setStep(1);
                             } catch (err) {
                                 showClientMessage("error", "No se pudo validar la clave en este momento.");
+                            } finally {
+                                validateAccessBtn.disabled = false;
+                            }
+                        });
+                    }
+
+                    if (accessPasswordInput && validateAccessBtn) {
+                        accessPasswordInput.addEventListener("keydown", function (event) {
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                                validateAccessBtn.click();
                             }
                         });
                     }
