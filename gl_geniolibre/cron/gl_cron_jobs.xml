@@ -22,6 +22,7 @@ if record_count > 0:
     _logger.info("╚══════════════════════════════════════╝")
 
 success_count = 0
+deferred_count = 0
 error_count = 0
 
 for record in records:
@@ -29,9 +30,13 @@ for record in records:
     _logger.info(time.strftime('%Y-%m-%d %H:%M:%S'))
     try:
         _logger.info(f"► Procesando Post ID {record.id}: {record.name or 'Sin nombre'}")
-        record.with_context(from_cron=True).publicar_post()
-        success_count += 1
-        _logger.info(f"✔ Post ID {record.id} publicado exitosamente")
+        result = record.with_context(from_cron=True).publicar_post()
+        if result is False and record.post_estado == 'Programado':
+            deferred_count += 1
+            _logger.warning(f"↺ Post ID {record.id} aplazado para el siguiente cron")
+        else:
+            success_count += 1
+            _logger.info(f"✔ Post ID {record.id} publicado exitosamente")
 
     except Exception as e:
         error_count += 1
@@ -50,6 +55,7 @@ if record_count > 0:
     _logger.info(f"║ RESUMEN FINAL DE PUBLICACIÓN        ║")
     _logger.info(f"║ Total procesados: {record_count}")
     _logger.info(f"║ Publicados exitosamente: {success_count}")
+    _logger.info(f"║ Aplazados: {deferred_count}")
     _logger.info(f"║ Errores: {error_count}")
     _logger.info("╚══════════════════════════════════════╝")
 else:

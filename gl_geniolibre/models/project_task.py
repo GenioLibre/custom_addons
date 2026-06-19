@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-:
-import random, re, requests, base64, boto3, logging, html
+import random, re, requests, base64, boto3, logging, html, time
 import subprocess
 import json
 import tempfile
@@ -88,6 +88,10 @@ class PublishTextHTMLParser(HTMLParser):
         text = "".join(self.parts)
         text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()
+
+
+class PublicMediaNotReady(Exception):
+    """La URL publica del archivo aun no esta lista para que terceros la descarguen."""
 
 
 class red_social(models.Model):
@@ -914,30 +918,40 @@ class project_task(models.Model):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
+        fields = "id,share_url,create_time,title"
 
         if video_id:
-            query_url = "https://open.tiktokapis.com/v2/video/query/?fields=id,share_url,create_time,title"
+            query_url = "https://open.tiktokapis.com/v2/video/query/"
             query_payload = {
                 "filters": {
                     "video_ids": [video_id],
                 }
             }
-            query_resp = requests.post(query_url, headers=headers, json=query_payload, timeout=20)
-            query_resp.raise_for_status()
-            query_data = query_resp.json()
-            videos = query_data.get("data", {}).get("videos") or []
-            if videos and videos[0].get("share_url"):
-                return videos[0].get("share_url")
+            query_params = {
+                "fields": fields,
+            }
+            try:
+                query_resp = requests.post(query_url, headers=headers, params=query_params, json=query_payload, timeout=20)
+                query_resp.raise_for_status()
+                query_data = query_resp.json()
+                videos = query_data.get("data", {}).get("videos") or query_data.get("data", {}).get("video_list") or []
+                if videos and videos[0].get("share_url"):
+                    return videos[0].get("share_url")
+            except requests.exceptions.RequestException as err:
+                _logger.warning("TikTok video/query fallo para task %s y video %s: %s", self.id, video_id, err)
 
-        list_url = "https://open.tiktokapis.com/v2/video/list/?fields=id,share_url,create_time,title"
+        list_url = "https://open.tiktokapis.com/v2/video/list/"
         list_payload = {
             "max_count": 10,
         }
-        list_resp = requests.post(list_url, headers=headers, json=list_payload, timeout=20)
+        list_params = {
+            "fields": fields,
+        }
+        list_resp = requests.post(list_url, headers=headers, params=list_params, json=list_payload, timeout=20)
         list_resp.raise_for_status()
         list_data = list_resp.json()
 
-        videos = list_data.get("data", {}).get("videos") or []
+        videos = list_data.get("data", {}).get("videos") or list_data.get("data", {}).get("video_list") or []
         if not videos:
             return False
 
@@ -1474,6 +1488,27 @@ class project_task(models.Model):
         combined_text = f"{formatted_description}\n\n{plain_hashtags}"
         return combined_text.replace('\u200b', '').replace('\t', '').strip()
 
+    def _defer_publication_until_next_attempt(self, reason):
+        self.ensure_one()
+        active = set((self.red_social_ids.mapped('name') or []))
+        vals = {'post_estado': 'Programado'}
+
+        if 'Facebook' in active and self.fb_estado != 'Publicado':
+            vals.update({'fb_estado': 'Programado', 'fb_error': False})
+        if 'Instagram' in active and self.ig_estado != 'Publicado':
+            vals.update({'ig_estado': 'Programado', 'ig_error': False})
+        if 'TikTok' in active and self.tt_estado != 'Publicado':
+            vals.update({'tt_estado': 'Programado', 'tt_error': False})
+        if 'LinkedIn' in active and self.li_estado != 'Publicado':
+            vals.update({'li_estado': 'Programado', 'li_error': False})
+
+        self.write(vals)
+        _logger.warning(
+            "Post %s aplazado para el siguiente intento automatico: %s",
+            self.id,
+            reason,
+        )
+
     def _get_facebook_pending_media_ids(self):
         self.ensure_one()
         try:
@@ -1945,7 +1980,11 @@ class project_task(models.Model):
                         video_id = data.get("data", {}).get("publicly_available_post_id")
                     if not video_id:
                         video_id = data.get("data", {}).get("post_id")
-                    share_url = self._fetch_tiktok_video_share_url(self.partner_tiktok_access_token, video_id)
+                    try:
+                        share_url = self._fetch_tiktok_video_share_url(self.partner_tiktok_access_token, video_id)
+                    except requests.exceptions.RequestException as err:
+                        _logger.warning("TikTok no devolvio share_url aun para task %s: %s", self.id, err)
+                        share_url = False
                     if share_url:
                         self.tiktok_post_url = share_url
                         self.tt_estado = "Publicado"
@@ -2636,10 +2675,6 @@ class project_task(models.Model):
             )
             _logger.info(f"Archivos subidos a S3. URLs nativas obtenidas: {media_urls_native}")
             _logger.info(f"Archivos subidos a S3. URLs custom obtenidas: {media_urls_custom}")
-            # Publicación en redes sociales con gestión de errores individual
-            errors = []
-            success_messages = []
-            published_on = []
 
             cover_url_native = None
             cover_url_custom = None
@@ -2660,6 +2695,40 @@ class project_task(models.Model):
                     aws_public_domain,
                     url_mode="custom",
                 )[0]
+
+            active_networks = set(self.red_social_ids.mapped('name') or [])
+            meta_networks = {'Facebook', 'Instagram', 'LinkedIn'}
+            if active_networks & meta_networks:
+                urls_to_verify = list(media_urls_native)
+                if cover_url_native:
+                    urls_to_verify.append(cover_url_native)
+
+                for media_url in urls_to_verify:
+                    is_ready, detail = verify_public_media_url(media_url)
+                    if not is_ready:
+                        reason = (
+                            "La URL publica del archivo aun no esta disponible para Meta. "
+                            f"URL: {media_url}. Detalle: {detail}"
+                        )
+                        self._defer_publication_until_next_attempt(reason)
+                        if from_cron:
+                            return False
+                        return {
+                            "type": "ir.actions.client",
+                            "tag": "display_notification",
+                            "params": {
+                                "title": "Archivo en preparacion",
+                                "message": "El archivo aun no esta listo para Meta. Se intentara nuevamente.",
+                                "type": "warning",
+                                "sticky": True,
+                                "next": {"type": "ir.actions.client", "tag": "reload"},
+                            },
+                        }
+
+            # Publicación en redes sociales con gestión de errores individual
+            errors = []
+            success_messages = []
+            published_on = []
 
             procesando = False
             # Facebook
@@ -2948,6 +3017,40 @@ def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain
 
     _logger.info(f"Todos los archivos subidos correctamente. Total: {len(uploaded_urls)}")
     return uploaded_urls
+
+
+def verify_public_media_url(url, attempts=3, delay_seconds=2, timeout=10):
+    """Valida que la URL publica ya responda de forma util para terceros como Meta."""
+    last_error = "sin respuesta"
+
+    for attempt in range(1, attempts + 1):
+        for method in ("HEAD", "GET"):
+            response = None
+            try:
+                if method == "HEAD":
+                    response = requests.head(url, allow_redirects=True, timeout=timeout)
+                else:
+                    response = requests.get(url, allow_redirects=True, stream=True, timeout=timeout)
+
+                content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                if response.status_code == 200 and (
+                    not content_type
+                    or content_type.startswith(("image/", "video/", "application/octet-stream"))
+                ):
+                    response.close()
+                    return True, None
+
+                last_error = f"{method} {response.status_code} content-type={content_type or 'n/a'}"
+            except requests.exceptions.RequestException as err:
+                last_error = f"{method} {err}"
+            finally:
+                if response is not None:
+                    response.close()
+
+        if attempt < attempts:
+            time.sleep(delay_seconds)
+
+    return False, last_error
 
 
 def normalize_image_for_meta(file_bytes, file_name="image.jpg"):

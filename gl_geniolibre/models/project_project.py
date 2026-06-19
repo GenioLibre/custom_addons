@@ -381,6 +381,7 @@ class project_project(models.Model):
         # ==========================
         page_metrics = [
             'page_media_view',  # reemplaza impressions
+            'page_total_media_view_unique',
             'page_post_engagements',
             'page_follows',  # reemplaza page_fans
             'page_views_total',  # sigue siendo válida
@@ -429,6 +430,7 @@ class project_project(models.Model):
                        'comments.metric(total_count),'
                        'insights.metric('
                        'post_media_view,'  # reemplaza impressions
+                       'post_total_media_view_unique,'
                        'post_reactions_by_type_total'
                        '),'
                        'is_published'),
@@ -441,6 +443,7 @@ class project_project(models.Model):
         post_type_data = defaultdict(lambda: {
             'posts': 0,
             'views': 0,
+            'unique_views': 0,
             'reactions': 0,
             'comments': 0,
             'shares': 0,
@@ -465,6 +468,7 @@ class project_project(models.Model):
                 insights_dict = {i['name']: i['values'][0]['value'] for i in insights if i.get('values')}
 
                 views = insights_dict.get('post_media_view', 0)
+                unique_views = insights_dict.get('post_total_media_view_unique', 0)
                 reactions_by_type = insights_dict.get('post_reactions_by_type_total', {})
                 total_reactions = sum(reactions_by_type.values()) if isinstance(reactions_by_type, dict) else 0
 
@@ -474,6 +478,7 @@ class project_project(models.Model):
                 posts_matrix.append({
                     'type': post_type,
                     'views': views,
+                    'unique_views': unique_views,
                     'reactions': total_reactions,
                     'reactions_by_type': reactions_by_type,
                     'picture_url': post.get('full_picture', ''),
@@ -486,6 +491,7 @@ class project_project(models.Model):
 
                 post_type_data[post_type]['posts'] += 1
                 post_type_data[post_type]['views'] += views
+                post_type_data[post_type]['unique_views'] += unique_views
                 post_type_data[post_type]['reactions'] += total_reactions
                 post_type_data[post_type]['comments'] += total_comments
                 post_type_data[post_type]['shares'] += total_shares
@@ -2379,6 +2385,7 @@ def merge_final_facebook_data(chunks):
     merged = {
         'totals': {
             'page_media_view': 0,
+            'page_total_media_view_unique': 0,
             'page_views_total': 0,
             'page_post_engagements': 0,
             'page_follows': 0,  # reemplaza page_fans
@@ -2397,6 +2404,7 @@ def merge_final_facebook_data(chunks):
         # ==========================
         for key in [
             'page_media_view',
+            'page_total_media_view_unique',
             'page_views_total',
             'page_post_engagements',
         ]:
@@ -2426,6 +2434,7 @@ def merge_final_facebook_data(chunks):
                 merged['post_type_summary'][post_type] = {
                     'posts': 0,
                     'views': 0,
+                    'unique_views': 0,
                     'reactions': 0,
                     'comments': 0,
                     'shares': 0
@@ -2475,7 +2484,10 @@ def merge_final_facebook_data(chunks):
 
         return end_value - start_value
 
-    followers_values = totals.get('page_follows', [])
+    followers_values = [
+        {'value': value, 'end_time': dt.isoformat()}
+        for dt, value in all_page_follows
+    ]
     followers_diff = calculate_followers_diff(followers_values)
 
     merged['totals']['followers_diff'] = followers_diff
