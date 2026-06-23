@@ -2350,6 +2350,7 @@ class project_task(models.Model):
                 "disable_duet": not self.tiktok_allow_duet,
                 "disable_comment": not self.tiktok_allow_comments,
                 "disable_stitch": not self.tiktok_allow_stitch,
+                "video_cover_timestamp_ms": 0,
             },
             "source_info": {
                 "source": "PULL_FROM_URL",
