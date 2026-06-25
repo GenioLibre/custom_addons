@@ -57,6 +57,12 @@
         <field name="model">chatbot.knowledge.query</field>
         <field name="arch" type="xml">
             <form string="Consulta">
+                <header>
+                    <button name="action_test_query"
+                            string="Probar consulta"
+                            type="object"
+                            class="btn btn-primary"/>
+                </header>
                 <sheet>
                     <group>
                         <field name="name"/>
@@ -87,6 +93,11 @@
                 <sheet>
                     <group>
                         <field name="name" readonly="1"/>
+                    </group>
+                    <group string="Comportamiento del chatbot">
+                        <field name="chatbot_system_prompt" widget="text"/>
+                        <field name="chatbot_history_message_limit"/>
+                        <field name="chatbot_model_timeout"/>
                     </group>
                     <group string="Documentos que la IA debe leer">
                         <field name="chatbot_knowledge_document_ids" widget="many2many_tags"/>

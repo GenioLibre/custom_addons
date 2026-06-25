@@ -1,21 +1,71 @@
 # -*- coding: utf-8 -*-
-# from odoo import http
+import json
+
+from odoo import http
+from odoo.http import request
 
 
-# class TestModule(http.Controller):
-#     @http.route('/test__module/test__module', auth='public')
-#     def index(self, **kw):
-#         return "Hello, world"
+class ChatbotAgentController(http.Controller):
+    @staticmethod
+    def _load_json_payload():
+        raw_data = request.httprequest.data.decode('utf-8') if request.httprequest.data else '{}'
+        return json.loads(raw_data or '{}')
 
-#     @http.route('/test__module/test__module/objects', auth='public')
-#     def list(self, **kw):
-#         return http.request.render('test__module.listing', {
-#             'root': '/test__module/test__module',
-#             'objects': http.request.env['test__module.test__module'].search([]),
-#         })
+    @http.route('/agent/reply', type='http', auth='public', csrf=False, methods=['POST'])
+    def agent_reply(self, **kwargs):
+        try:
+            data = self._load_json_payload()
+        except json.JSONDecodeError:
+            return request.make_response(
+                json.dumps({'ok': False, 'error': 'JSON invalido'}),
+                status=400,
+                headers=[('Content-Type', 'application/json')]
+            )
 
-#     @http.route('/test__module/test__module/objects/<model("test__module.test__module"):obj>', auth='public')
-#     def object(self, obj, **kw):
-#         return http.request.render('test__module.object', {
-#             'object': obj
-#         })
+        message_text = (data.get('message') or '').strip()
+        phone_number = (data.get('phone_number') or 'agent-test-user').strip()
+
+        if not message_text:
+            return request.make_response(
+                json.dumps({'ok': False, 'error': "El campo 'message' es obligatorio."}),
+                status=400,
+                headers=[('Content-Type', 'application/json')]
+            )
+
+        Chatroom = request.env['whatsapp.chatroom'].sudo()
+        chatroom = Chatroom.search([('phone_number', '=', phone_number)], limit=1)
+        if not chatroom:
+            chatroom = Chatroom.create({
+                'name': f"Chat con {phone_number}",
+                'phone_number': phone_number,
+                'state': 'open',
+            })
+
+        try:
+            reply_text = chatroom._resolve_incoming_reply(message_text)
+        except Exception as exc:
+            return request.make_response(
+                json.dumps({'ok': False, 'error': str(exc)}),
+                status=500,
+                headers=[('Content-Type', 'application/json')]
+            )
+
+        if reply_text:
+            request.env['whatsapp.chatmessage'].sudo().create({
+                'chatroom_id': chatroom.id,
+                'sender': 'client',
+                'message': message_text,
+                'message_type': 'text',
+            })
+            chatroom.create_outgoing_message(reply_text, sender='bot', message_type='text')
+
+        return request.make_response(
+            json.dumps({
+                'ok': True,
+                'chatroom_id': chatroom.id,
+                'phone_number': phone_number,
+                'output_text': reply_text or '',
+            }),
+            status=200,
+            headers=[('Content-Type', 'application/json')]
+        )

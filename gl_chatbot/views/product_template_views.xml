@@ -1,0 +1,15 @@
+<odoo>
+    <record id="product_template_form_view_chatbot" model="ir.ui.view">
+        <field name="name">product.template.form.chatbot</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='options']/span" position="inside">
+                <span class="d-inline-flex ms-3">
+                    <field name="chatbot_visible"/>
+                    <label for="chatbot_visible"/>
+                </span>
+            </xpath>
+        </field>
+    </record>
+</odoo>

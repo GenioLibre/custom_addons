@@ -1,5 +1,11 @@
-from odoo import fields, models
-from odoo import api
+import json
+import logging
+
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
+
+
+_logger = logging.getLogger(__name__)
 
 
 class ChatbotKnowledgeDocument(models.Model):
@@ -25,9 +31,71 @@ class ChatbotKnowledgeQuery(models.Model):
     sequence = fields.Integer(string='Secuencia', default=10)
     active = fields.Boolean(string='Activo', default=True)
 
+    def action_test_query(self):
+        self.ensure_one()
+        query = (self.query_text or '').strip().rstrip(';')
+
+        if not query:
+            raise UserError(_("Primero escribe una consulta SQL."))
+
+        if not query.lower().startswith('select'):
+            raise UserError(_("Solo se permiten consultas SELECT para la prueba."))
+
+        limited_query = f"SELECT * FROM ({query}) AS chatbot_query LIMIT 10"
+
+        try:
+            self.env.cr.execute(limited_query)
+            rows = self.env.cr.dictfetchall()
+        except Exception as exc:
+            raise UserError(_("Error al ejecutar la consulta: %(error)s", error=str(exc))) from exc
+
+        preview = json.dumps(rows[:5], ensure_ascii=False, default=str)
+        if len(preview) > 500:
+            preview = f"{preview[:500]}..."
+
+        _logger.info("Chatbot query test [%s]: %s", self.name, rows)
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Consulta ejecutada'),
+                'message': _(
+                    'Filas obtenidas: %(count)s. Vista previa: %(preview)s',
+                    count=len(rows),
+                    preview=preview or '[]',
+                ),
+                'type': 'success',
+                'sticky': True,
+            },
+        }
+
 
 class ResCompany(models.Model):
     _inherit = 'res.company'
+
+    chatbot_system_prompt = fields.Text(
+        string='Prompt base del chatbot',
+        default=(
+            "Eres un asistente comercial que ayuda a responder clientes desde Odoo. "
+            "Responde en espanol, con tono claro, cordial y breve. "
+            "No inventes datos. Usa primero la base de conocimiento proporcionada. "
+            "Si algun mensaje automatico encaja con la intencion del cliente, puedes reutilizarlo o adaptarlo. "
+            "Usa consultas de base de datos solo como referencia de lo que puede consultarse o verificarse. "
+            "Si falta contexto, pide una aclaracion de forma amable."
+        ),
+        help='Instruccion principal que siempre se enviara al modelo antes de la conversacion.',
+    )
+    chatbot_history_message_limit = fields.Integer(
+        string='Mensajes de historial para IA',
+        default=10,
+        help='Cantidad de mensajes recientes del chat que se enviaran al modelo.',
+    )
+    chatbot_model_timeout = fields.Integer(
+        string='Timeout del modelo (segundos)',
+        default=120,
+        help='Tiempo maximo de espera para la respuesta de Ollama.',
+    )
 
     chatbot_knowledge_document_ids = fields.Many2many(
         'chatbot.knowledge.document',

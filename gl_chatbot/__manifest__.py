@@ -22,7 +22,7 @@
     'category': 'Customizations',
 
     # any module necessary for this one to work correctly
-    'depends': ['base', 'mail', 'portal', 'base_setup'],
+    'depends': ['base', 'mail', 'portal', 'base_setup', 'product'],
 
     # always loaded
     'data': [
@@ -31,6 +31,7 @@
         'views/gl_res_config_settings_views.xml',
         'views/gl_whatsapp_chatroom_views.xml',
         'views/chatbot_knowledge_views.xml',
+        'views/product_template_views.xml',
 
     ],
     'assets': {

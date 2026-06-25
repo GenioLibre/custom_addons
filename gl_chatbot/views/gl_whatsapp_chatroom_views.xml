@@ -91,6 +91,8 @@
                 <field name="prioridad" string="Secuencia"/>
                 <field name="name" string="Titulo"/>
                 <field name="category" string="Categoria"/>
+                <field name="action_type"/>
+                <field name="trigger_keywords"/>
                 <field name="activo" string="Activo"/>
                 <field name="contenido"/>
             </list>
@@ -106,12 +108,18 @@
                     <group>
                         <field name="name" string="Titulo"/>
                         <field name="category"/>
+                        <field name="action_type"/>
                         <field name="prioridad" string="Secuencia"/>
                         <field name="activo"/>
                     </group>
                     <group>
+                        <field name="trigger_keywords"
+                               widget="text"
+                               placeholder="Ejemplo: direccion, ubicacion, donde estan"/>
+                    </group>
+                    <group>
                         <field name="contenido" widget="text"
-                               placeholder="Escribe aqui la respuesta automatica que la IA puede reutilizar o adaptar."/>
+                               placeholder="Escribe aqui la respuesta automatica. Para precios puedes usar {products} para insertar los resultados."/>
                     </group>
                 </sheet>
             </form>

@@ -22,26 +22,27 @@
                         </setting>
                     </block>
                     <block title="Conexion con IA">
-                        <setting string="Modo de conexión">
-                            <field name="chatbot_connection_mode" widget="radio"/>
+                        <setting string="Timeout del modelo">
+                            <field name="chatbot_model_timeout"/>
                         </setting>
-                        <setting string="Ruta local del modelo"
-                                 help="Ejemplo para Ollama: http://192.168.1.130:11434/api/generate"
-                                 invisible="chatbot_connection_mode != 'local'">
-                            <field name="chatbot_local_url" placeholder="http://192.168.1.130:11434/api/generate"/>
+                        <setting string="Mensajes del historial">
+                            <field name="chatbot_history_message_limit"/>
                         </setting>
-                        <setting string="Modelo local"
-                                 help="Modelo que se enviará al servidor local, por ejemplo gemma3:4b."
-                                 invisible="chatbot_connection_mode != 'local'">
-                            <field name="chatbot_local_model" placeholder="gemma3:4b"/>
-                        </setting>
-                        <setting string="Clave API de OpenAI"
-                                 invisible="chatbot_connection_mode != 'openai'">
+                        <setting string="Clave API de OpenAI">
                             <field name="openai_api_key" password="True" title="Clave API de OpenAI"/>
                         </setting>
-                        <setting string="Modelo ChatGPT"
-                                 invisible="chatbot_connection_mode != 'openai'">
+                        <setting string="Modelo ChatGPT">
                             <field name="openai_model" placeholder="gpt-4.1-mini"/>
+                            <button name="action_test_ai_connection"
+                                    string="Probar conexión"
+                                    type="object"
+                                    class="btn btn-secondary mt-2"/>
+                        </setting>
+                        <setting string="Workflow ID">
+                            <field name="openai_workflow_id" placeholder="wf_..."/>
+                        </setting>
+                        <setting string="Agent Endpoint">
+                            <field name="openai_agent_endpoint" placeholder="https://tu-backend/agent/reply"/>
                         </setting>
                     </block>
                 </app>

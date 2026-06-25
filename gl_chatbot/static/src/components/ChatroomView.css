@@ -1,14 +1,20 @@
 .o_chatroom_view {
-    background:white;
+    background: white;
     height: 100%;
     min-height: 0;
+    gap: 18px;
+    padding: 14px;
+    box-sizing: border-box;
 }
 /**********************************************************
 Estilos Primera Columna
 /**********************************************************/
 .chatroom-list {
-    max-height: 95%;
-    min-width: 25%;
+    max-height: 100%;
+    min-width: 280px;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
 }
 
 .chatroom-list h4 {
@@ -23,11 +29,13 @@ Estilos Primera Columna
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 97% !important;
+    flex: 1;
+    min-height: 0;
     margin: 10px;
     overflow-y: auto;
     border-radius: 8px;
     border: 1px solid #ccc;
+    background: #fff;
 }
 
 .chatroom-list .chatroom-item {
@@ -73,12 +81,21 @@ Estilos Primera Columna
     padding: 0;
     text-align: left;
 }
+
+.chatroom-load-state {
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+    background: #fafafa;
+}
 /**********************************************************
 Estilos segunda Columna
 /**********************************************************/
 .chatroom-messages {
-    width: 513px;
-    max-height: 95%;
+    flex: 1 1 520px;
+    min-width: 360px;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -87,7 +104,6 @@ Estilos segunda Columna
     display: flex;
     flex-direction: column;
     height: 100%;
-    width: 513px;
     background: url('/gl_chatbot/static/src/img/fondo_whatsapp.jpg') no-repeat center center;
     background-size: cover;
     padding: 10px;
@@ -120,6 +136,13 @@ Estilos segunda Columna
     padding-bottom: 80px;
 }
 
+.chatroom-message-load-state {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.82rem;
+    padding: 8px 0 10px;
+}
+
 .chatroom-message-list {
     list-style: none; /* ✅ quita los puntos */
     padding-left: 0;
@@ -136,7 +159,7 @@ Estilos segunda Columna
     max-width: 75%;
     word-wrap: break-word;
     font-size: 0.9rem;
-    width: 400px;
+    width: fit-content;
 }
 
 /* Cliente (lado izquierdo, fondo gris claro) */
@@ -147,7 +170,7 @@ Estilos segunda Columna
     max-width: 75%;
     word-wrap: break-word;
     font-size: 0.9rem;
-    width: 400px;
+    width: fit-content;
     background: white;
     align-self: flex-start;
     color: #000;
@@ -161,7 +184,7 @@ Estilos segunda Columna
     max-width: 75%;
     word-wrap: break-word;
     font-size: 0.9rem;
-    width: 400px;
+    width: fit-content;
     background: #dcf8c6;
     align-self: flex-end;
     color: #000;
@@ -175,7 +198,7 @@ Estilos segunda Columna
     max-width: 75%;
     word-wrap: break-word;
     font-size: 0.9rem;
-    width: 400px;
+    width: fit-content;
     background: #e6f3ff;
     align-self: flex-end;
     color: #004c99;
@@ -343,8 +366,13 @@ Estilos CSS (para ultimo tab)
 }
 
 .chatroom-opciones{
-    width: 100%;
-    margin: 0px 25px;
+    flex: 0 0 380px;
+    max-width: 420px;
+    min-width: 340px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 
@@ -406,38 +434,216 @@ Estilos CSS Seccion de datos del cliente
 
 
 
-.partner-card {
+.customer-panel {
     display: flex;
-    gap: 15px;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.customer-hero,
+.customer-orders {
+    padding: 18px;
+}
+
+.customer-hero-header {
+    display: flex;
+    gap: 14px;
     align-items: center;
+    margin-bottom: 16px;
 }
 
-.partner-avatar {
-    width: 64px;
-    height: 64px;
+.customer-avatar {
+    width: 58px;
+    height: 58px;
     border-radius: 50%;
-    object-fit: contain;
-    border: 2px solid #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    object-fit: cover;
+    background: #e8eef3;
 }
 
-.partner-details {
+.customer-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #557086;
+    font-size: 1.2rem;
+}
+
+.customer-hero-main {
     flex: 1;
+    min-width: 0;
 }
 
-.partner-details h3 {
-    margin: 0 0 8px 0;
-    color: #343a40;
+.customer-status-row {
+    margin-bottom: 6px;
 }
 
-.partner-details p {
-    margin: 4px 0;
-    color: #6c757d;
+.customer-status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
 }
 
-.partner-details i {
-    width: 20px;
-    text-align: center;
-    margin-right: 8px;
-    color: #007bff;
+.customer-status-pill.status-existing {
+    background: #e6f4ea;
+    color: #1f6f43;
+}
+
+.customer-status-pill.status-new {
+    background: #fff1d6;
+    color: #9a5b00;
+}
+
+.customer-status-pill.status-contact {
+    background: #e7f0ff;
+    color: #1f4f99;
+}
+
+.customer-name {
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.25;
+}
+
+.customer-subtitle {
+    margin: 4px 0 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.customer-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.customer-metric-card {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.metric-label,
+.detail-label,
+.section-meta {
+    color: #6b7280;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.customer-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.customer-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 12px;
+    min-width: 0;
+}
+
+.detail-value {
+    word-break: break-word;
+    color: #111827;
+}
+
+.customer-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.section-head h4 {
+    margin: 0;
+    padding: 0;
+    text-align: left;
+}
+
+.customer-order-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.customer-order-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fbfdff;
+}
+
+.customer-order-link {
+    display: block;
+    padding: 12px 14px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.customer-order-top,
+.customer-order-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.customer-order-bottom {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.order-state {
+    color: #1f4f99;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.customer-empty-state {
+    margin: 0;
+}
+
+@media (max-width: 1400px) {
+    .o_chatroom_view {
+        gap: 12px;
+        padding: 10px;
+    }
+
+    .chatroom-list {
+        width: 290px;
+        min-width: 260px;
+    }
+
+    .chatroom-opciones {
+        min-width: 300px;
+        flex-basis: 330px;
+    }
+
+    .customer-metrics,
+    .customer-details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
