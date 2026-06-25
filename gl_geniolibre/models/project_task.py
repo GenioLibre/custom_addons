@@ -2204,21 +2204,8 @@ class project_task(models.Model):
             if "success" not in up_data:
                 raise ValidationError(f"Error uploading Reel FB: {up_data}")
 
-            # 3) finish upload SIN publicar
-            finish_url = f"{BASE_URL_LOCAL}/{video_id}"
-            finish_params = {
-                "access_token": self.partner_page_access_token,
-                "upload_phase": "finish",
-                "video_state": "UNPUBLISHED",
-                "description": combined_text,
-            }
-
-            fin = requests.post(finish_url, params=finish_params)
-            fin_data = fin.json()
-
-            if fin.status_code != 200:
-                raise ValidationError(f"Error finishing upload Reel FB: {fin_data}")
-
+            # La publicacion final del reel se hace despues, cuando Facebook
+            # confirme que la fase de upload ya termino por completo.
             return True
 
         return None

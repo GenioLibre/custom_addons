@@ -235,6 +235,12 @@
                     <field name="name"/>
                     <field name="account_id"/>
                     <field name="status" widget="badge"/>
+                    <field name="adset_count"/>
+                    <field name="ad_count"/>
+                    <field name="active_ad_count"/>
+                    <field name="spend"/>
+                    <field name="results"/>
+                    <field name="last_sync_at"/>
                 </list>
             </field>
         </record>
@@ -244,6 +250,10 @@
             <field name="model">marketing.meta.campaign</field>
             <field name="arch" type="xml">
                 <form create="false" edit="false">
+                    <header>
+                        <button name="action_sync_adsets" type="object" string="Sincronizar Conjuntos" icon="fa-refresh" class="btn-secondary"/>
+                        <button name="action_open_adsets" type="object" string="Ver Conjuntos" icon="fa-folder-open" class="btn-secondary"/>
+                    </header>
                     <sheet>
                         <group>
                             <field name="provider"/>
@@ -258,8 +268,25 @@
                             <field name="daily_budget" readonly="1"/>
                             <field name="lifetime_budget" readonly="1"/>
                             <field name="bid_strategy" readonly="1"/>
+                            <field name="adset_count" readonly="1"/>
+                            <field name="ad_count" readonly="1"/>
+                            <field name="active_ad_count" readonly="1"/>
+                            <field name="last_sync_at" readonly="1"/>
                         </group>
                         <notebook>
+                            <page string="Conjuntos">
+                                <field name="adset_ids" readonly="1">
+                                    <list create="false" edit="false" delete="false">
+                                        <field name="name"/>
+                                        <field name="configured_status"/>
+                                        <field name="effective_status"/>
+                                        <field name="ad_count"/>
+                                        <field name="spend"/>
+                                        <field name="results"/>
+                                        <field name="last_sync_at"/>
+                                    </list>
+                                </field>
+                            </page>
                             <page string="Técnico">
                                 <group>
                                     <field name="external_id" readonly="1"/>
@@ -282,9 +309,14 @@
             <field name="arch" type="xml">
                 <list create="false" edit="false">
                     <field name="name"/>
+                    <field name="account_id"/>
                     <field name="campaign_id"/>
                     <field name="configured_status"/>
                     <field name="effective_status"/>
+                    <field name="ad_count"/>
+                    <field name="spend"/>
+                    <field name="results"/>
+                    <field name="last_sync_at"/>
                 </list>
             </field>
         </record>
@@ -294,6 +326,10 @@
             <field name="model">marketing.meta.adset</field>
             <field name="arch" type="xml">
                 <form create="false" edit="false">
+                    <header>
+                        <button name="action_sync_ads" type="object" string="Sincronizar Anuncios" icon="fa-refresh" class="btn-secondary"/>
+                        <button name="action_open_ads" type="object" string="Ver Anuncios" icon="fa-folder-open" class="btn-secondary"/>
+                    </header>
                     <sheet>
                         <group>
                             <field name="name"/>
@@ -302,10 +338,66 @@
                             <field name="external_id"/>
                             <field name="configured_status"/>
                             <field name="effective_status"/>
+                            <field name="ad_count" readonly="1"/>
+                            <field name="active_ad_count" readonly="1"/>
+                            <field name="last_sync_at" readonly="1"/>
                         </group>
-                        <group>
-                            <field name="raw_payload" widget="text"/>
-                        </group>
+                        <notebook>
+                            <page string="Métricas">
+                                <group>
+                                    <field name="spend" readonly="1"/>
+                                    <field name="reach" readonly="1"/>
+                                    <field name="impressions" readonly="1"/>
+                                    <field name="frequency" readonly="1"/>
+                                    <field name="result_action_type" readonly="1"/>
+                                    <field name="results" readonly="1"/>
+                                    <field name="cost_per_result" readonly="1"/>
+                                    <field name="clicks" readonly="1"/>
+                                    <field name="ctr" readonly="1"/>
+                                    <field name="cpc" readonly="1"/>
+                                    <field name="cpm" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="Segmentación">
+                                <group>
+                                    <group>
+                                        <field name="geo_summary" readonly="1"/>
+                                        <field name="places_summary" widget="text" readonly="1"/>
+                                        <field name="placement_mode" readonly="1"/>
+                                        <field name="destination_type" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="age_min" readonly="1"/>
+                                        <field name="age_max" readonly="1"/>
+                                        <field name="optimization_goal" readonly="1"/>
+                                        <field name="billing_event" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <field name="detailed_targeting" widget="text" readonly="1"/>
+                                </group>
+                                <group>
+                                    <field name="targeting_json" widget="text" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="Anuncios">
+                                <field name="ad_ids" readonly="1">
+                                    <list create="false" edit="false" delete="false">
+                                        <field name="name"/>
+                                        <field name="configured_status"/>
+                                        <field name="effective_status"/>
+                                        <field name="spend"/>
+                                        <field name="results"/>
+                                        <field name="last_sync_at"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Técnico">
+                                <group>
+                                    <field name="raw_payload" widget="text"/>
+                                </group>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>
@@ -317,10 +409,14 @@
             <field name="arch" type="xml">
                 <list create="false" edit="false">
                     <field name="name"/>
+                    <field name="account_id"/>
                     <field name="campaign_id"/>
                     <field name="adset_id"/>
                     <field name="configured_status"/>
                     <field name="effective_status"/>
+                    <field name="spend"/>
+                    <field name="results"/>
+                    <field name="last_sync_at"/>
                 </list>
             </field>
         </record>
@@ -341,10 +437,112 @@
                             <field name="effective_status"/>
                             <field name="creative_id"/>
                             <field name="preview_url" widget="url"/>
+                            <field name="last_sync_at" readonly="1"/>
                         </group>
                         <group>
                             <field name="raw_payload" widget="text"/>
                         </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_facebook_ad_account_marketing_kanban" model="ir.ui.view">
+            <field name="name">facebook.ad.account.marketing.kanban</field>
+            <field name="model">facebook.ad.account</field>
+            <field name="priority">1</field>
+            <field name="arch" type="xml">
+                <kanban class="o_project_kanban o_kanban_small_column" create="false">
+                    <field name="name"/>
+                    <field name="account_id"/>
+                    <field name="campaign_count"/>
+                    <field name="active_campaign_count"/>
+                    <field name="total_spend"/>
+                    <field name="total_results"/>
+                    <field name="total_impressions"/>
+                    <field name="total_clicks"/>
+                    <field name="last_sync_at"/>
+                    <templates>
+                        <t t-name="card">
+                            <div class="oe_kanban_global_click">
+                                <div class="fw-bold fs-5">
+                                    <field name="name"/>
+                                </div>
+                                <div class="text-muted">
+                                    <field name="account_id"/>
+                                </div>
+                                <div class="mt-2">Campañas: <field name="campaign_count"/></div>
+                                <div>Activas: <field name="active_campaign_count"/></div>
+                                <div>Gastado: <field name="total_spend"/></div>
+                                <div>Resultados: <field name="total_results"/></div>
+                                <div>Últ. sync: <field name="last_sync_at"/></div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <record id="view_facebook_ad_account_marketing_tree" model="ir.ui.view">
+            <field name="name">facebook.ad.account.marketing.list</field>
+            <field name="model">facebook.ad.account</field>
+            <field name="priority">1</field>
+            <field name="arch" type="xml">
+                <list create="false" edit="false">
+                    <field name="name"/>
+                    <field name="account_id"/>
+                    <field name="campaign_count"/>
+                    <field name="active_campaign_count"/>
+                    <field name="total_spend"/>
+                    <field name="total_results"/>
+                    <field name="total_impressions"/>
+                    <field name="total_clicks"/>
+                    <field name="last_sync_at"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_facebook_ad_account_marketing_form" model="ir.ui.view">
+            <field name="name">facebook.ad.account.marketing.form</field>
+            <field name="model">facebook.ad.account</field>
+            <field name="priority">1</field>
+            <field name="arch" type="xml">
+                <form create="false" edit="false">
+                    <header>
+                        <button name="action_sync_campaigns" type="object" string="Sincronizar Campañas" icon="fa-refresh" class="btn-primary"/>
+                        <button name="action_open_campaigns" type="object" string="Ver Campañas" icon="fa-folder-open" class="btn-secondary"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="account_id"/>
+                                <field name="last_sync_at" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="campaign_count" readonly="1"/>
+                                <field name="active_campaign_count" readonly="1"/>
+                                <field name="total_spend" readonly="1"/>
+                                <field name="total_results" readonly="1"/>
+                                <field name="total_impressions" readonly="1"/>
+                                <field name="total_clicks" readonly="1"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Campañas">
+                                <field name="campaign_ids" readonly="1">
+                                    <list create="false" edit="false" delete="false">
+                                        <field name="name"/>
+                                        <field name="status"/>
+                                        <field name="adset_count"/>
+                                        <field name="ad_count"/>
+                                        <field name="spend"/>
+                                        <field name="results"/>
+                                        <field name="last_sync_at"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>
@@ -512,11 +710,12 @@
         </record>
 
         <record id="action_project_marketing_dashboard" model="ir.actions.act_window">
-            <field name="name">Dashboard</field>
-            <field name="res_model">project.marketing.dashboard</field>
-            <field name="view_mode">kanban,list</field>
+            <field name="name">Cuentas Comerciales</field>
+            <field name="res_model">facebook.ad.account</field>
+            <field name="view_mode">kanban,list,form</field>
+            <field name="view_id" ref="view_facebook_ad_account_marketing_kanban"/>
             <field name="domain">[]</field>
-            <field name="context">{'group_by': 'stage'}</field>
+            <field name="context">{}</field>
         </record>
 
         <record id="action_marketing_meta_campaign" model="ir.actions.act_window">
@@ -554,7 +753,7 @@
                   name="Publicaciones Paga"
                   parent="project.menu_main_pm"
                   sequence="51"
-                  action="action_project_marketing"/>
+                  action="action_project_marketing_dashboard"/>
 
         <menuitem id="menu_project_marketing_dashboard"
                   name="Dashboard"

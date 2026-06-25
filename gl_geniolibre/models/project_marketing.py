@@ -259,6 +259,14 @@ def _prepare_meta_insights_vals(item, objective=False):
     }
 
 
+def _is_meta_timeout_error(data):
+    error = (data or {}).get("error") or {}
+    return (
+        error.get("code") == 100
+        and error.get("error_subcode") == 1504018
+    )
+
+
 def _is_meta_creative_payload_incomplete(creative):
     creative = creative or {}
     object_story_spec = creative.get("object_story_spec") or {}
@@ -301,6 +309,75 @@ def _parse_meta_datetime(value):
         except ValueError:
             continue
     return False
+
+
+class FacebookAdAccount(models.Model):
+    _inherit = "facebook.ad.account"
+
+    campaign_ids = fields.One2many(
+        "marketing.meta.campaign",
+        "account_id",
+        string="Campañas",
+    )
+    campaign_count = fields.Integer(
+        string="Campañas",
+        compute="_compute_marketing_summary",
+    )
+    active_campaign_count = fields.Integer(
+        string="Campañas Activas",
+        compute="_compute_marketing_summary",
+    )
+    total_spend = fields.Float(
+        string="Gastado",
+        compute="_compute_marketing_summary",
+    )
+    total_results = fields.Float(
+        string="Resultados",
+        compute="_compute_marketing_summary",
+    )
+    total_impressions = fields.Integer(
+        string="Impresiones",
+        compute="_compute_marketing_summary",
+    )
+    total_clicks = fields.Integer(
+        string="Clicks",
+        compute="_compute_marketing_summary",
+    )
+    last_sync_at = fields.Datetime(string="Última sincronización")
+
+    def _compute_marketing_summary(self):
+        for record in self:
+            campaigns = record.campaign_ids.filtered("active")
+            record.campaign_count = len(campaigns)
+            record.active_campaign_count = len(campaigns.filtered(lambda c: (c.effective_status or c.configured_status or "").upper() == "ACTIVE"))
+            record.total_spend = sum(campaigns.mapped("spend"))
+            record.total_results = sum(campaigns.mapped("results"))
+            record.total_impressions = sum(campaigns.mapped("impressions"))
+            record.total_clicks = sum(campaigns.mapped("clicks"))
+
+    def action_open_campaigns(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Campañas",
+            "res_model": "marketing.meta.campaign",
+            "view_mode": "list,form",
+            "domain": [("account_id", "=", self.id), ("active", "=", True)],
+            "context": {"default_account_id": self.id},
+            "target": "current",
+        }
+
+    def action_sync_campaigns(self):
+        self.ensure_one()
+        proxy = self.env["project.marketing"].new({
+            "name": self.name or "Sincronización Meta",
+            "partner_id": self.env.company.partner_id.id,
+            "platform": "meta",
+            "ad_account_id": self.id,
+        })
+        proxy.action_sync_campaigns()
+        self.last_sync_at = fields.Datetime.now()
+        return True
 
 
 class MarketingMetaCampaign(models.Model):
@@ -349,11 +426,17 @@ class MarketingMetaCampaign(models.Model):
     issues_info_json = fields.Text(string="Issues Info JSON")
     status = fields.Char(string="Estado", compute="_compute_status", store=False)
     marketing_record_ids = fields.One2many("project.marketing", "campaign_id", string="Registros Marketing")
+    adset_ids = fields.One2many("marketing.meta.adset", "campaign_id", string="Conjuntos")
+    ad_ids = fields.One2many("marketing.meta.ad", "campaign_id", string="Anuncios")
     has_active_marketing_record = fields.Boolean(
         string="Tiene registro activo",
         compute="_compute_has_active_marketing_record",
         store=True,
     )
+    adset_count = fields.Integer(string="Conjuntos", compute="_compute_children_summary")
+    ad_count = fields.Integer(string="Anuncios", compute="_compute_children_summary")
+    active_ad_count = fields.Integer(string="Anuncios Activos", compute="_compute_children_summary")
+    last_sync_at = fields.Datetime(string="Última sincronización")
     raw_payload = fields.Text(string="Payload")
     active = fields.Boolean(default=True)
 
@@ -375,6 +458,13 @@ class MarketingMetaCampaign(models.Model):
         for record in self:
             record.has_active_marketing_record = any(record.marketing_record_ids.mapped("active"))
 
+    def _compute_children_summary(self):
+        for record in self:
+            ads = record.ad_ids.filtered("active")
+            record.adset_count = len(record.adset_ids.filtered("active"))
+            record.ad_count = len(ads)
+            record.active_ad_count = len(ads.filtered(lambda ad: (ad.effective_status or ad.configured_status or "").upper() == "ACTIVE"))
+
     def _write_meta_status(self, configured_status):
         _raise_meta_write_disabled()
 
@@ -383,6 +473,34 @@ class MarketingMetaCampaign(models.Model):
 
     def action_resume(self):
         self._write_meta_status("ACTIVE")
+
+    def action_open_adsets(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Conjuntos",
+            "res_model": "marketing.meta.adset",
+            "view_mode": "list,form",
+            "domain": [("campaign_id", "=", self.id), ("active", "=", True)],
+            "context": {"default_campaign_id": self.id, "default_account_id": self.account_id.id},
+            "target": "current",
+        }
+
+    def action_sync_adsets(self):
+        self.ensure_one()
+        proxy = self.env["project.marketing"].new({
+            "name": self.name or "Sincronización Meta",
+            "partner_id": self.env.company.partner_id.id,
+            "platform": "meta",
+            "ad_account_id": self.account_id.id,
+            "campaign_id": self.id,
+        })
+        proxy.action_sync_adsets()
+        now = fields.Datetime.now()
+        self.write({"last_sync_at": now})
+        if self.account_id:
+            self.account_id.last_sync_at = now
+        return True
 
 
 class MarketingMetaAdset(models.Model):
@@ -417,6 +535,23 @@ class MarketingMetaAdset(models.Model):
     recommendations_json = fields.Text(string="Recommendations JSON")
     issues_info_json = fields.Text(string="Issues Info JSON")
     learning_stage_info_json = fields.Text(string="Learning Stage Info JSON")
+    ad_ids = fields.One2many("marketing.meta.ad", "adset_id", string="Anuncios")
+    ad_count = fields.Integer(string="Anuncios", compute="_compute_ad_summary")
+    active_ad_count = fields.Integer(string="Anuncios Activos", compute="_compute_ad_summary")
+    spend = fields.Float(string="Spend")
+    reach = fields.Integer(string="Reach")
+    impressions = fields.Integer(string="Impressions")
+    frequency = fields.Float(string="Frequency")
+    result_action_type = fields.Char(string="Result Action Type")
+    results = fields.Float(string="Results")
+    cost_per_result = fields.Float(string="Cost Per Result")
+    clicks = fields.Integer(string="Clicks")
+    ctr = fields.Float(string="CTR")
+    cpc = fields.Float(string="CPC")
+    cpm = fields.Float(string="CPM")
+    actions_json = fields.Text(string="Actions JSON")
+    cost_per_action_type_json = fields.Text(string="Cost Per Action Type JSON")
+    last_sync_at = fields.Datetime(string="Última sincronización")
     raw_payload = fields.Text(string="Payload")
     active = fields.Boolean(default=True)
 
@@ -436,6 +571,47 @@ class MarketingMetaAdset(models.Model):
 
     def action_resume(self):
         self._write_meta_status("ACTIVE")
+
+    def _compute_ad_summary(self):
+        for record in self:
+            ads = record.ad_ids.filtered("active")
+            record.ad_count = len(ads)
+            record.active_ad_count = len(ads.filtered(lambda ad: (ad.effective_status or ad.configured_status or "").upper() == "ACTIVE"))
+
+    def action_open_ads(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Anuncios",
+            "res_model": "marketing.meta.ad",
+            "view_mode": "list,form",
+            "domain": [("adset_id", "=", self.id), ("active", "=", True)],
+            "context": {
+                "default_campaign_id": self.campaign_id.id,
+                "default_adset_id": self.id,
+                "default_account_id": self.account_id.id,
+            },
+            "target": "current",
+        }
+
+    def action_sync_ads(self):
+        self.ensure_one()
+        proxy = self.env["project.marketing"].new({
+            "name": self.name or "Sincronización Meta",
+            "partner_id": self.env.company.partner_id.id,
+            "platform": "meta",
+            "ad_account_id": self.account_id.id,
+            "campaign_id": self.campaign_id.id,
+            "adset_id": self.id,
+        })
+        proxy.action_sync_ads()
+        now = fields.Datetime.now()
+        self.write({"last_sync_at": now})
+        if self.campaign_id:
+            self.campaign_id.last_sync_at = now
+        if self.account_id:
+            self.account_id.last_sync_at = now
+        return True
 
 
 class MarketingMetaAd(models.Model):
@@ -479,6 +655,7 @@ class MarketingMetaAd(models.Model):
     cpm = fields.Float(string="CPM")
     actions_json = fields.Text(string="Actions JSON")
     cost_per_action_type_json = fields.Text(string="Cost Per Action Type JSON")
+    last_sync_at = fields.Datetime(string="Última sincronización")
     raw_payload = fields.Text(string="Payload")
     active = fields.Boolean(default=True)
 
@@ -712,7 +889,6 @@ class ProjectMarketing(models.Model):
         self.meta_ad_id = False
         if not self.ad_account_id:
             return
-        self.action_sync_campaigns()
 
     @api.onchange("adset_id")
     def _onchange_adset_id(self):
@@ -1275,7 +1451,9 @@ class ProjectMarketing(models.Model):
             if self.campaign_id and self.campaign_id.external_id == external_id:
                 self.campaign_status_manual = item.get("configured_status") or False
 
-        self.sync_date = fields.Datetime.now()
+        now = fields.Datetime.now()
+        self.ad_account_id.last_sync_at = now
+        self.sync_date = now
         return True
 
     def action_sync_campaign_metrics(self):
@@ -1295,7 +1473,10 @@ class ProjectMarketing(models.Model):
         if response.status_code != 200:
             raise ValidationError(f"No se pudieron actualizar las métricas: {data}")
 
-        self.campaign_id.sudo().write(_prepare_meta_insights_vals(data, objective=self.campaign_id.objective))
+        self.campaign_id.sudo().write({
+            **_prepare_meta_insights_vals(data, objective=self.campaign_id.objective),
+            "last_sync_at": fields.Datetime.now(),
+        })
         self.sync_date = fields.Datetime.now()
         return True
 
@@ -1342,7 +1523,7 @@ class ProjectMarketing(models.Model):
         url = f"https://graph.facebook.com/{api_version}/{self.campaign_id.external_id}/adsets"
         params = {
             "access_token": token,
-            "fields": "id,name,status,configured_status,effective_status,campaign_id,daily_budget,lifetime_budget,start_time,end_time,optimization_goal,billing_event,bid_strategy,destination_type,promoted_object,recommendations,issues_info,learning_stage_info,targeting{age_min,age_max,geo_locations{countries,cities,custom_locations},publisher_platforms,facebook_positions,instagram_positions,audience_network_positions,messenger_positions,interests,behaviors,life_events,flexible_spec,exclusions}",
+            "fields": "id,name,status,configured_status,effective_status,campaign_id,daily_budget,lifetime_budget,start_time,end_time,optimization_goal,billing_event,bid_strategy,destination_type,promoted_object,recommendations,issues_info,learning_stage_info,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type},targeting{age_min,age_max,geo_locations{countries,cities,custom_locations},publisher_platforms,facebook_positions,instagram_positions,audience_network_positions,messenger_positions,interests,behaviors,life_events,flexible_spec,exclusions}",
             "limit": 500,
         }
         response = requests.get(url, params=params, timeout=30)
@@ -1356,6 +1537,8 @@ class ProjectMarketing(models.Model):
             geo_locations = targeting.get("geo_locations") or {}
             countries = geo_locations.get("countries") or []
             cities = geo_locations.get("cities") or []
+            regions = geo_locations.get("regions") or []
+            zips = geo_locations.get("zips") or []
             custom_locations = geo_locations.get("custom_locations") or []
             location_bits = []
             detailed_bits = []
@@ -1365,6 +1548,22 @@ class ProjectMarketing(models.Model):
                 location_bits.append(
                     "Cities: %s" % ", ".join(
                         str(city.get("name") or city.get("key")) for city in cities if city.get("name") or city.get("key")
+                    )
+                )
+            if regions:
+                location_bits.append(
+                    "Regions: %s" % ", ".join(
+                        str(region.get("name") or region.get("key"))
+                        for region in regions
+                        if region.get("name") or region.get("key")
+                    )
+                )
+            if zips:
+                location_bits.append(
+                    "Zips: %s" % ", ".join(
+                        str(zip_code.get("name") or zip_code.get("key"))
+                        for zip_code in zips
+                        if zip_code.get("name") or zip_code.get("key")
                     )
                 )
             if custom_locations:
@@ -1377,6 +1576,10 @@ class ProjectMarketing(models.Model):
                         )
                         for loc in custom_locations
                     )
+                )
+            if not location_bits and geo_locations:
+                location_bits.append(
+                    "Geo: %s" % json.dumps(geo_locations, ensure_ascii=False)
                 )
             for key, label in (
                 ("interests", "Interests"),
@@ -1455,6 +1658,7 @@ class ProjectMarketing(models.Model):
                 "learning_stage_info_json": json.dumps(item.get("learning_stage_info"), indent=2, ensure_ascii=False) if item.get("learning_stage_info") else False,
                 "raw_payload": json.dumps(item),
             }
+            vals.update(_prepare_meta_insights_vals(item, objective=self.campaign_id.objective))
             existing = Adset.search([
                 ("external_id", "=", item.get("id")),
                 ("campaign_id", "=", self.campaign_id.id),
@@ -1464,7 +1668,11 @@ class ProjectMarketing(models.Model):
             else:
                 Adset.create(vals)
 
-        self.sync_date = fields.Datetime.now()
+        now = fields.Datetime.now()
+        self.campaign_id.last_sync_at = now
+        if self.ad_account_id:
+            self.ad_account_id.last_sync_at = now
+        self.sync_date = now
         return True
 
     def action_duplicate_adset_whatsapp(self):
@@ -1533,11 +1741,19 @@ class ProjectMarketing(models.Model):
         url = f"https://graph.facebook.com/{api_version}/{self.adset_id.external_id}/ads"
         params = {
             "access_token": token,
-            "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,insights.date_preset(maximum){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type},creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
+            "fields": "id,name,status,configured_status,effective_status,recommendations,issues_info,ad_review_feedback,insights.date_preset(last_30d){spend,reach,impressions,frequency,clicks,ctr,cpc,cpm,actions,cost_per_action_type},creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
             "limit": 500,
         }
         response = requests.get(url, params=params, timeout=30)
         data = response.json()
+        if response.status_code != 200 and _is_meta_timeout_error(data):
+            fallback_params = {
+                "access_token": token,
+                "fields": "id,name,status,configured_status,effective_status,creative{id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec},preview_shareable_link,campaign{id}",
+                "limit": 200,
+            }
+            response = requests.get(url, params=fallback_params, timeout=30)
+            data = response.json()
         if response.status_code != 200:
             raise ValidationError(f"No se pudieron sincronizar anuncios: {data}")
 
@@ -1576,7 +1792,9 @@ class ProjectMarketing(models.Model):
                 "ad_review_feedback_json": json.dumps(item.get("ad_review_feedback"), ensure_ascii=False) if item.get("ad_review_feedback") else False,
                 "raw_payload": json.dumps(item),
             }
-            vals.update(_prepare_meta_insights_vals(item, objective=self.campaign_id.objective))
+            if item.get("insights"):
+                vals.update(_prepare_meta_insights_vals(item, objective=self.campaign_id.objective))
+            vals["last_sync_at"] = fields.Datetime.now()
             existing = Ad.search([
                 ("external_id", "=", item.get("id")),
                 ("adset_id", "=", self.adset_id.id),
@@ -1586,7 +1804,13 @@ class ProjectMarketing(models.Model):
             else:
                 Ad.create(vals)
 
-        self.sync_date = fields.Datetime.now()
+        now = fields.Datetime.now()
+        self.adset_id.last_sync_at = now
+        if self.campaign_id:
+            self.campaign_id.last_sync_at = now
+        if self.ad_account_id:
+            self.ad_account_id.last_sync_at = now
+        self.sync_date = now
         return True
 
     def action_create_ad(self):
@@ -2007,8 +2231,6 @@ class ProjectMarketingImportWizard(models.TransientModel):
         self.campaign_id = False
         self.adset_id = False
         self.meta_ad_id = False
-        if self.ad_account_id:
-            self._build_marketing_sync_proxy().action_sync_campaigns()
 
     @api.onchange("task_id")
     def _onchange_task_id(self):
@@ -2022,16 +2244,12 @@ class ProjectMarketingImportWizard(models.TransientModel):
         self.meta_ad_id = False
         if self.campaign_id and not self.name:
             self.name = self.campaign_id.name
-        if self.campaign_id:
-            self._build_marketing_sync_proxy().action_sync_adsets()
 
     @api.onchange("adset_id")
     def _onchange_adset_id(self):
         self.meta_ad_id = False
         if self.adset_id and not self.name:
             self.name = self.adset_id.name
-        if self.adset_id:
-            self._build_marketing_sync_proxy().action_sync_ads()
 
     @api.onchange("meta_ad_id")
     def _onchange_meta_ad_id(self):
