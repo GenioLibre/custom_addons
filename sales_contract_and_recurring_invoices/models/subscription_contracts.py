@@ -50,6 +50,7 @@ class SubscriptionContracts(models.Model):
         ('New', 'New'),
         ('Ongoing', 'Ongoing'),
         ('Expire Soon', 'Expire Soon'),
+        ('Expired Not Paid', 'Expired Not Paid'),
         ('Expired', 'Expired'),
         ('Cancelled', 'Cancelled'),
     ], string='Stage', default='New', copy=False, tracking=True, readonly=True,
@@ -184,12 +185,12 @@ class SubscriptionContracts(models.Model):
                 continue
 
             if record.next_invoice_date < today:
-                record.state = 'Expired'
+                record.state = 'Expired Not Paid'
                 continue
 
             if record.contract_reminder:
                 reminder_limit = today + relativedelta(days=record.contract_reminder)
-                if record.next_invoice_date <= reminder_limit:
+                if today <= record.next_invoice_date <= reminder_limit:
                     record.state = 'Expire Soon'
                     continue
 

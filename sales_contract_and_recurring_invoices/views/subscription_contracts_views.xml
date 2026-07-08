@@ -25,7 +25,7 @@
             <form>
                 <header>
                     <field name="state" widget='statusbar'
-                           statusbar_visible='New,Ongoing,Expire Soon,Expired'/>
+                           statusbar_visible='New,Ongoing,Expire Soon,Expired Not Paid,Expired'/>
                     <button name="action_to_confirm" class="oe_highlight"
                             string="Confirm" type="object"
                             help="Confirm your Subscription Contracts"
@@ -47,7 +47,7 @@
                         <button class="oe_stat_button" type="object"
                                 name="action_get_invoice"
                                 icon="fa-pencil-square-o"
-                                invisible="state not in ('Ongoing', 'Expire Soon', 'Expired')"
+                                invisible="state not in ('Ongoing', 'Expire Soon', 'Expired', 'Expired Not Paid')"
                         >
                             <field string="Invoices"
                                    name="invoice_count" widget="statinfo"
@@ -140,7 +140,7 @@
                        decoration-success="state == 'Ongoing'"
                        decoration-warning="state =='Expire Soon'"
                        decoration-info="state =='New'"
-                       decoration-danger="state in('Cancelled','Expired')"/>
+                       decoration-danger="state in('Cancelled','Expired','Expired Not Paid')"/>
                 <field name="amount_total"/>
             </list>
         </field>
