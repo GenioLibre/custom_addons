@@ -534,13 +534,15 @@ class IemChurchMemberList(models.Model):
         boolean_title = self.boolean_extra_label or _("Sí/No")
         amount_title = self.amount_extra_label or _("Monto")
         text_title = self.text_extra_label or _("Texto")
-        extra_headers = [boolean_title, amount_title, text_title]
+        image_title = self.image_extra_label or _("Imagen")
+        extra_headers = [boolean_title, amount_title, text_title, image_title]
         values_by_member = {}
         for line in self.member_line_ids:
             values_by_member[line.member_id.id] = [
                 _("Sí") if line.extra_boolean else _("No"),
                 line.extra_amount or 0.0,
                 line.extra_text or "",
+                {"type": "image", "value": line.extra_image} if line.extra_image else "",
             ]
         return self.env["church.member"]._export_basic_list_xlsx(
             members,

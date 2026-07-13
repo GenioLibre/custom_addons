@@ -838,9 +838,12 @@ class ChurchMember(models.Model):
             ]
             if extra_headers:
                 extra_vals = (extra_values_by_member or {}).get(member.id, [])
-                row_vals.extend(extra_vals[: len(extra_headers)])
-                if len(extra_vals) < len(extra_headers):
-                    row_vals.extend([""] * (len(extra_headers) - len(extra_vals)))
+                normalized_extra_vals = list(extra_vals[: len(extra_headers)])
+                if len(normalized_extra_vals) < len(extra_headers):
+                    normalized_extra_vals.extend([""] * (len(extra_headers) - len(normalized_extra_vals)))
+                row_vals.extend(normalized_extra_vals)
+
+            row_height = None
             for col, val in enumerate(row_vals):
                 if col == 4 and member.birth_date:
                     worksheet.write_datetime(
@@ -849,11 +852,46 @@ class ChurchMember(models.Model):
                         datetime.combine(member.birth_date, datetime.min.time()),
                         date_fmt,
                     )
+                elif (
+                    col >= 13
+                    and isinstance(val, dict)
+                    and val.get("type") == "image"
+                    and val.get("value")
+                ):
+                    image_bytes = base64.b64decode(val["value"])
+                    image_stream = io.BytesIO(image_bytes)
+                    worksheet.write(row_idx, col, "")
+                    worksheet.insert_image(
+                        row_idx,
+                        col,
+                        "imagen.png",
+                        {
+                            "image_data": image_stream,
+                            "x_scale": 0.45,
+                            "y_scale": 0.45,
+                            "x_offset": 2,
+                            "y_offset": 2,
+                            "object_position": 1,
+                        },
+                    )
+                    row_height = max(row_height or 0, 50)
                 else:
                     worksheet.write(row_idx, col, val)
+            if row_height:
+                worksheet.set_row(row_idx, row_height)
             row_idx += 1
 
         worksheet.set_column(0, 12, 20)
+        for col, title in enumerate(headers[13:], start=13):
+            extra_index = col - 13
+            column_has_images = any(
+                isinstance((extra_values_by_member or {}).get(member.id, [])[extra_index], dict)
+                and (extra_values_by_member or {}).get(member.id, [])[extra_index].get("type") == "image"
+                for member in members
+                if len((extra_values_by_member or {}).get(member.id, [])) > extra_index
+            )
+            if column_has_images:
+                worksheet.set_column(col, col, 18)
         workbook.close()
         xlsx_data = output.getvalue()
         filename = filename or f"lista_membresia_{fields.Date.to_string(today)}.xlsx"
