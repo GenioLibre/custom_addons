@@ -3,6 +3,7 @@ import io
 import random
 import requests
 from datetime import datetime
+from PIL import Image
 import xlsxwriter
 
 from odoo import api, fields, models, _
@@ -860,6 +861,15 @@ class ChurchMember(models.Model):
                 ):
                     image_bytes = base64.b64decode(val["value"])
                     image_stream = io.BytesIO(image_bytes)
+                    with Image.open(io.BytesIO(image_bytes)) as img:
+                        width_px, height_px = img.size
+                    max_width_px = 120
+                    max_height_px = 133
+                    scale = min(
+                        max_width_px / width_px if width_px else 1,
+                        max_height_px / height_px if height_px else 1,
+                        1,
+                    )
                     worksheet.write(row_idx, col, "")
                     worksheet.insert_image(
                         row_idx,
@@ -867,14 +877,14 @@ class ChurchMember(models.Model):
                         "imagen.png",
                         {
                             "image_data": image_stream,
-                            "x_scale": 0.45,
-                            "y_scale": 0.45,
+                            "x_scale": scale,
+                            "y_scale": scale,
                             "x_offset": 2,
                             "y_offset": 2,
                             "object_position": 1,
                         },
                     )
-                    row_height = max(row_height or 0, 50)
+                    row_height = max(row_height or 0, 100)
                 else:
                     worksheet.write(row_idx, col, val)
             if row_height:
