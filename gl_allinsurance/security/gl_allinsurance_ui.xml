@@ -6,9 +6,5 @@
     <menuitem id="base.menu_third_party" groups="base.group_system"/>
     <menuitem id="base.menu_theme_store" groups="base.group_system"/>
 
-    <record id="base.open_module_tree" model="ir.actions.act_window">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
-
     <menuitem id="menu_gl_workflow_root" groups="base.group_system"/>
 </odoo>
