@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_gl_workflow_user,access.gl.workflow.user,model_gl_workflow,base.group_user,1,1,1,1
+access_gl_workflow_pending_user,access.gl.workflow.pending.user,model_gl_workflow_pending,base.group_user,1,1,1,1
+access_gl_email_template_user,access.gl.email.template.user,model_gl_email_template,base.group_user,1,1,1,1
+access_gl_workflow_history_user,access.gl.workflow.history.user,model_gl_workflow_history,base.group_user,1,1,1,1

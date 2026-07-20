@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_gl_workflow_search" model="ir.ui.view">
+        <field name="name">gl.workflow.search</field>
+        <field name="model">gl.workflow</field>
+        <field name="arch" type="xml">
+            <search string="Work Flow">
+                <field name="quote_number"/>
+                <field name="partner_id"/>
+                <field name="workflow_type"/>
+                <field name="processor_id"/>
+                <field name="processing_status"/>
+                <filter string="My Records" name="my_records" domain="[('processor_id', '=', uid)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Type" name="group_type" context="{'group_by': 'workflow_type'}"/>
+                    <filter string="Processor" name="group_processor" context="{'group_by': 'processor_id'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by': 'processing_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_gl_workflow_tree" model="ir.ui.view">
+        <field name="name">gl.workflow.tree</field>
+        <field name="model">gl.workflow</field>
+        <field name="arch" type="xml">
+            <list string="Work Flow">
+                <field name="quote_number"/>
+                <field name="quote_date"/>
+                <field name="partner_id"/>
+                <field name="workflow_type"/>
+                <field name="team_source"/>
+                <field name="client_proceeding"/>
+                <field name="letter_template_id"/>
+                <field name="processor_id"/>
+                <field name="processing_status"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gl_workflow_form" model="ir.ui.view">
+        <field name="name">gl.workflow.form</field>
+        <field name="model">gl.workflow</field>
+        <field name="arch" type="xml">
+            <form string="Work Flow">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="quote_number"/>
+                            <field name="quote_date"/>
+                            <field name="partner_id"/>
+                            <field name="workflow_type"/>
+                            <field name="quote_request_date"/>
+                            <field name="premium_quote"/>
+                            <field name="quote_sent"/>
+                            <field name="closing_remodel"/>
+                        </group>
+                        <group>
+                            <field name="team_source"/>
+                            <field name="client_proceeding"/>
+                            <field name="letter_template_id"/>
+                            <field name="date_sent"/>
+                            <field name="processor_id"/>
+                            <field name="send_yes_no"/>
+                            <field name="added_to_home_processing"/>
+                            <field name="processing_status"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Pendientes">
+                            <field name="pending_ids" context="{'default_workflow_id': id}">
+                                <list editable="bottom">
+                                    <field name="date_received"/>
+                                    <field name="processor_id"/>
+                                    <field name="status"/>
+                                    <field name="follow_up_date"/>
+                                    <field name="notes"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes / History">
+                            <field name="history_line_ids" context="{'default_workflow_id': id}">
+                                <list editable="bottom">
+                                    <field name="title"/>
+                                    <field name="history_date"/>
+                                    <field name="user_id"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_gl_workflow" model="ir.actions.act_window">
+        <field name="name">Work Flow</field>
+        <field name="res_model">gl.workflow</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_gl_workflow_search"/>
+    </record>
+
+    <record id="view_gl_workflow_pending_search" model="ir.ui.view">
+        <field name="name">gl.workflow.pending.search</field>
+        <field name="model">gl.workflow.pending</field>
+        <field name="arch" type="xml">
+            <search string="Pendientes">
+                <field name="workflow_id"/>
+                <field name="quote_number"/>
+                <field name="partner_id"/>
+                <field name="processor_id"/>
+                <field name="status"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_gl_workflow_pending_tree" model="ir.ui.view">
+        <field name="name">gl.workflow.pending.tree</field>
+        <field name="model">gl.workflow.pending</field>
+        <field name="arch" type="xml">
+            <list string="Pendientes">
+                <field name="date_received"/>
+                <field name="workflow_id"/>
+                <field name="quote_number"/>
+                <field name="partner_id"/>
+                <field name="letter_template_id"/>
+                <field name="processor_id"/>
+                <field name="status"/>
+                <field name="follow_up_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gl_workflow_pending_form" model="ir.ui.view">
+        <field name="name">gl.workflow.pending.form</field>
+        <field name="model">gl.workflow.pending</field>
+        <field name="arch" type="xml">
+            <form string="Pendiente">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="workflow_id"/>
+                            <field name="date_received"/>
+                            <field name="quote_number" readonly="1"/>
+                            <field name="partner_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="letter_template_id" readonly="1"/>
+                            <field name="processor_id"/>
+                            <field name="status"/>
+                            <field name="follow_up_date"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_gl_workflow_pending" model="ir.actions.act_window">
+        <field name="name">Pendientes</field>
+        <field name="res_model">gl.workflow.pending</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_gl_workflow_pending_search"/>
+    </record>
+
+    <record id="view_gl_email_template_search" model="ir.ui.view">
+        <field name="name">gl.email.template.search</field>
+        <field name="model">gl.email.template</field>
+        <field name="arch" type="xml">
+            <search string="Email Templates">
+                <field name="letter_number"/>
+                <field name="name"/>
+                <field name="letter_type"/>
+                <field name="insurance_type"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_gl_email_template_tree" model="ir.ui.view">
+        <field name="name">gl.email.template.tree</field>
+        <field name="model">gl.email.template</field>
+        <field name="arch" type="xml">
+            <list string="Email Templates">
+                <field name="letter_number"/>
+                <field name="name"/>
+                <field name="letter_type"/>
+                <field name="insurance_type"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gl_email_template_form" model="ir.ui.view">
+        <field name="name">gl.email.template.form</field>
+        <field name="model">gl.email.template</field>
+        <field name="arch" type="xml">
+            <form string="Email Template">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="letter_number"/>
+                            <field name="name"/>
+                            <field name="letter_type"/>
+                        </group>
+                        <group>
+                            <field name="insurance_type"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="subject"/>
+                    </group>
+                    <group>
+                        <field name="attachment_ids" widget="many2many_binary"/>
+                    </group>
+                    <group>
+                        <field name="body_html"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_gl_email_template" model="ir.actions.act_window">
+        <field name="name">Email Templates</field>
+        <field name="res_model">gl.email.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_gl_email_template_search"/>
+    </record>
+
+    <record id="view_gl_workflow_history_tree" model="ir.ui.view">
+        <field name="name">gl.workflow.history.tree</field>
+        <field name="model">gl.workflow.history</field>
+        <field name="arch" type="xml">
+            <list string="Workflow History">
+                <field name="history_date"/>
+                <field name="workflow_id"/>
+                <field name="title"/>
+                <field name="user_id"/>
+                <field name="note"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gl_workflow_history_form" model="ir.ui.view">
+        <field name="name">gl.workflow.history.form</field>
+        <field name="model">gl.workflow.history</field>
+        <field name="arch" type="xml">
+            <form string="Workflow History">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="workflow_id"/>
+                            <field name="title"/>
+                        </group>
+                        <group>
+                            <field name="history_date"/>
+                            <field name="user_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="note"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_gl_workflow_history" model="ir.actions.act_window">
+        <field name="name">History</field>
+        <field name="res_model">gl.workflow.history</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_gl_workflow_root" name="Workflow" sequence="10"/>
+    <menuitem id="menu_gl_workflow" name="Work Flow" parent="menu_gl_workflow_root" action="action_gl_workflow" sequence="10"/>
+    <menuitem id="menu_gl_workflow_pending" name="Pendientes" parent="menu_gl_workflow_root" action="action_gl_workflow_pending" sequence="20"/>
+    <menuitem id="menu_gl_email_template" name="Email Templates" parent="menu_gl_workflow_root" action="action_gl_email_template" sequence="30"/>
+    <menuitem id="menu_gl_workflow_history" name="History" parent="menu_gl_workflow_root" action="action_gl_workflow_history" sequence="40"/>
+</odoo>
