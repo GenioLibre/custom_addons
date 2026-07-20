@@ -83,7 +83,7 @@ class GlWorkflow(models.Model):
         domain="[('share', '=', False)]",
         tracking=True,
     )
-    pending_ids = fields.One2many("gl.workflow.pending", "workflow_id", string="Pendientes")
+    pending_ids = fields.One2many("gl.workflow.pending", "workflow_id", string="Pending")
     history_line_ids = fields.One2many("gl.workflow.history", "workflow_id", string="Notes / History")
 
     _sql_constraints = [
@@ -93,7 +93,7 @@ class GlWorkflow(models.Model):
 
 class GlWorkflowPending(models.Model):
     _name = "gl.workflow.pending"
-    _description = "Pendientes"
+    _description = "Pending"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_received desc, id desc"
 
@@ -166,9 +166,10 @@ class GlWorkflowHistory(models.Model):
     user_id = fields.Many2one("res.users", string="User", default=lambda self: self.env.user, required=True)
     note = fields.Text(string="Note")
 
-    @api.model
-    def create(self, vals):
-        if not vals.get("title") and vals.get("workflow_id"):
-            workflow = self.env["gl.workflow"].browse(vals["workflow_id"])
-            vals["title"] = f"History - {workflow.quote_number}"
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get("title") and vals.get("workflow_id"):
+                workflow = self.env["gl.workflow"].browse(vals["workflow_id"])
+                vals["title"] = f"History - {workflow.quote_number}"
+        return super().create(vals_list)

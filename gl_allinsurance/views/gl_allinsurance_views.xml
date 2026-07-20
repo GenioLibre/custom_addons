@@ -47,7 +47,7 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Pendientes">
+                        <page string="Pending">
                             <field name="pending_ids" context="{'default_workflow_id': id}">
                                 <list editable="bottom">
                                     <field name="date_received"/>
@@ -86,7 +86,7 @@
         <field name="model">gl.workflow.pending</field>
         <field name="type">search</field>
         <field name="arch" type="xml">
-            <search string="Pendientes">
+            <search string="Pending">
                 <field name="workflow_id"/>
                 <field name="quote_number"/>
                 <field name="partner_id"/>
@@ -100,7 +100,7 @@
         <field name="name">gl.workflow.pending.tree</field>
         <field name="model">gl.workflow.pending</field>
         <field name="arch" type="xml">
-            <list string="Pendientes">
+            <list string="Pending">
                 <field name="date_received"/>
                 <field name="workflow_id"/>
                 <field name="quote_number"/>
@@ -117,7 +117,7 @@
         <field name="name">gl.workflow.pending.form</field>
         <field name="model">gl.workflow.pending</field>
         <field name="arch" type="xml">
-            <form string="Pendiente">
+            <form string="Pending">
                 <sheet>
                     <group>
                         <group>
@@ -143,7 +143,7 @@
     </record>
 
     <record id="action_gl_workflow_pending" model="ir.actions.act_window">
-        <field name="name">Pendientes</field>
+        <field name="name">Pending</field>
         <field name="res_model">gl.workflow.pending</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_gl_workflow_pending_search"/>
@@ -263,7 +263,7 @@
 
     <menuitem id="menu_gl_workflow_root" name="Workflow" sequence="10"/>
     <menuitem id="menu_gl_workflow" name="Work Flow" parent="menu_gl_workflow_root" action="action_gl_workflow" sequence="10"/>
-    <menuitem id="menu_gl_workflow_pending" name="Pendientes" parent="menu_gl_workflow_root" action="action_gl_workflow_pending" sequence="20"/>
+    <menuitem id="menu_gl_workflow_pending" name="Pending" parent="menu_gl_workflow_root" action="action_gl_workflow_pending" sequence="20"/>
     <menuitem id="menu_gl_email_template" name="Email Templates" parent="menu_gl_workflow_root" action="action_gl_email_template" sequence="30"/>
     <menuitem id="menu_gl_workflow_history" name="History" parent="menu_gl_workflow_root" action="action_gl_workflow_history" sequence="40"/>
 </odoo>
