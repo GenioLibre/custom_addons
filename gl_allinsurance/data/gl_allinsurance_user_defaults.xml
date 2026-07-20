@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <function model="res.users" name="write">
+        <value model="res.users" search="[('id', '=', ref('base.default_user'))]"/>
+        <value eval="{'action_id': ref('gl_allinsurance.action_gl_workflow')}"/>
+    </function>
+
+    <function model="res.users" name="write">
+        <value model="res.users" search="[('share', '=', False)]"/>
+        <value eval="{'action_id': ref('gl_allinsurance.action_gl_workflow')}"/>
+    </function>
+</odoo>

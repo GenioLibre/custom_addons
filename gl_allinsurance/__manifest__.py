@@ -14,7 +14,9 @@
     "depends": ["base", "mail", "contacts"],
     "data": [
         "security/ir.model.access.csv",
+        "security/gl_allinsurance_ui.xml",
         "views/gl_allinsurance_views.xml",
+        "data/gl_allinsurance_user_defaults.xml",
     ],
     "demo": [],
 }
