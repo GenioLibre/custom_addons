@@ -69,7 +69,7 @@ class GlWorkflow(models.Model):
     client_proceeding = fields.Selection(PROCEEDING_SELECTION, string="Client Proceeding?", tracking=True)
     letter_template_id = fields.Many2one("gl.email.template", string="Letter # / Type", tracking=True)
     date_sent = fields.Date(string="Date Sent", tracking=True)
-    send_yes_no = fields.Selection(YES_NO_SELECTION, string="Send Yes or No", tracking=True)
+    send_yes_no = fields.Selection(YES_NO_SELECTION, string="Send Quote Email", tracking=True)
     added_to_home_processing = fields.Boolean(string="Added to Home Processing", tracking=True)
     processing_status = fields.Selection(
         PROCESSING_STATUS_SELECTION,
@@ -89,6 +89,10 @@ class GlWorkflow(models.Model):
     _sql_constraints = [
         ("gl_workflow_quote_number_unique", "unique(quote_number)", "Quote # must be unique."),
     ]
+
+    def action_confirm_quote_email(self):
+        self.ensure_one()
+        return True
 
 
 class GlWorkflowPending(models.Model):

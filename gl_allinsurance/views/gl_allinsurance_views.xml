@@ -42,6 +42,11 @@
                             <field name="date_sent"/>
                             <field name="processor_id"/>
                             <field name="send_yes_no"/>
+                            <button name="action_confirm_quote_email"
+                                    string="Send Quote Email"
+                                    type="object"
+                                    class="btn-primary"
+                                    confirm="Aqui se enviara el email [Letter # / Type]"/>
                             <field name="added_to_home_processing"/>
                             <field name="processing_status"/>
                         </group>
