@@ -1,30 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="base.menu_apps" model="ir.ui.menu">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
-
-    <record id="base.menu_module_tree" model="ir.ui.menu">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
+    <menuitem id="base.menu_apps" groups="base.group_system"/>
+    <menuitem id="base.menu_module_tree" groups="base.group_system"/>
+    <menuitem id="base.menu_management" groups="base.group_system"/>
+    <menuitem id="base.menu_third_party" groups="base.group_system"/>
+    <menuitem id="base.menu_theme_store" groups="base.group_system"/>
 
     <record id="base.open_module_tree" model="ir.actions.act_window">
         <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
     </record>
 
-    <record id="base.menu_management" model="ir.ui.menu">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
-
-    <record id="base.menu_third_party" model="ir.ui.menu">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
-
-    <record id="base.menu_theme_store" model="ir.ui.menu">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
-
-    <record id="menu_gl_workflow_root" model="ir.ui.menu">
-        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
-    </record>
+    <menuitem id="menu_gl_workflow_root" groups="base.group_system"/>
 </odoo>
