@@ -177,3 +177,20 @@ class GlWorkflowHistory(models.Model):
                 workflow = self.env["gl.workflow"].browse(vals["workflow_id"])
                 vals["title"] = f"History - {workflow.quote_number}"
         return super().create(vals_list)
+
+
+class ResUsers(models.Model):
+    _inherit = "res.users"
+
+    @api.model
+    def set_workflow_home_action(self):
+        action = self.env.ref("gl_allinsurance.action_gl_workflow", raise_if_not_found=False)
+        if not action:
+            return True
+
+        users = self.search([("share", "=", False)])
+        default_user = self.env.ref("base.default_user", raise_if_not_found=False)
+        if default_user:
+            users |= default_user
+        users.write({"action_id": action.id})
+        return True
