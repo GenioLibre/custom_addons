@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_gl_clinic_dashboard_reception,gl.clinic.dashboard.reception,model_gl_clinic_dashboard,group_gl_clinic_reception,1,0,0,0
+access_gl_clinic_dashboard_admin,gl.clinic.dashboard.admin,model_gl_clinic_dashboard,group_gl_clinic_admin,1,1,1,1
+access_gl_clinic_patient_reception,gl.clinic.patient.reception,model_gl_clinic_patient,group_gl_clinic_reception,1,1,1,0
+access_gl_clinic_patient_doctor,gl.clinic.patient.doctor,model_gl_clinic_patient,group_gl_clinic_doctor,1,0,0,0
+access_gl_clinic_patient_admin,gl.clinic.patient.admin,model_gl_clinic_patient,group_gl_clinic_admin,1,1,1,1
+access_gl_clinic_history_reception,gl.clinic.medical.history.reception,model_gl_clinic_medical_history,group_gl_clinic_reception,1,1,1,0
+access_gl_clinic_history_doctor,gl.clinic.medical.history.doctor,model_gl_clinic_medical_history,group_gl_clinic_doctor,1,1,1,0
+access_gl_clinic_history_admin,gl.clinic.medical.history.admin,model_gl_clinic_medical_history,group_gl_clinic_admin,1,1,1,1
+access_gl_clinic_medicine_reception,gl.clinic.medicine.reception,model_gl_clinic_medicine,group_gl_clinic_reception,1,0,0,0
+access_gl_clinic_medicine_doctor,gl.clinic.medicine.doctor,model_gl_clinic_medicine,group_gl_clinic_doctor,1,1,1,0
+access_gl_clinic_medicine_admin,gl.clinic.medicine.admin,model_gl_clinic_medicine,group_gl_clinic_admin,1,1,1,1

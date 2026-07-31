@@ -1,0 +1,66 @@
+<odoo>
+    <record id="action_report_gl_clinic_medical_history" model="ir.actions.report">
+        <field name="name">Historia clínica</field>
+        <field name="model">gl.clinic.medical.history</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">gl_clinic_management.report_gl_clinic_medical_history</field>
+        <field name="report_file">gl_clinic_management.report_gl_clinic_medical_history</field>
+        <field name="binding_model_id" ref="model_gl_clinic_medical_history"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_gl_clinic_medical_history">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Historia clínica</h2>
+                        <p><strong>Número:</strong> <span t-field="doc.name"/></p>
+                        <h3>Datos del paciente</h3>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr><td><strong>DNI</strong></td><td><span t-field="doc.patient_document_number"/></td></tr>
+                                <tr><td><strong>Paciente</strong></td><td><span t-field="doc.patient_id.full_name"/></td></tr>
+                                <tr><td><strong>Edad</strong></td><td><span t-field="doc.patient_id.age"/></td></tr>
+                                <tr><td><strong>Sexo</strong></td><td><span t-field="doc.patient_id.sex"/></td></tr>
+                                <tr><td><strong>Teléfono</strong></td><td><span t-field="doc.patient_id.phone"/></td></tr>
+                            </tbody>
+                        </table>
+                        <h3>Atención</h3>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr><td><strong>Fecha y hora</strong></td><td><span t-field="doc.attention_date"/></td></tr>
+                                <tr><td><strong>Médico responsable</strong></td><td><span t-field="doc.doctor_id.name"/></td></tr>
+                                <tr><td><strong>Peso</strong></td><td><span t-field="doc.weight"/> kg</td></tr>
+                                <tr><td><strong>Talla</strong></td><td><span t-field="doc.height"/> m</td></tr>
+                                <tr><td><strong>IMC</strong></td><td><span t-field="doc.bmi"/> - <span t-field="doc.bmi_classification"/></td></tr>
+                            </tbody>
+                        </table>
+                        <h3>Detalle clínico</h3>
+                        <p><strong>Motivo de consulta</strong><br/><span t-field="doc.consultation_reason"/></p>
+                        <p><strong>Historia actual</strong><br/><span t-field="doc.current_illness"/></p>
+                        <p><strong>Examen físico</strong><br/><span t-field="doc.physical_exam"/></p>
+                        <p><strong>Exámenes y resultados</strong><br/><span t-field="doc.tests_results"/></p>
+                        <p><strong>Diagnóstico</strong><br/><span t-field="doc.diagnosis"/></p>
+                        <p><strong>Plan o tratamiento</strong><br/><span t-field="doc.treatment_plan"/></p>
+                        <p><strong>Notas</strong><br/><span t-field="doc.additional_notes"/></p>
+                        <h3>Archivos adjuntos</h3>
+                        <ul>
+                            <t t-foreach="doc.attachment_ids" t-as="attachment">
+                                <li><span t-field="attachment.name"/></li>
+                            </t>
+                        </ul>
+                        <div class="row mt64">
+                            <div class="col-6">
+                                <p>Fecha de impresión: <span t-out="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y %H:%M')"/></p>
+                            </div>
+                            <div class="col-6 text-center">
+                                <p style="margin-top: 70px; border-top: 1px solid #000;">Firma y sello del médico</p>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,42 @@
+<odoo>
+    <menuitem id="menu_gl_clinic_root"
+              name="Historias Clínicas"
+              sequence="35"
+              groups="gl_clinic_management.group_gl_clinic_reception,gl_clinic_management.group_gl_clinic_doctor,gl_clinic_management.group_gl_clinic_admin"/>
+
+    <menuitem id="menu_gl_clinic_dashboard"
+              name="Panel"
+              parent="menu_gl_clinic_root"
+              action="action_gl_clinic_dashboard"
+              sequence="10"/>
+
+    <menuitem id="menu_gl_clinic_data"
+              name="Datos"
+              parent="menu_gl_clinic_root"
+              sequence="30"/>
+
+    <menuitem id="menu_gl_clinic_patient"
+              name="Pacientes"
+              parent="menu_gl_clinic_root"
+              action="action_gl_clinic_patient"
+              sequence="20"/>
+
+    <menuitem id="menu_gl_clinic_history"
+              name="Historias clínicas"
+              parent="menu_gl_clinic_data"
+              action="action_gl_clinic_medical_history"
+              sequence="30"/>
+
+    <menuitem id="menu_gl_clinic_medicine"
+              name="Medicinas"
+              parent="menu_gl_clinic_data"
+              action="action_gl_clinic_medicine"
+              sequence="50"/>
+
+    <menuitem id="menu_gl_clinic_configuration"
+              name="Configuración"
+              parent="menu_gl_clinic_root"
+              action="action_gl_clinic_config_settings"
+              groups="gl_clinic_management.group_gl_clinic_admin"
+              sequence="90"/>
+</odoo>

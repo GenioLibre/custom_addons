@@ -1,0 +1,31 @@
+<odoo>
+    <record id="res_config_settings_view_form_gl_clinic" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.gl.clinic</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Clínica"
+                     string="Clínica"
+                     name="gl_clinic_management">
+                    <block title="Tipos de usuario">
+                        <setting string="Recepción"
+                                 help="Puede registrar y editar pacientes, crear historias clínicas y ver medicinas. No puede borrar registros."/>
+                        <setting string="Médico"
+                                 help="Puede ver pacientes, crear/editar historias clínicas, confirmar historias y gestionar medicinas. No puede borrar."/>
+                        <setting string="Administrador clínico"
+                                 help="Tiene acceso completo al módulo: pacientes, historias clínicas, medicinas, configuración y puede borrar registros. También puede volver historias confirmadas a borrador."/>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_gl_clinic_config_settings" model="ir.actions.act_window">
+        <field name="name">Configuración</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'gl_clinic_management'}</field>
+    </record>
+</odoo>

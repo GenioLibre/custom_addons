@@ -1,0 +1,61 @@
+.gl_clinic_dashboard {
+    .gl_clinic_dashboard_sheet {
+        max-width: none;
+        width: 100%;
+    }
+
+    .gl_clinic_stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+    }
+
+    .gl_clinic_stat {
+        border: 1px solid var(--border-color, #d8dadd);
+        border-radius: 6px;
+        background: var(--o-view-background-color, #fff);
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-height: 84px;
+        padding: 14px;
+        text-align: left;
+    }
+
+    .gl_clinic_stat strong {
+        font-size: 22px;
+        line-height: 1.2;
+    }
+
+    .gl_clinic_quick_actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0 20px;
+    }
+}
+
+.gl_voice_dictation {
+    width: 100%;
+    display: block;
+
+    textarea {
+        min-height: 96px;
+        width: 100%;
+        resize: vertical;
+    }
+}
+
+.gl_voice_dictation_bar {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.gl_voice_active {
+    color: #b42318;
+    font-weight: 600;
+}

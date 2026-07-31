@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="gl_clinic_management.VoiceDictationField">
+        <div class="gl_voice_dictation">
+            <textarea t-ref="textarea"
+                      class="o_input"
+                      t-att-placeholder="props.placeholder"
+                      t-att-readonly="props.readonly"
+                      t-att-value="value"
+                      t-on-input="onInput"
+                      rows="4"/>
+            <div class="gl_voice_dictation_bar">
+                <button type="button"
+                        class="btn btn-secondary btn-sm"
+                        t-att-disabled="props.readonly"
+                        t-on-click="toggleDictation">
+                    <i t-att-class="state.listening ? 'fa fa-microphone text-danger' : 'fa fa-microphone'"/>
+                    <span t-esc="state.listening ? 'Detener dictado' : 'Iniciar dictado'"/>
+                </button>
+                <span t-if="state.listening" class="gl_voice_active">Micrófono activo</span>
+            </div>
+        </div>
+    </t>
+</templates>

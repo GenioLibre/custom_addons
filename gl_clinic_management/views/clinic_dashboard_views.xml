@@ -1,0 +1,58 @@
+<odoo>
+    <record id="view_gl_clinic_dashboard_form" model="ir.ui.view">
+        <field name="name">gl.clinic.dashboard.form</field>
+        <field name="model">gl.clinic.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Panel" create="0" delete="0" edit="0" class="gl_clinic_dashboard">
+                <sheet class="gl_clinic_dashboard_sheet">
+                    <div class="oe_title">
+                        <h1>Panel de historias clínicas</h1>
+                    </div>
+                    <div class="gl_clinic_stats">
+                        <button name="action_open_patients" type="object" class="gl_clinic_stat">
+                            <span>Total de pacientes</span>
+                            <strong><field name="patient_count"/></strong>
+                        </button>
+                        <button name="action_open_histories" type="object" class="gl_clinic_stat">
+                            <span>Total de historias clínicas</span>
+                            <strong><field name="history_count"/></strong>
+                        </button>
+                        <button name="action_open_histories" type="object" class="gl_clinic_stat">
+                            <span>Historias registradas hoy</span>
+                            <strong><field name="today_history_count"/></strong>
+                        </button>
+                        <div class="gl_clinic_stat">
+                            <span>Última atención registrada</span>
+                            <strong><field name="last_attention_date"/></strong>
+                        </div>
+                    </div>
+                    <div class="gl_clinic_quick_actions">
+                        <button name="action_new_patient" type="object" string="Nuevo paciente" class="btn btn-primary"/>
+                        <button name="action_new_history" type="object" string="Nueva historia clínica" class="btn btn-secondary"/>
+                    </div>
+                    <group string="Pacientes">
+                        <field name="patient_ids" nolabel="1">
+                            <list create="0" edit="0" delete="0">
+                                <field name="full_name"/>
+                                <field name="document_number"/>
+                                <field name="age"/>
+                                <field name="medical_history_count"/>
+                                <field name="last_attention_date"/>
+                                <button name="action_view_histories" type="object" string="Ver historias" class="btn btn-secondary btn-sm"/>
+                                <button name="action_new_history" type="object" string="Nueva historia" class="btn btn-primary btn-sm"/>
+                                <button name="action_open_form" type="object" string="Editar paciente" class="btn btn-secondary btn-sm"/>
+                            </list>
+                        </field>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_gl_clinic_dashboard" model="ir.actions.act_window">
+        <field name="name">Panel</field>
+        <field name="res_model">gl.clinic.dashboard</field>
+        <field name="view_mode">form</field>
+        <field name="res_id" ref="gl_clinic_dashboard_main"/>
+    </record>
+</odoo>

@@ -1,0 +1,121 @@
+<odoo>
+    <record id="view_gl_clinic_patient_list" model="ir.ui.view">
+        <field name="name">gl.clinic.patient.list</field>
+        <field name="model">gl.clinic.patient</field>
+        <field name="arch" type="xml">
+            <list string="Pacientes" decoration-muted="not active">
+                <field name="document_number"/>
+                <field name="internal_number"/>
+                <field name="full_name"/>
+                <field name="age"/>
+                <field name="sex"/>
+                <field name="phone"/>
+                <field name="district"/>
+                <field name="medical_history_count"/>
+                <field name="last_attention_date"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gl_clinic_patient_form" model="ir.ui.view">
+        <field name="name">gl.clinic.patient.form</field>
+        <field name="model">gl.clinic.patient</field>
+        <field name="arch" type="xml">
+            <form string="Paciente">
+                <header>
+                    <button name="action_new_history" type="object" string="Nueva historia clínica" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_histories" type="object" class="oe_stat_button" icon="fa-folder-open">
+                            <field name="medical_history_count" widget="statinfo" string="Historias"/>
+                        </button>
+                    </div>
+                    <field name="photo" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <label for="full_name"/>
+                        <h1><field name="full_name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Datos personales">
+                            <field name="document_number"/>
+                            <field name="internal_number" readonly="1"/>
+                            <field name="first_name"/>
+                            <field name="last_name"/>
+                            <field name="birth_date"/>
+                            <field name="age" readonly="1"/>
+                            <field name="sex"/>
+                        </group>
+                        <group string="Contacto y registro">
+                            <field name="phone"/>
+                            <field name="district" placeholder="Departamento, provincia y distrito"/>
+                            <field name="occupation"/>
+                            <field name="registration_date"/>
+                            <field name="last_attention_date" readonly="1"/>
+                            <field name="create_user_id" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Historias clínicas">
+                            <field name="medical_history_ids" context="{'default_patient_id': id}">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="attention_date"/>
+                                    <field name="doctor_id"/>
+                                    <field name="diagnosis_summary"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas internas">
+                            <field name="internal_notes" placeholder="Notas internas del paciente"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_gl_clinic_patient_search" model="ir.ui.view">
+        <field name="name">gl.clinic.patient.search</field>
+        <field name="model">gl.clinic.patient</field>
+        <field name="arch" type="xml">
+            <search string="Buscar pacientes">
+                <field name="document_number"/>
+                <field name="first_name"/>
+                <field name="last_name"/>
+                <field name="full_name"/>
+                <field name="phone"/>
+                <field name="district"/>
+                <filter string="Pacientes activos" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Pacientes archivados" name="inactive" domain="[('active', '=', False)]"/>
+                <filter string="Con historias clínicas" name="with_histories" domain="[('medical_history_count', '&gt;', 0)]"/>
+                <filter string="Sin historias clínicas" name="without_histories" domain="[('medical_history_count', '=', 0)]"/>
+                <filter string="Registrados hoy" name="registered_today" domain="[('registration_date', '=', context_today())]"/>
+                <filter string="Registrados este mes" name="registered_month" domain="[('registration_date', '&gt;=', context_today().replace(day=1))]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Sexo" name="group_sex" context="{'group_by': 'sex'}"/>
+                    <filter string="Dirección" name="group_district" context="{'group_by': 'district'}"/>
+                    <filter string="Mes de registro" name="group_registration_month" context="{'group_by': 'registration_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_gl_clinic_patient" model="ir.actions.act_window">
+        <field name="name">Pacientes</field>
+        <field name="res_model">gl.clinic.patient</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_gl_clinic_patient_search"/>
+        <field name="context">{'search_default_active': 1}</field>
+    </record>
+
+    <record id="action_gl_clinic_patient_new" model="ir.actions.act_window">
+        <field name="name">Registrar paciente</field>
+        <field name="res_model">gl.clinic.patient</field>
+        <field name="view_mode">form</field>
+    </record>
+</odoo>

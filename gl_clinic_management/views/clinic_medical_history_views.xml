@@ -1,0 +1,161 @@
+<odoo>
+    <record id="view_gl_clinic_medical_history_list" model="ir.ui.view">
+        <field name="name">gl.clinic.medical.history.list</field>
+        <field name="model">gl.clinic.medical.history</field>
+        <field name="arch" type="xml">
+            <list string="Historias clínicas"
+                  decoration-info="state == 'draft'"
+                  decoration-success="state == 'confirmed'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="attention_date"/>
+                <field name="patient_document_number"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="diagnosis_summary"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gl_clinic_medical_history_form" model="ir.ui.view">
+        <field name="name">gl.clinic.medical.history.form</field>
+        <field name="model">gl.clinic.medical.history</field>
+        <field name="arch" type="xml">
+            <form string="Historia clínica">
+                <header>
+                    <button name="action_confirm" type="object" string="Confirmar historia" class="btn-primary" invisible="state != 'draft'" groups="gl_clinic_management.group_gl_clinic_doctor,gl_clinic_management.group_gl_clinic_admin"/>
+                    <button name="action_reset_to_draft" type="object" string="Volver a borrador" invisible="state == 'draft'" groups="gl_clinic_management.group_gl_clinic_admin"/>
+                    <button name="action_cancel" type="object" string="Cancelar" invisible="state == 'cancelled'"/>
+                    <button name="%(action_report_gl_clinic_medical_history)d" type="action" string="Imprimir"/>
+                    <button name="action_view_patient" type="object" string="Ver paciente"/>
+                    <button name="action_previous_history" type="object" string="Historia anterior"/>
+                    <button name="action_next_history" type="object" string="Historia siguiente"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group string="Datos de consulta">
+                        <group>
+                            <field name="patient_document_number" readonly="1"/>
+                            <field name="patient_id" options="{'no_create_edit': True}"/>
+                            <field name="attention_date"/>
+                            <field name="doctor_id"/>
+                        </group>
+                        <group>
+                            <field name="height"/>
+                            <field name="weight"/>
+                            <field name="bmi" readonly="1"/>
+                            <field name="bmi_classification" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Motivo e historia de la enfermedad">
+                            <group>
+                                <label for="consultation_reason"/>
+                                <field name="consultation_reason" widget="gl_voice_dictation_text" nolabel="1" placeholder="motivo de consulta"/>
+                                <label for="current_illness"/>
+                                <field name="current_illness" widget="gl_voice_dictation_text" nolabel="1" placeholder="historia actual de la enfermedad"/>
+                            </group>
+                        </page>
+                        <page string="Examen físico">
+                            <group>
+                                <label for="physical_exam"/>
+                                <field name="physical_exam" widget="gl_voice_dictation_text" nolabel="1" placeholder="examen físico"/>
+                            </group>
+                        </page>
+                        <page string="Exámenes e imágenes">
+                            <group>
+                                <label for="tests_results"/>
+                                <field name="tests_results" widget="gl_voice_dictation_text" nolabel="1" placeholder="exámenes, imágenes y resultados"/>
+                            </group>
+                        </page>
+                        <page string="Diagnóstico">
+                            <group>
+                                <label for="diagnosis"/>
+                                <field name="diagnosis" widget="gl_voice_dictation_text" nolabel="1" placeholder="diagnóstico"/>
+                            </group>
+                        </page>
+                        <page string="Plan o tratamiento">
+                            <group>
+                                <field name="medicine_ids"
+                                       widget="many2many_tags"
+                                       domain="[('company_id', '=', company_id)]"
+                                       options="{'no_create_edit': True}"/>
+                                <label for="treatment_plan"/>
+                                <field name="treatment_plan" widget="gl_voice_dictation_text" nolabel="1" placeholder="plan o tratamiento"/>
+                            </group>
+                        </page>
+                        <page string="Notas">
+                            <group>
+                                <label for="additional_notes"/>
+                                <field name="additional_notes" widget="gl_voice_dictation_text" nolabel="1" placeholder="notas adicionales"/>
+                            </group>
+                        </page>
+                        <page string="Archivos adjuntos">
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_gl_clinic_medical_history_search" model="ir.ui.view">
+        <field name="name">gl.clinic.medical.history.search</field>
+        <field name="model">gl.clinic.medical.history</field>
+        <field name="arch" type="xml">
+            <search string="Buscar historias clínicas">
+                <field name="name"/>
+                <field name="patient_document_number"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="diagnosis"/>
+                <filter string="Borradores" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Confirmadas" name="confirmed" domain="[('state', '=', 'confirmed')]"/>
+                <filter string="Canceladas" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <filter string="Atenciones de hoy" name="today" domain="[('attention_date', '&gt;=', context_today()), ('attention_date', '&lt;', context_today() + relativedelta(days=1))]"/>
+                <filter string="Atenciones de esta semana" name="this_week" domain="[('attention_date', '&gt;=', context_today() + relativedelta(weeks=-1, days=1, weekday=0)), ('attention_date', '&lt;', context_today() + relativedelta(days=1, weekday=0))]"/>
+                <filter string="Atenciones de este mes" name="this_month" domain="[('attention_date', '&gt;=', context_today().replace(day=1))]"/>
+                <filter string="Mis atenciones" name="my_attention" domain="[('doctor_id', '=', uid)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Paciente" name="group_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Médico" name="group_doctor" context="{'group_by': 'doctor_id'}"/>
+                    <filter string="Estado" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Fecha de atención" name="group_attention_date" context="{'group_by': 'attention_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_gl_clinic_medical_history_calendar" model="ir.ui.view">
+        <field name="name">gl.clinic.medical.history.calendar</field>
+        <field name="model">gl.clinic.medical.history</field>
+        <field name="arch" type="xml">
+            <calendar string="Historias clínicas" date_start="attention_date" color="doctor_id" event_limit="5" quick_create="0">
+                <field name="name"/>
+                <field name="patient_id"/>
+                <field name="doctor_id"/>
+                <field name="state"/>
+            </calendar>
+        </field>
+    </record>
+
+    <record id="action_gl_clinic_medical_history" model="ir.actions.act_window">
+        <field name="name">Historias clínicas</field>
+        <field name="res_model">gl.clinic.medical.history</field>
+        <field name="view_mode">list,form,calendar</field>
+        <field name="search_view_id" ref="view_gl_clinic_medical_history_search"/>
+    </record>
+
+    <record id="action_gl_clinic_medical_history_new" model="ir.actions.act_window">
+        <field name="name">Nueva historia clínica</field>
+        <field name="res_model">gl.clinic.medical.history</field>
+        <field name="view_mode">form</field>
+    </record>
+</odoo>
