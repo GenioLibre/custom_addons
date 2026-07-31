@@ -119,9 +119,6 @@
                 <filter string="Borradores" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Confirmadas" name="confirmed" domain="[('state', '=', 'confirmed')]"/>
                 <filter string="Canceladas" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
-                <filter string="Atenciones de hoy" name="today" domain="[('attention_date', '&gt;=', context_today()), ('attention_date', '&lt;', context_today() + relativedelta(days=1))]"/>
-                <filter string="Atenciones de esta semana" name="this_week" domain="[('attention_date', '&gt;=', context_today() + relativedelta(weeks=-1, days=1, weekday=0)), ('attention_date', '&lt;', context_today() + relativedelta(days=1, weekday=0))]"/>
-                <filter string="Atenciones de este mes" name="this_month" domain="[('attention_date', '&gt;=', context_today().replace(day=1))]"/>
                 <filter string="Mis atenciones" name="my_attention" domain="[('doctor_id', '=', uid)]"/>
                 <group expand="0" string="Agrupar por">
                     <filter string="Paciente" name="group_patient" context="{'group_by': 'patient_id'}"/>

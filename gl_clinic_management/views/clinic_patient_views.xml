@@ -94,8 +94,6 @@
                 <filter string="Pacientes archivados" name="inactive" domain="[('active', '=', False)]"/>
                 <filter string="Con historias clínicas" name="with_histories" domain="[('medical_history_count', '&gt;', 0)]"/>
                 <filter string="Sin historias clínicas" name="without_histories" domain="[('medical_history_count', '=', 0)]"/>
-                <filter string="Registrados hoy" name="registered_today" domain="[('registration_date', '=', context_today())]"/>
-                <filter string="Registrados este mes" name="registered_month" domain="[('registration_date', '&gt;=', context_today().replace(day=1))]"/>
                 <group expand="0" string="Agrupar por">
                     <filter string="Sexo" name="group_sex" context="{'group_by': 'sex'}"/>
                     <filter string="Dirección" name="group_district" context="{'group_by': 'district'}"/>
