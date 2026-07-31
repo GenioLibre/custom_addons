@@ -90,15 +90,6 @@
                 <field name="full_name"/>
                 <field name="phone"/>
                 <field name="district"/>
-                <filter string="Pacientes activos" name="active" domain="[('active', '=', True)]"/>
-                <filter string="Pacientes archivados" name="inactive" domain="[('active', '=', False)]"/>
-                <filter string="Con historias clínicas" name="with_histories" domain="[('medical_history_count', '&gt;', 0)]"/>
-                <filter string="Sin historias clínicas" name="without_histories" domain="[('medical_history_count', '=', 0)]"/>
-                <group expand="0" string="Agrupar por">
-                    <filter string="Sexo" name="group_sex" context="{'group_by': 'sex'}"/>
-                    <filter string="Dirección" name="group_district" context="{'group_by': 'district'}"/>
-                    <filter string="Mes de registro" name="group_registration_month" context="{'group_by': 'registration_date:month'}"/>
-                </group>
             </search>
         </field>
     </record>
@@ -108,7 +99,6 @@
         <field name="res_model">gl.clinic.patient</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_gl_clinic_patient_search"/>
-        <field name="context">{'search_default_active': 1}</field>
     </record>
 
     <record id="action_gl_clinic_patient_new" model="ir.actions.act_window">
