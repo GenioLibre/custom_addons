@@ -116,16 +116,6 @@
                 <field name="patient_id"/>
                 <field name="doctor_id"/>
                 <field name="diagnosis"/>
-                <filter string="Borradores" name="draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Confirmadas" name="confirmed" domain="[('state', '=', 'confirmed')]"/>
-                <filter string="Canceladas" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
-                <filter string="Mis atenciones" name="my_attention" domain="[('doctor_id', '=', uid)]"/>
-                <group expand="0" string="Agrupar por">
-                    <filter string="Paciente" name="group_patient" context="{'group_by': 'patient_id'}"/>
-                    <filter string="Médico" name="group_doctor" context="{'group_by': 'doctor_id'}"/>
-                    <filter string="Estado" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Fecha de atención" name="group_attention_date" context="{'group_by': 'attention_date:day'}"/>
-                </group>
             </search>
         </field>
     </record>
