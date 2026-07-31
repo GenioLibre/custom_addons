@@ -30,7 +30,8 @@
                         <button name="action_new_patient" type="object" string="Nuevo paciente" class="btn btn-primary"/>
                         <button name="action_new_history" type="object" string="Nueva historia clínica" class="btn btn-secondary"/>
                     </div>
-                    <group string="Pacientes">
+                    <div class="gl_clinic_patient_section">
+                        <h3>Pacientes</h3>
                         <field name="patient_ids" nolabel="1">
                             <list create="0" edit="0" delete="0">
                                 <field name="full_name"/>
@@ -43,7 +44,7 @@
                                 <button name="action_open_form" type="object" string="Editar paciente" class="btn btn-secondary btn-sm"/>
                             </list>
                         </field>
-                    </group>
+                    </div>
                 </sheet>
             </form>
         </field>

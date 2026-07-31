@@ -2,11 +2,12 @@
     .gl_clinic_dashboard_sheet {
         max-width: none;
         width: 100%;
+        padding: 20px;
     }
 
     .gl_clinic_stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
         gap: 12px;
         margin: 16px 0;
     }
@@ -34,6 +35,45 @@
         flex-wrap: wrap;
         gap: 8px;
         margin: 12px 0 20px;
+    }
+
+    .gl_clinic_patient_section {
+        margin-top: 28px;
+        width: 100%;
+    }
+
+    .gl_clinic_patient_section h3 {
+        border-bottom: 1px solid var(--border-color, #d8dadd);
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .gl_clinic_patient_section .o_field_x2many,
+    .gl_clinic_patient_section .o_list_renderer {
+        width: 100%;
+    }
+
+    .gl_clinic_patient_section table {
+        width: 100%;
+    }
+}
+
+@media (max-width: 992px) {
+    .gl_clinic_dashboard {
+        .gl_clinic_stats {
+            grid-template-columns: repeat(2, minmax(160px, 1fr));
+        }
+    }
+}
+
+@media (max-width: 576px) {
+    .gl_clinic_dashboard {
+        .gl_clinic_stats {
+            grid-template-columns: 1fr;
+        }
     }
 }
 
