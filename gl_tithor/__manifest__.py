@@ -25,11 +25,12 @@
     # always loaded
     'data': [
         'security/ir.model.access.csv',
+        'data/gl_confection_sequence.xml',
         
         'views/gl_res_config_settings_views.xml',
+        'views/gl_sale_order_views.xml',
         'views/gl_sale_order_line_views.xml',
         'views/gl_purchase_order_views.xml',
-        'views/gl_sale_order_views.xml',
 
         'report/gl_print_recibo_venta.xml',
         'report/gl_sale_pre_quote.xml',

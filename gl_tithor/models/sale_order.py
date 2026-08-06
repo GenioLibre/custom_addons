@@ -84,6 +84,31 @@ class SaleOrder(models.Model):
     )
     archivo_excel = fields.Binary("Archivo Excel", attachment=True)
     archivo_nombre = fields.Char("Nombre del archivo")
+    confection_order_id = fields.Many2one(
+        'gl.confection.order',
+        string='Confección',
+        compute='_compute_confection_order_id',
+    )
+
+    def _compute_confection_order_id(self):
+        confection_by_sale = {
+            confection.sale_order_id.id: confection
+            for confection in self.env['gl.confection.order'].search([('sale_order_id', 'in', self.ids)])
+        }
+        for order in self:
+            order.confection_order_id = confection_by_sale.get(order.id)
+
+    def action_send_to_confection(self):
+        self.ensure_one()
+        confection = self.confection_order_id or self.env['gl.confection.order'].create({'sale_order_id': self.id})
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Confección',
+            'res_model': 'gl.confection.order',
+            'view_mode': 'form',
+            'res_id': confection.id,
+            'target': 'current',
+        }
 
     @api.constrains('camiseta_foto_ids')
     def _check_camiseta_foto_is_image(self):

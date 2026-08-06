@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="seq_gl_confection_order" model="ir.sequence">
+        <field name="name">Orden de Confección</field>
+        <field name="code">gl.confection.order</field>
+        <field name="prefix">CONF/</field>
+        <field name="padding">5</field>
+    </record>
+</odoo>

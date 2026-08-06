@@ -1,10 +1,177 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+    <record id="view_sale_order_confection_list" model="ir.ui.view">
+        <field name="name">gl.confection.order.list</field>
+        <field name="model">gl.confection.order</field>
+        <field name="arch" type="xml">
+            <list string="Confección">
+                <field name="mockup_image" widget="image" options="{'size': [80, 80]}"/>
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="printing_supplier_id"/>
+                <field name="sent_date"/>
+                <field name="delivery_date"/>
+                <field name="delivery_days_left" string="Entrega" widget="badge"
+                       decoration-success="schedule_status == 'green'"
+                       decoration-warning="schedule_status in ['yellow', 'orange']"
+                       decoration-danger="schedule_status == 'red'"/>
+                <field name="schedule_status" column_invisible="1"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'design'"
+                       decoration-warning="state in ['printing', 'cutting']"
+                       decoration-primary="state == 'sewing'"
+                       decoration-success="state in ['delivery', 'done']"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sale_order_confection_form" model="ir.ui.view">
+        <field name="name">gl.confection.order.form</field>
+        <field name="model">gl.confection.order</field>
+        <field name="arch" type="xml">
+            <form string="Confección">
+                <header>
+                    <button name="action_reopen_order" string="Reabrir" type="object" class="btn-primary" invisible="not done"/>
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="design,printing,cutting,sewing,delivery,done"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Cerrado" bg_color="text-bg-success" invisible="state != 'done'"/>
+                    <widget name="web_ribbon" title="Diseño" invisible="done or state != 'design'"/>
+                    <widget name="web_ribbon" title="Impresión" invisible="done or state != 'printing'"/>
+                    <widget name="web_ribbon" title="Corte" invisible="done or state != 'cutting'"/>
+                    <widget name="web_ribbon" title="Confección" invisible="done or state != 'sewing'"/>
+                    <widget name="web_ribbon" title="Delivery" invisible="done or state != 'delivery'"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="done"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="done" invisible="1"/>
+                            <field name="sale_order_id" readonly="done"/>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="sale_date_order" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="sale_amount_total" readonly="1"/>
+                            <field name="sent_date" readonly="1"/>
+                            <field name="delivery_date" readonly="done"/>
+                            <field name="delivery_days_left" string="Entrega" readonly="1"/>
+                            <field name="schedule_status" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Diseño" name="confection_design">
+                            <group>
+                                <field name="design_file_ids"
+                                       widget="many2many_binary"
+                                       readonly="done"
+                                       options="{'accepted_file_extensions': '.jpeg,.jpg,.png'}"/>
+                            </group>
+                            <div class="text-end mt-2">
+                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                            </div>
+                        </page>
+                        <page string="Impresión" name="confection_printing">
+                            <group>
+                                <field name="printing_file_ids"
+                                       widget="many2many_binary"
+                                       readonly="done"
+                                       options="{'accepted_file_extensions': '.jpeg,.jpg,.png'}"/>
+                                <field name="printing_supplier_id" readonly="done"/>
+                                <field name="printing_pickup_date" readonly="done"/>
+                                <field name="printing_notes" readonly="done"/>
+                            </group>
+                            <div class="text-end mt-2">
+                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                            </div>
+                        </page>
+                        <page string="Corte" name="confection_cutting">
+                            <group>
+                                <field name="cut_location" readonly="done"/>
+                            </group>
+                            <div class="text-end mt-2">
+                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                            </div>
+                        </page>
+                        <page string="Confección" name="confection_sewing">
+                            <group>
+                                <field name="cut_location" readonly="done"/>
+                                <field name="final_location" readonly="done"/>
+                                <field name="sewing_photo" widget="image" readonly="done"/>
+                            </group>
+                            <div class="text-end mt-2">
+                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                            </div>
+                        </page>
+                        <page string="Delivery" name="confection_delivery">
+                            <group>
+                                <field name="delivery_date" readonly="done"/>
+                                <field name="delivery_type" readonly="done"/>
+                                <field name="delivery_notes" readonly="done"/>
+                                <field name="delivery_voucher" widget="image" readonly="done"/>
+                                <field name="delivery_code" readonly="done"/>
+                            </group>
+                            <div class="text-end mt-2">
+                                <button name="action_complete_order" string="Pedido Completo" type="object" class="btn-success btn-lg" invisible="done"/>
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sale_order_confection" model="ir.actions.act_window">
+        <field name="name">Confección</field>
+        <field name="res_model">gl.confection.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="action_sale_order_confection_view_list" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_sale_order_confection_list"/>
+        <field name="act_window_id" ref="action_sale_order_confection"/>
+    </record>
+
+    <record id="action_sale_order_confection_view_form" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_sale_order_confection_form"/>
+        <field name="act_window_id" ref="action_sale_order_confection"/>
+    </record>
+
+    <menuitem id="menu_sale_order_confection"
+              name="Confección"
+              parent="sale.sale_order_menu"
+              action="action_sale_order_confection"
+              sequence="25"/>
+
     <record id="view_sale_order_form_editable_date_order_sent_cancel" model="ir.ui.view">
         <field name="name">sale.order.form.date_order.only.sent.cancel</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_preview_sale_order']" position="after">
+                <field name="confection_order_id" invisible="1"/>
+                <button name="action_send_to_confection"
+                        string="Enviar a Confección"
+                        type="object"
+                        class="btn-primary"
+                        invisible="state != 'sale' or confection_order_id"/>
+                <button name="action_send_to_confection"
+                        string="Confección"
+                        type="object"
+                        class="btn-primary"
+                        invisible="state != 'sale' or not confection_order_id"/>
+            </xpath>
             <xpath expr="//group[@name='order_details']" position="replace">
                 <group name="order_details">
                     <!-- Un solo campo de fecha editable -->
