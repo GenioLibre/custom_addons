@@ -73,7 +73,7 @@
                                        options="{'accepted_file_extensions': '.jpeg,.jpg,.png'}"/>
                             </group>
                             <div class="text-end mt-2">
-                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                                <button name="action_next_stage" string="Pasar a Impresión" type="object" class="btn-primary" invisible="done"/>
                             </div>
                         </page>
                         <page string="Impresión" name="confection_printing">
@@ -87,7 +87,8 @@
                                 <field name="printing_notes" readonly="done"/>
                             </group>
                             <div class="text-end mt-2">
-                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                                <button name="action_previous_stage" string="Volver a Diseño" type="object" class="btn-secondary me-2" invisible="done"/>
+                                <button name="action_next_stage" string="Pasar a Corte" type="object" class="btn-primary" invisible="done"/>
                             </div>
                         </page>
                         <page string="Corte" name="confection_cutting">
@@ -95,7 +96,8 @@
                                 <field name="cut_location" readonly="done"/>
                             </group>
                             <div class="text-end mt-2">
-                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                                <button name="action_previous_stage" string="Volver a Impresión" type="object" class="btn-secondary me-2" invisible="done"/>
+                                <button name="action_next_stage" string="Pasar a Confección" type="object" class="btn-primary" invisible="done"/>
                             </div>
                         </page>
                         <page string="Confección" name="confection_sewing">
@@ -105,7 +107,8 @@
                                 <field name="sewing_photo" widget="image" readonly="done"/>
                             </group>
                             <div class="text-end mt-2">
-                                <button name="action_next_stage" string="Avanzar" type="object" class="btn-primary" invisible="done"/>
+                                <button name="action_previous_stage" string="Volver a Corte" type="object" class="btn-secondary me-2" invisible="done"/>
+                                <button name="action_next_stage" string="Pasar a Delivery" type="object" class="btn-primary" invisible="done"/>
                             </div>
                         </page>
                         <page string="Delivery" name="confection_delivery">
@@ -117,6 +120,7 @@
                                 <field name="delivery_code" readonly="done"/>
                             </group>
                             <div class="text-end mt-2">
+                                <button name="action_previous_stage" string="Volver a Confección" type="object" class="btn-secondary me-2" invisible="done"/>
                                 <button name="action_complete_order" string="Pedido Completo" type="object" class="btn-success btn-lg" invisible="done"/>
                             </div>
                         </page>

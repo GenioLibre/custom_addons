@@ -108,6 +108,19 @@ class GlConfectionOrder(models.Model):
             record.state = next_stage.get(record.state, record.state)
         return True
 
+    def action_previous_stage(self):
+        previous_stage = {
+            'printing': 'design',
+            'cutting': 'printing',
+            'sewing': 'cutting',
+            'delivery': 'sewing',
+        }
+        for record in self:
+            if record.done:
+                continue
+            record.state = previous_stage.get(record.state, record.state)
+        return True
+
     def action_complete_order(self):
         for record in self:
             record.state = 'done'
