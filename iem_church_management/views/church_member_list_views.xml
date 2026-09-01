@@ -6,9 +6,9 @@
             <list string="Listas de Membresía">
                 <field name="name" />
                 <field name="visibility" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor,iem_church_management.group_iem_discipulador" />
-                <field name="scope_predio_id" string="Predio" optional="show" />
-                <field name="scope_red_id" string="Red" optional="show" />
-                <field name="scope_discipulado_id" string="Discipulado" optional="show" />
+                <field name="scope_predio_id" optional="show" />
+                <field name="scope_red_id" optional="show" />
+                <field name="scope_discipulado_id" optional="show" />
                 <field name="creation_date" />
                 <field name="member_count" />
                 <field name="filter_member_count" />

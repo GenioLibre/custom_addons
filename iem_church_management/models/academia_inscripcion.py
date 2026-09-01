@@ -36,7 +36,7 @@ class AcademiaInscripcion(models.Model):
         compute="_compute_member_ids",
         inverse="_inverse_member_ids",
     )
-    enrolled_count = fields.Integer(string="Inscritos", compute="_compute_enrolled_count")
+    enrolled_count = fields.Integer(string="Total inscritos", compute="_compute_enrolled_count")
 
     @api.depends("line_ids")
     def _compute_enrolled_count(self):

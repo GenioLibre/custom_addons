@@ -70,21 +70,21 @@ class IemChurchMemberList(models.Model):
     )
     scope_predio_id = fields.Many2one(
         "iem.church.predio",
-        string="Predio",
+        string="Predio alcance",
         readonly=True,
         copy=False,
         tracking=True,
     )
     scope_red_id = fields.Many2one(
         "iem.church.red",
-        string="Red",
+        string="Red alcance",
         readonly=True,
         copy=False,
         tracking=True,
     )
     scope_discipulado_id = fields.Many2one(
         "iem.church.discipulado",
-        string="Discipulado",
+        string="Discipulado alcance",
         readonly=True,
         copy=False,
         tracking=True,

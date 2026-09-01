@@ -1,5 +1,7 @@
 import base64
 import time
+from datetime import date
+from urllib.parse import quote
 
 import requests
 
@@ -74,6 +76,7 @@ class IemChurchWebsite(http.Controller):
         values = {
             "error": error,
             "success": success,
+            "success_name": (form or {}).get("member_name") or "",
             "form": form or {},
         }
         values.update(self._get_public_form_reference_data())
@@ -96,6 +99,15 @@ class IemChurchWebsite(http.Controller):
 
     def _list_rate_limit_key(self):
         return "iem_public_member_list_form_last_submit"
+
+    def _weekly_attendance_access_verified_key(self):
+        return "iem_public_weekly_attendance_access_verified"
+
+    def _weekly_attendance_access_verified_at_key(self):
+        return "iem_public_weekly_attendance_access_verified_at"
+
+    def _weekly_attendance_rate_limit_key(self):
+        return "iem_public_weekly_attendance_last_submit"
 
     def _is_dni_type(self, identification_type):
         if not identification_type:
@@ -191,6 +203,7 @@ class IemChurchWebsite(http.Controller):
         values = {
             "error": error,
             "success": success,
+            "success_name": (form or {}).get("member_name") or "",
             "form": form or {},
             "online_lists": online_lists,
             "online_lists_data": online_lists_data,
@@ -199,6 +212,56 @@ class IemChurchWebsite(http.Controller):
             "access_validated": bool(request.session.get(self._list_access_verified_key())),
         }
         return request.render("iem_church_management.church_member_list_public_form", values)
+
+    def _get_weekly_attendance_reference_data(self):
+        today = date.today()
+        week_year, week_number, _weekday = today.isocalendar()
+        return {
+            "celulas": request.env["iem.church.celula"].sudo().search([("active", "=", True)], order="name asc"),
+            "current_week_key": "%s-W%s" % (week_year, str(week_number).zfill(2)),
+        }
+
+    def _render_weekly_attendance_form(self, form=None, error=False, success=False):
+        values = {
+            "error": error,
+            "success": success,
+            "success_celula": (form or {}).get("celula_name") or "",
+            "form": form or {},
+            "access_validated": bool(request.session.get(self._weekly_attendance_access_verified_key())),
+        }
+        values.update(self._get_weekly_attendance_reference_data())
+        return request.render("iem_church_management.church_weekly_attendance_public_form", values)
+
+    def _weekly_attendance_access_is_valid(self):
+        verified_at = int(request.session.get(self._weekly_attendance_access_verified_at_key()) or 0)
+        access_valid = bool(request.session.get(self._weekly_attendance_access_verified_key()))
+        return access_valid and verified_at and (int(time.time()) - verified_at) <= self._access_verify_ttl_seconds()
+
+    def _parse_week_values(self, week_key):
+        try:
+            return request.env["iem.church.weekly.attendance"].sudo().week_values_from_iso(week_key)
+        except Exception:
+            return False
+
+    def _serialize_weekly_attendance_line(self, line):
+        return {
+            "member_id": line.member_id.id,
+            "member_name": line.member_id.display_name,
+            "attended_celula": bool(line.attended_celula),
+            "attended_discipulado": bool(line.attended_discipulado),
+            "attended_culto": bool(line.attended_culto),
+            "tithed": bool(line.tithed),
+        }
+
+    def _serialize_weekly_attendance_member(self, member):
+        return {
+            "member_id": member.id,
+            "member_name": member.display_name,
+            "attended_celula": False,
+            "attended_discipulado": False,
+            "attended_culto": False,
+            "tithed": False,
+        }
 
     @http.route(
         ["/church/registro"],
@@ -471,14 +534,14 @@ class IemChurchWebsite(http.Controller):
         }
 
         try:
-            request.env["church.member"].sudo().with_context(skip_scope_check=True).create(member_vals)
+            member = request.env["church.member"].sudo().with_context(skip_scope_check=True).create(member_vals)
         except (ValidationError, UserError) as exc:
             return self._render_public_form(form=form_values, error=str(exc))
 
         request.session[self._rate_limit_key()] = now
         request.session[self._access_verified_key()] = False
         request.session[self._access_verified_at_key()] = 0
-        return request.redirect("/church/registro?submitted=1")
+        return request.redirect("/church/registro?submitted=1&member_name=%s" % quote(member.display_name or member.name or ""))
 
     @http.route(
         ["/church/lista/registro"],
@@ -698,4 +761,186 @@ class IemChurchWebsite(http.Controller):
         request.session[self._list_rate_limit_key()] = now
         request.session[self._list_access_verified_key()] = False
         request.session[self._list_access_verified_at_key()] = 0
-        return request.redirect("/church/lista/registro?submitted=1")
+        return request.redirect("/church/lista/registro?submitted=1&member_name=%s" % quote(member.display_name or member.name or ""))
+
+    @http.route(
+        ["/church/asistencia/registro"],
+        type="http",
+        auth="public",
+        website=True,
+        methods=["GET"],
+        csrf=True,
+    )
+    def church_weekly_attendance_form(self, **kwargs):
+        request.session[self._weekly_attendance_access_verified_key()] = False
+        request.session[self._weekly_attendance_access_verified_at_key()] = 0
+        return self._render_weekly_attendance_form(form=kwargs, success=kwargs.get("submitted") == "1")
+
+    @http.route(
+        ["/church/asistencia/registro/validate_access"],
+        type="http",
+        auth="public",
+        website=True,
+        methods=["POST"],
+        csrf=True,
+    )
+    def church_weekly_attendance_validate_access(self, **kwargs):
+        settings = self._get_public_form_settings()
+        access_password = (kwargs.get("access_password") or "").strip()
+        if settings["access_password"] and access_password != settings["access_password"]:
+            request.session[self._weekly_attendance_access_verified_key()] = False
+            request.session[self._weekly_attendance_access_verified_at_key()] = 0
+            return request.make_json_response(
+                {
+                    "ok": False,
+                    "message": "La clave no es correcta. El formulario no sera guardado.",
+                }
+            )
+        request.session[self._weekly_attendance_access_verified_key()] = True
+        request.session[self._weekly_attendance_access_verified_at_key()] = int(time.time())
+        return request.make_json_response({"ok": True})
+
+    @http.route(
+        ["/church/asistencia/registro/load"],
+        type="http",
+        auth="public",
+        website=True,
+        methods=["POST"],
+        csrf=True,
+    )
+    def church_weekly_attendance_load(self, **kwargs):
+        if not self._weekly_attendance_access_is_valid():
+            return request.make_json_response(
+                {"ok": False, "message": "Primero valida la clave de acceso para continuar."}
+            )
+
+        celula_id = self._to_int_or_false(kwargs.get("celula_id"))
+        week_vals = self._parse_week_values(kwargs.get("week_key"))
+        if not celula_id or not week_vals:
+            return request.make_json_response({"ok": False, "message": "Selecciona una célula y semana válidas."})
+
+        celula = request.env["iem.church.celula"].sudo().browse(celula_id).exists()
+        if not celula:
+            return request.make_json_response({"ok": False, "message": "La célula seleccionada no existe."})
+
+        attendance_model = request.env["iem.church.weekly.attendance"].sudo()
+        attendance = attendance_model.search(
+            [
+                ("celula_id", "=", celula.id),
+                ("week_year", "=", week_vals["week_year"]),
+                ("week_number", "=", week_vals["week_number"]),
+            ],
+            limit=1,
+        )
+        if attendance:
+            attendance.ensure_member_lines()
+            existing = True
+            lines = [self._serialize_weekly_attendance_line(line) for line in attendance.line_ids.sorted("member_name")]
+        else:
+            existing = False
+            members = request.env["church.member"].sudo().search(
+                [
+                    ("celula_id", "=", celula.id),
+                    ("member_status", "=", "active"),
+                ],
+                order="last_name asc, first_name asc, id asc",
+            )
+            lines = [self._serialize_weekly_attendance_member(member) for member in members]
+
+        return request.make_json_response(
+            {
+                "ok": True,
+                "existing": existing,
+                "label": attendance_model.format_week_label_from_values(week_vals),
+                "leader": celula.lider_id.name or "",
+                "discipulado": celula.discipulado_id.display_name or "",
+                "report_date": week_vals["week_end"].strftime("%d/%m"),
+                "lines": lines,
+            }
+        )
+
+    @http.route(
+        ["/church/asistencia/registro/submit"],
+        type="http",
+        auth="public",
+        website=True,
+        methods=["POST"],
+        csrf=True,
+    )
+    def church_weekly_attendance_submit(self, **kwargs):
+        form_values = dict(kwargs)
+        settings = self._get_public_form_settings()
+
+        if (kwargs.get("website") or "").strip():
+            return request.redirect("/church/asistencia/registro?submitted=1")
+
+        now = int(time.time())
+        last_submit = request.session.get(self._weekly_attendance_rate_limit_key())
+        if last_submit and (now - last_submit) < settings["rate_limit_seconds"]:
+            return self._render_weekly_attendance_form(
+                form=form_values,
+                error=_("Por favor espera un momento antes de volver a enviar el formulario."),
+            )
+
+        access_password = (kwargs.get("access_password") or "").strip()
+        if settings["access_password"] and access_password != settings["access_password"]:
+            return self._render_weekly_attendance_form(form=form_values, error=_("La clave de acceso es incorrecta."))
+        if not self._weekly_attendance_access_is_valid():
+            request.session[self._weekly_attendance_access_verified_key()] = False
+            request.session[self._weekly_attendance_access_verified_at_key()] = 0
+            return self._render_weekly_attendance_form(
+                form=form_values,
+                error=_("Primero valida la clave de acceso para continuar."),
+            )
+
+        celula_id = self._to_int_or_false(kwargs.get("celula_id"))
+        week_vals = self._parse_week_values(kwargs.get("week_key"))
+        celula = request.env["iem.church.celula"].sudo().browse(celula_id).exists()
+        if not celula or not week_vals:
+            return self._render_weekly_attendance_form(
+                form=form_values,
+                error=_("Selecciona una célula y semana válidas."),
+            )
+
+        attendance_model = request.env["iem.church.weekly.attendance"].sudo()
+        attendance = attendance_model.search(
+            [
+                ("celula_id", "=", celula.id),
+                ("week_year", "=", week_vals["week_year"]),
+                ("week_number", "=", week_vals["week_number"]),
+            ],
+            limit=1,
+        )
+        try:
+            if not attendance:
+                attendance = attendance_model.create({"celula_id": celula.id, **week_vals})
+            else:
+                attendance.ensure_member_lines()
+
+            valid_member_ids = set(
+                request.env["church.member"].sudo().search(
+                    [
+                        ("celula_id", "=", celula.id),
+                        ("member_status", "=", "active"),
+                    ]
+                ).ids
+            )
+            for line in attendance.line_ids:
+                if line.member_id.id not in valid_member_ids:
+                    continue
+                member_key = str(line.member_id.id)
+                line.write(
+                    {
+                        "attended_celula": kwargs.get("attended_celula_%s" % member_key) == "on",
+                        "attended_discipulado": kwargs.get("attended_discipulado_%s" % member_key) == "on",
+                        "attended_culto": kwargs.get("attended_culto_%s" % member_key) == "on",
+                        "tithed": kwargs.get("tithed_%s" % member_key) == "on",
+                    }
+                )
+        except (ValidationError, UserError) as exc:
+            return self._render_weekly_attendance_form(form=form_values, error=str(exc))
+
+        request.session[self._weekly_attendance_rate_limit_key()] = now
+        request.session[self._weekly_attendance_access_verified_key()] = False
+        request.session[self._weekly_attendance_access_verified_at_key()] = 0
+        return request.redirect("/church/asistencia/registro?submitted=1&celula_name=%s" % quote(celula.display_name or celula.name or ""))

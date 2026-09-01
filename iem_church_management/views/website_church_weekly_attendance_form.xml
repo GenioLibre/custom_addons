@@ -1,0 +1,368 @@
+<odoo>
+    <template id="church_weekly_attendance_public_form" name="Registro público de asistencia semanal">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <section class="s_title pt32 pb16">
+                    <div class="container">
+                        <h1 class="text-center">Asistencia semanal</h1>
+                    </div>
+                </section>
+                <section class="s_text pb32">
+                    <div class="container">
+                        <t t-if="success">
+                            <div class="alert alert-success js-public-success-message" role="alert">
+                                <t t-if="success_celula">
+                                    La asistencia de la célula <t t-esc="success_celula"/> ha sido registrada exitosamente.
+                                </t>
+                                <t t-else="">
+                                    La asistencia de la célula ha sido registrada exitosamente.
+                                </t>
+                            </div>
+                        </t>
+                        <t t-if="error">
+                            <div class="alert alert-danger" role="alert">
+                                <t t-esc="error"/>
+                            </div>
+                        </t>
+                        <t t-if="not celulas">
+                            <div class="alert alert-warning" role="alert">
+                                No hay células activas disponibles.
+                            </div>
+                        </t>
+                        <form t-if="celulas" action="/church/asistencia/registro/submit" method="post" class="o_website_form">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <div id="iem_weekly_message" class="alert d-none" role="alert"></div>
+
+                            <div class="row js-weekly-access-step">
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="form-label">Clave de acceso</label>
+                                    <div class="input-group">
+                                        <input type="password" name="access_password" class="form-control" required="required"/>
+                                        <button type="button" id="iem_weekly_toggle_password" class="btn btn-outline-secondary">Mostrar</button>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" id="iem_weekly_validate_access" class="btn btn-primary">Validar clave</button>
+                                </div>
+                            </div>
+
+                            <div class="js-weekly-form-step d-none">
+                                <div class="row">
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label class="form-label">Célula</label>
+                                        <select name="celula_id" id="iem_weekly_celula_id" class="form-select" required="required">
+                                            <option value="">Selecciona</option>
+                                            <t t-foreach="celulas" t-as="celula">
+                                                <option t-att-value="celula.id" t-att-selected="form.get('celula_id') == str(celula.id)">
+                                                    <t t-esc="celula.display_name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label class="form-label">Semana</label>
+                                        <input
+                                            type="week"
+                                            name="week_key"
+                                            id="iem_weekly_week_key"
+                                            class="form-control"
+                                            required="required"
+                                            t-att-value="form.get('week_key') or current_week_key"
+                                        />
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <button type="button" id="iem_weekly_load" class="btn btn-secondary">Cargar asistencia</button>
+                                    </div>
+                                </div>
+
+                                <div id="iem_weekly_loaded" class="d-none">
+                                    <div class="alert alert-info" id="iem_weekly_status"></div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th>Miembro</th>
+                                                    <th class="text-center">Célula</th>
+                                                    <th class="text-center">Discipulado</th>
+                                                    <th class="text-center">Culto</th>
+                                                    <th class="text-center">Diezmo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="iem_weekly_lines"></tbody>
+                                        </table>
+                                    </div>
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <button type="submit" id="iem_weekly_submit" class="btn btn-primary">Guardar asistencia</button>
+                                        <span class="text-muted small">
+                                            Al guardar, se copiará la versión para WhatsApp para pegarla en el grupo correspondiente.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-none">
+                                <label>No completar este campo</label>
+                                <input type="text" name="website" tabindex="-1" autocomplete="off"/>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+            <script type="text/javascript">
+                (function () {
+                    const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+                    const form = document.querySelector('form[action="/church/asistencia/registro/submit"]');
+                    const accessStep = document.querySelector(".js-weekly-access-step");
+                    const formStep = document.querySelector(".js-weekly-form-step");
+                    const accessPasswordInput = document.querySelector('input[name="access_password"]');
+                    const togglePasswordBtn = document.getElementById("iem_weekly_toggle_password");
+                    const validateAccessBtn = document.getElementById("iem_weekly_validate_access");
+                    const message = document.getElementById("iem_weekly_message");
+                    const publicSuccessMessage = document.querySelector(".js-public-success-message");
+                    const celulaInput = document.getElementById("iem_weekly_celula_id");
+                    const weekInput = document.getElementById("iem_weekly_week_key");
+                    const loadBtn = document.getElementById("iem_weekly_load");
+                    const loadedBox = document.getElementById("iem_weekly_loaded");
+                    const statusBox = document.getElementById("iem_weekly_status");
+                    const linesBody = document.getElementById("iem_weekly_lines");
+                    const submitBtn = document.getElementById("iem_weekly_submit");
+                    const accessValidated = <t t-out="'true' if access_validated else 'false'"/>;
+                    if (!accessStep || !formStep || !accessPasswordInput || !validateAccessBtn || !celulaInput || !weekInput || !loadBtn || !loadedBox || !linesBody) {
+                        return;
+                    }
+                    let reportInfo = {leader: "", discipulado: "", report_date: ""};
+                    let submitAfterCopy = false;
+
+                    function showMessage(type, text) {
+                        if (!message) {
+                            return;
+                        }
+                        if (!text) {
+                            message.classList.add("d-none");
+                            message.textContent = "";
+                            message.classList.remove("alert-success", "alert-danger", "alert-info");
+                            return;
+                        }
+                        message.classList.remove("d-none", "alert-success", "alert-danger", "alert-info");
+                        message.classList.add(type === "success" ? "alert-success" : "alert-danger");
+                        message.textContent = text;
+                    }
+
+                    async function postAndReadJson(url, params) {
+                        const body = new URLSearchParams();
+                        Object.keys(params || {}).forEach((key) => body.append(key, params[key] || ""));
+                        if (csrfTokenInput) {
+                            body.append("csrf_token", csrfTokenInput.value || "");
+                        }
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            body: body.toString(),
+                            credentials: "same-origin",
+                        });
+                        return response.json();
+                    }
+
+                    function setAccessValidated() {
+                        accessStep.classList.add("d-none");
+                        formStep.classList.remove("d-none");
+                        showMessage("success", "Clave validada.");
+                    }
+
+                    function makeCheckbox(name, checked) {
+                        const input = document.createElement("input");
+                        input.type = "checkbox";
+                        input.className = "form-check-input";
+                        input.name = name;
+                        input.checked = Boolean(checked);
+                        return input;
+                    }
+
+                    function renderLines(payload) {
+                        linesBody.innerHTML = "";
+                        reportInfo = {
+                            leader: payload.leader || "",
+                            discipulado: payload.discipulado || "",
+                            report_date: payload.report_date || "",
+                        };
+                        loadedBox.classList.remove("d-none");
+                        statusBox.textContent = (payload.existing ? "Editando registro existente: " : "Nuevo registro: ") + payload.label;
+                        if (!payload.lines.length) {
+                            const row = document.createElement("tr");
+                            const cell = document.createElement("td");
+                            cell.colSpan = 5;
+                            cell.className = "text-center text-muted py-4";
+                            cell.textContent = "No hay miembros activos en esta célula.";
+                            row.appendChild(cell);
+                            linesBody.appendChild(row);
+                            return;
+                        }
+                        payload.lines.forEach((line) => {
+                            const row = document.createElement("tr");
+                            row.dataset.memberId = line.member_id;
+                            row.dataset.memberName = line.member_name;
+                            const nameCell = document.createElement("td");
+                            nameCell.textContent = line.member_name;
+                            row.appendChild(nameCell);
+                            [
+                                ["attended_celula", line.attended_celula],
+                                ["attended_discipulado", line.attended_discipulado],
+                                ["attended_culto", line.attended_culto],
+                                ["tithed", line.tithed],
+                            ].forEach((item) => {
+                                const cell = document.createElement("td");
+                                cell.className = "text-center";
+                                cell.appendChild(makeCheckbox(item[0] + "_" + line.member_id, item[1]));
+                                row.appendChild(cell);
+                            });
+                            linesBody.appendChild(row);
+                        });
+                    }
+
+                    if (accessValidated) {
+                        setAccessValidated();
+                    }
+
+                    function checkIcon(value) {
+                        return value ? "✅" : "❌";
+                    }
+
+                    function statusIcon(attendedCelula, attendedCulto, attendedDiscipulado) {
+                        if (attendedCelula &amp;&amp; attendedCulto) {
+                            return "🟢";
+                        }
+                        if (!attendedCelula &amp;&amp; !attendedCulto) {
+                            return "🔴";
+                        }
+                        return "🟡";
+                    }
+
+                    function buildWhatsappText() {
+                        const rows = Array.from(linesBody.querySelectorAll("tr[data-member-id]"));
+                        const parts = [
+                            "📋 INFORME SEMANAL DE CÉLULA",
+                            "",
+                            "👤 Líder: " + (reportInfo.leader || "_________"),
+                            "📅 Fecha: " + (reportInfo.report_date || "____"),
+                            "🐉Discipulado:" + (reportInfo.discipulado || "_________"),
+                            "",
+                        ];
+                        rows.forEach((row, index) => {
+                            const memberId = row.dataset.memberId;
+                            const memberName = row.dataset.memberName || "";
+                            const attendedCelula = Boolean(row.querySelector('[name="attended_celula_' + memberId + '"]')?.checked);
+                            const attendedDiscipulado = Boolean(row.querySelector('[name="attended_discipulado_' + memberId + '"]')?.checked);
+                            const attendedCulto = Boolean(row.querySelector('[name="attended_culto_' + memberId + '"]')?.checked);
+                            parts.push(
+                                (index + 1) + ".Nombre: " + memberName,
+                                "Culto: " + checkIcon(attendedCulto),
+                                "Célula: " + checkIcon(attendedCelula),
+                                "Discipulado: " + checkIcon(attendedDiscipulado),
+                                "Indicador de Estado: " + statusIcon(attendedCelula, attendedCulto, attendedDiscipulado),
+                                "Acción: _________",
+                                ""
+                            );
+                        });
+                        return parts.join("\n").trim();
+                    }
+
+                    async function copyWhatsappText() {
+                        const text = buildWhatsappText();
+                        if (!text || !linesBody.querySelector("tr[data-member-id]")) {
+                            showMessage("error", "Primero carga la asistencia.");
+                            return false;
+                        }
+                        try {
+                            await navigator.clipboard.writeText(text);
+                        } catch (_error) {
+                            const area = document.createElement("textarea");
+                            area.value = text;
+                            area.style.position = "fixed";
+                            area.style.opacity = "0";
+                            document.body.appendChild(area);
+                            area.focus();
+                            area.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(area);
+                        }
+                        showMessage("success", "Se copió la versión para WhatsApp. Pégala en el grupo correspondiente.");
+                        return true;
+                    }
+
+                    togglePasswordBtn.addEventListener("click", function () {
+                        const visible = accessPasswordInput.type === "text";
+                        accessPasswordInput.type = visible ? "password" : "text";
+                        togglePasswordBtn.textContent = visible ? "Mostrar" : "Ocultar";
+                    });
+
+                    validateAccessBtn.addEventListener("click", async function () {
+                        showMessage("", "");
+                        const payload = await postAndReadJson("/church/asistencia/registro/validate_access", {
+                            access_password: accessPasswordInput.value,
+                        });
+                        if (!payload.ok) {
+                            showMessage("error", payload.message || "No se pudo validar la clave.");
+                            return;
+                        }
+                        if (publicSuccessMessage) {
+                            publicSuccessMessage.classList.add("d-none");
+                        }
+                        setAccessValidated();
+                    });
+
+                    accessPasswordInput.addEventListener("keydown", function (event) {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            validateAccessBtn.click();
+                        }
+                    });
+
+                    loadBtn.addEventListener("click", async function () {
+                        showMessage("", "");
+                        loadedBox.classList.add("d-none");
+                        if (!celulaInput.value || !weekInput.value) {
+                            showMessage("error", "Selecciona una célula y semana.");
+                            return;
+                        }
+                        const payload = await postAndReadJson("/church/asistencia/registro/load", {
+                            celula_id: celulaInput.value,
+                            week_key: weekInput.value,
+                        });
+                        if (!payload.ok) {
+                            showMessage("error", payload.message || "No se pudo cargar la asistencia.");
+                            return;
+                        }
+                        renderLines(payload);
+                    });
+
+                    if (form) {
+                        form.addEventListener("submit", async function (event) {
+                            if (submitAfterCopy) {
+                                return;
+                            }
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (submitBtn) {
+                                submitBtn.disabled = true;
+                            }
+                            const copied = await copyWhatsappText();
+                            if (!copied) {
+                                if (submitBtn) {
+                                    submitBtn.disabled = false;
+                                }
+                                return;
+                            }
+                            submitAfterCopy = true;
+                            window.setTimeout(function () {
+                                form.submit();
+                            }, 1200);
+                        });
+                    }
+                })();
+            </script>
+        </t>
+    </template>
+</odoo>

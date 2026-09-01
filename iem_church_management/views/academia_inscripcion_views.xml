@@ -12,7 +12,7 @@
                 <field name="currency_id" optional="hide" />
                 <field name="amount" />
                 <field name="capacity" />
-                <field name="enrolled_count" string="Inscritos" />
+                <field name="enrolled_count" />
             </list>
         </field>
     </record>

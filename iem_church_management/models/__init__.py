@@ -10,5 +10,6 @@ from . import academy_dashboard
 from . import academia_cursos
 from . import academia_inscripcion
 from . import academia_asistencia
+from . import church_weekly_attendance
 from . import res_config_settings
 from . import res_users

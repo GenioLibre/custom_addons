@@ -13,8 +13,13 @@
                 <section class="s_text pb32">
                     <div class="container">
                         <t t-if="success">
-                            <div class="alert alert-success" role="alert">
-                                Gracias. El registro en la lista fue enviado correctamente.
+                            <div class="alert alert-success js-public-success-message" role="alert">
+                                <t t-if="success_name">
+                                    El miembro <t t-esc="success_name"/> ha sido registrado exitosamente.
+                                </t>
+                                <t t-else="">
+                                    El miembro ha sido registrado exitosamente.
+                                </t>
                             </div>
                         </t>
                         <t t-if="error">
@@ -183,6 +188,7 @@
                     const submitBtn = document.getElementById("iem_list_submit_form");
                     const validateAccessBtn = document.getElementById("iem_list_validate_access");
                     const clientMessage = document.getElementById("iem_list_form_client_message");
+                    const publicSuccessMessage = document.querySelector(".js-public-success-message");
                     const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
                     const accessPasswordInput = document.querySelector('input[name="access_password"]');
                     const toggleAccessPasswordBtn = document.getElementById("iem_list_toggle_access_password");
@@ -455,6 +461,9 @@
                                 if (!payload.ok) {
                                     showClientMessage("error", payload.message || "La clave no es correcta. El formulario no será guardado.");
                                     return;
+                                }
+                                if (publicSuccessMessage) {
+                                    publicSuccessMessage.classList.add("d-none");
                                 }
                                 showClientMessage("success", "Clave validada correctamente.");
                                 setStep(1);
