@@ -1,5 +1,13 @@
 <?xml version='1.0' encoding='utf-8'?>
 <odoo noupdate="0">
-    <!-- Cron Job for automatic state change of contracts -->
+    <!-- Only refresh statuses; renewal and invoicing require manual action. -->
+    <record id="ir_cron_refresh_contract_status" model="ir.cron">
+        <field name="name">Contracts: refresh expiration status</field>
+        <field name="model_id" ref="model_subscription_contracts"/>
+        <field name="state">code</field>
+        <field name="code">model.subscription_contract_state_change()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>
-

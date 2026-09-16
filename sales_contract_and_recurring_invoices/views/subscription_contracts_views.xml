@@ -30,16 +30,16 @@
                             string="Confirm" type="object"
                             help="Confirm your Subscription Contracts"
                             invisible="state != 'New'"/>
-                    <button name="action_generate_invoice"
+                    <button name="action_renew_contract"
                             class="oe_highlight"
-                            string="Generate Invoice"
+                            string="Renovar y generar factura"
                             type="object"
-                            invisible="state not in ('Ongoing','Expire Soon')"/>
-                    help="Generate Invoices for your Contracts"/>
+                            invisible="state not in ('Ongoing', 'Expire Soon', 'Expired Not Paid', 'Expired')"
+                            help="Usar después de verificar el pago: genera una factura en borrador y actualiza la próxima fecha de factura de este mismo contrato."/>
                     <button name="action_to_cancel" class="oe_highlight"
                             string="Cancel" type="object"
                             help="Cancel; your Subscription Contracts"
-                            invisible="state not in ('Ongoing', 'Expire Soon')"
+                            invisible="state not in ('Ongoing', 'Expire Soon', 'Expired Not Paid', 'Expired')"
                     />
                 </header>
                 <sheet>

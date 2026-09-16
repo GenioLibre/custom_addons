@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import api, fields, models
-from odoo.tools import date_utils
-from odoo.tools.safe_eval import datetime
+from odoo.exceptions import UserError
 from dateutil.relativedelta import relativedelta
 
 class SubscriptionContracts(models.Model):
@@ -76,54 +75,61 @@ class SubscriptionContracts(models.Model):
                    })
 
     def action_generate_invoice(self):
-        """ Generate invoice manually """
+        """Keep existing callers on the manual renewal workflow."""
+        return self.action_renew_contract()
 
+    def action_renew_contract(self):
+        """Generate an invoice and advance the next date on this same contract."""
         self.ensure_one()
-
+        self.check_access('write')
+        if self.state == 'Cancelled':
+            raise UserError('No se puede renovar un contrato cancelado.')
+        if not self.partner_id or not self.contract_line_ids:
+            raise UserError('Complete el cliente y las líneas del contrato antes de renovar.')
         if not self.next_invoice_date:
-            return
+            raise UserError('Indique la fecha de vencimiento antes de renovar.')
+        intervals = {'Days': 'days', 'Weeks': 'weeks', 'Months': 'months', 'Years': 'years'}
+        if self.recurring_period <= 0 or self.recurring_period_interval not in intervals:
+            raise UserError('Configure un período de renovación mayor que cero.')
 
-        invoice_date = self.next_invoice_date
-
-        self.env['account.move'].create({
+        next_date = self.next_invoice_date + relativedelta(**{
+            intervals[self.recurring_period_interval]: self.recurring_period,
+        })
+        self.env['account.move'].with_company(self.company_id).create({
             'move_type': 'out_invoice',
+            'company_id': self.company_id.id,
+            'currency_id': self.currency_id.id,
             'partner_id': self.partner_id.id,
-            'invoice_date': invoice_date,
-            'invoice_date_due': invoice_date,
+            'invoice_date': fields.Date.context_today(self),
+            'invoice_date_due': fields.Date.context_today(self),
             'contract_origin': self.id,
             'invoice_line_ids': [
                 (0, 0, {
                     'product_id': line.product_id.id,
-                    'name': line.description,
+                    'name': line.description or line.product_id.display_name,
                     'quantity': line.qty_ordered,
                     'price_unit': line.price_unit,
                     'discount': line.discount,
                     'tax_ids': [(6, 0, line.tax_ids.ids)],
                 })
                 for line in self.contract_line_ids
-            ]
+            ],
         })
-
-        # 🔢 Actualizar contador
-        self.invoice_count = self.env['account.move'].search_count([
-            ('contract_origin', '=', self.id)
-        ])
-
-        # 📅 Avanzar próxima fecha
-        interval = self.recurring_period or 1
-
-        if self.recurring_period_interval == 'Days':
-            self.next_invoice_date += relativedelta(days=interval)
-        elif self.recurring_period_interval == 'Weeks':
-            self.next_invoice_date += relativedelta(weeks=interval)
-        elif self.recurring_period_interval == 'Months':
-            self.next_invoice_date += relativedelta(months=interval)
-        elif self.recurring_period_interval == 'Years':
-            self.next_invoice_date += relativedelta(years=interval)
-
-        # 🟢 Estado
-        if self.state == 'New':
-            self.state = 'Ongoing'
+        self.next_invoice_date = next_date
+        # The legacy contract_origin is an Integer, so it does not invalidate
+        # the inverse invoice relation automatically when a move is created.
+        self.invalidate_recordset(['invoice_ids'])
+        self.modified(['invoice_ids'])
+        self._compute_state()
+        self.message_post(body='Renovación manual: se generó la factura en borrador y se actualizó la próxima fecha de factura de este contrato.')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Contrato renovado',
+            'res_model': self._name,
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'current',
+        }
 
     def action_lock(self):
         """ Lock subscription contract """
@@ -153,23 +159,15 @@ class SubscriptionContracts(models.Model):
             order_lines = order.contract_line_ids
             order.amount_total = sum(order_lines.mapped('sub_total'))
 
-    @api.depends('partner_id')
+    @api.depends('invoice_ids')
     def _compute_invoice_count(self):
-        """ Compute the count of invoices generated """
-        self.invoice_count = self.env['account.move'].search_count([
-            ('contract_origin', '=', self.id)
-        ])
+        for record in self:
+            record.invoice_count = len(record.invoice_ids)
 
-    @api.depends('invoices_active')
+    @api.depends('invoice_ids')
     def _compute_invoice_active(self):
-        """ Check invoice count to display the invoice smart button """
-        invoice_count = self.env['account.move'].search_count([
-            ('contract_origin', '=', self.id)
-        ])
-        if invoice_count != 0:
-            self.invoices_active = True
-        else:
-            self.invoices_active = False
+        for record in self:
+            record.invoices_active = bool(record.invoice_ids)
 
     @api.depends('next_invoice_date', 'contract_reminder', 'state')
     def _compute_state(self):
@@ -227,60 +225,9 @@ class SubscriptionContracts(models.Model):
 
     @api.model
     def subscription_contract_state_change(self):
-        """ Automatic invoice generation for subscription contracts """
-
-        today = fields.Date.today()
-        contracts = self.search([
-            ('state', '!=', 'Cancelled')
-        ])
-
-        for rec in contracts:
-            if not rec.next_invoice_date:
-                continue
-
-            # 🔁 Generar factura solo el día exacto
-            if rec.next_invoice_date != today:
-                continue
-
-            # 🧾 Crear factura con líneas
-            invoice = self.env['account.move'].create({
-                'move_type': 'out_invoice',
-                'partner_id': rec.partner_id.id,
-                'invoice_date': rec.next_invoice_date,
-                'contract_origin': rec.id,
-                'invoice_line_ids': [
-                    (0, 0, {
-                        'product_id': line.product_id.id,
-                        'name': line.description,
-                        'quantity': line.qty_ordered,
-                        'price_unit': line.price_unit,
-                        'discount': line.discount,
-                        'tax_ids': line.tax_ids,
-                    })
-                    for line in rec.contract_line_ids
-                ]
-            })
-
-            # 🔢 Actualizar contador
-            rec.invoice_count = self.env['account.move'].search_count([
-                ('contract_origin', '=', rec.id)
-            ])
-
-            # 📅 Avanzar próxima fecha de factura
-            interval = rec.recurring_period or 1
-
-            if rec.recurring_period_interval == 'Days':
-                rec.next_invoice_date += relativedelta(days=interval)
-            elif rec.recurring_period_interval == 'Weeks':
-                rec.next_invoice_date += relativedelta(weeks=interval)
-            elif rec.recurring_period_interval == 'Months':
-                rec.next_invoice_date += relativedelta(months=interval)
-            elif rec.recurring_period_interval == 'Years':
-                rec.next_invoice_date += relativedelta(years=interval)
-
-            # 🟢 Estado
-            if rec.state == 'New':
-                rec.state = 'Ongoing'
+        """Refresh statuses without invoicing or extending contracts automatically."""
+        contracts = self.search([('state', '!=', 'Cancelled')])
+        contracts._compute_state()
 
     @api.depends('current_reference')
     def _compute_sale_order_lines(self):

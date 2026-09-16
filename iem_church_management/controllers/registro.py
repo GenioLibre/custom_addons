@@ -216,9 +216,15 @@ class IemChurchWebsite(http.Controller):
     def _get_weekly_attendance_reference_data(self):
         today = date.today()
         week_year, week_number, _weekday = today.isocalendar()
+        attendance_model = request.env["iem.church.weekly.attendance"].sudo()
+        current_week_vals = attendance_model.week_values_from_iso("%s-W%s" % (week_year, str(week_number).zfill(2)))
         return {
+            "predios": request.env["iem.church.predio"].sudo().search([("active", "=", True)], order="name asc"),
+            "redes": request.env["iem.church.red"].sudo().search([("active", "=", True)], order="name asc"),
+            "discipulados": request.env["iem.church.discipulado"].sudo().search([("active", "=", True)], order="name asc"),
             "celulas": request.env["iem.church.celula"].sudo().search([("active", "=", True)], order="name asc"),
             "current_week_key": "%s-W%s" % (week_year, str(week_number).zfill(2)),
+            "current_week_label": attendance_model.format_week_label_from_values(current_week_vals),
         }
 
     def _render_weekly_attendance_form(self, form=None, error=False, success=False):
@@ -261,6 +267,29 @@ class IemChurchWebsite(http.Controller):
             "attended_discipulado": False,
             "attended_culto": False,
             "tithed": False,
+        }
+
+    def _serialize_weekly_attendance_status(self, discipulado, week_vals):
+        celulas = request.env["iem.church.celula"].sudo().search(
+            [("active", "=", True), ("discipulado_id", "=", discipulado.id)],
+            order="name asc",
+        )
+        attendance_records = request.env["iem.church.weekly.attendance"].sudo().search(
+            [
+                ("celula_id", "in", celulas.ids),
+                ("week_year", "=", week_vals["week_year"]),
+                ("week_number", "=", week_vals["week_number"]),
+            ]
+        )
+        completed_ids = set(attendance_records.mapped("celula_id").ids)
+        lines = attendance_records.mapped("line_ids")
+        return {
+            "completed": [celula.display_name for celula in celulas if celula.id in completed_ids],
+            "missing": [celula.display_name for celula in celulas if celula.id not in completed_ids],
+            "total_attended_celula": len(lines.filtered("attended_celula")),
+            "total_attended_culto": len(lines.filtered("attended_culto")),
+            "total_attended_discipulado": len(lines.filtered("attended_discipulado")),
+            "total_tithed": len(lines.filtered("tithed")),
         }
 
     @http.route(
@@ -856,6 +885,43 @@ class IemChurchWebsite(http.Controller):
                 "discipulado": celula.discipulado_id.display_name or "",
                 "report_date": week_vals["week_end"].strftime("%d/%m"),
                 "lines": lines,
+            }
+        )
+
+    @http.route(
+        ["/church/asistencia/registro/discipulado_status"],
+        type="http",
+        auth="public",
+        website=True,
+        methods=["POST"],
+        csrf=True,
+    )
+    def church_weekly_attendance_discipulado_status(self, **kwargs):
+        if not self._weekly_attendance_access_is_valid():
+            return request.make_json_response(
+                {"ok": False, "message": "Primero valida la clave de acceso para continuar."}
+            )
+
+        discipulado_id = self._to_int_or_false(kwargs.get("discipulado_id"))
+        week_vals = self._parse_week_values(kwargs.get("week_key"))
+        if not discipulado_id or not week_vals:
+            return request.make_json_response({"ok": False, "message": "Selecciona discipulado y semana."})
+
+        discipulado = request.env["iem.church.discipulado"].sudo().browse(discipulado_id).exists()
+        if not discipulado:
+            return request.make_json_response({"ok": False, "message": "El discipulado seleccionado no existe."})
+
+        status = self._serialize_weekly_attendance_status(discipulado, week_vals)
+        return request.make_json_response(
+            {
+                "ok": True,
+                "week_label": request.env["iem.church.weekly.attendance"].sudo().format_week_label_from_values(week_vals),
+                "completed": status["completed"],
+                "missing": status["missing"],
+                "total_attended_celula": status["total_attended_celula"],
+                "total_attended_culto": status["total_attended_culto"],
+                "total_attended_discipulado": status["total_attended_discipulado"],
+                "total_tithed": status["total_tithed"],
             }
         )
 

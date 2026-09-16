@@ -47,18 +47,10 @@
                             </div>
 
                             <div class="js-weekly-form-step d-none">
+                                <div class="alert alert-secondary mb-3" id="iem_weekly_current_week">
+                                    Estamos en la <t t-esc="current_week_label"/>.
+                                </div>
                                 <div class="row">
-                                    <div class="col-12 col-md-6 mb-3">
-                                        <label class="form-label">Célula</label>
-                                        <select name="celula_id" id="iem_weekly_celula_id" class="form-select" required="required">
-                                            <option value="">Selecciona</option>
-                                            <t t-foreach="celulas" t-as="celula">
-                                                <option t-att-value="celula.id" t-att-selected="form.get('celula_id') == str(celula.id)">
-                                                    <t t-esc="celula.display_name"/>
-                                                </option>
-                                            </t>
-                                        </select>
-                                    </div>
                                     <div class="col-12 col-md-6 mb-3">
                                         <label class="form-label">Semana</label>
                                         <input
@@ -69,6 +61,50 @@
                                             required="required"
                                             t-att-value="form.get('week_key') or current_week_key"
                                         />
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label class="form-label">Predio</label>
+                                        <select name="predio_id" id="iem_weekly_predio_id" class="form-select" required="required">
+                                            <option value="">Selecciona</option>
+                                            <t t-foreach="predios" t-as="predio">
+                                                <option t-att-value="predio.id">
+                                                    <t t-esc="predio.display_name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label class="form-label">Red</label>
+                                        <select name="red_id" id="iem_weekly_red_id" class="form-select" required="required">
+                                            <option value="">Selecciona</option>
+                                            <t t-foreach="redes" t-as="red">
+                                                <option t-att-value="red.id" t-att-data-predio-id="red.predio_id.id">
+                                                    <t t-esc="red.display_name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label class="form-label">Discipulado</label>
+                                        <select name="discipulado_id" id="iem_weekly_discipulado_id" class="form-select" required="required">
+                                            <option value="">Selecciona</option>
+                                            <t t-foreach="discipulados" t-as="discipulado">
+                                                <option t-att-value="discipulado.id" t-att-data-red-id="discipulado.red_id.id">
+                                                    <t t-esc="discipulado.display_name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label class="form-label">Célula</label>
+                                        <select name="celula_id" id="iem_weekly_celula_id" class="form-select" required="required">
+                                            <option value="">Selecciona</option>
+                                            <t t-foreach="celulas" t-as="celula">
+                                                <option t-att-value="celula.id" t-att-data-discipulado-id="celula.discipulado_id.id" t-att-selected="form.get('celula_id') == str(celula.id)">
+                                                    <t t-esc="celula.display_name"/>
+                                                </option>
+                                            </t>
+                                        </select>
                                     </div>
                                     <div class="col-12 mb-3">
                                         <button type="button" id="iem_weekly_load" class="btn btn-secondary">Cargar asistencia</button>
@@ -98,6 +134,7 @@
                                         </span>
                                     </div>
                                 </div>
+                                <div class="alert alert-light border d-none mt-3" id="iem_weekly_discipulado_status"></div>
                             </div>
 
                             <div class="d-none">
@@ -119,15 +156,19 @@
                     const validateAccessBtn = document.getElementById("iem_weekly_validate_access");
                     const message = document.getElementById("iem_weekly_message");
                     const publicSuccessMessage = document.querySelector(".js-public-success-message");
+                    const predioInput = document.getElementById("iem_weekly_predio_id");
+                    const redInput = document.getElementById("iem_weekly_red_id");
+                    const discipuladoInput = document.getElementById("iem_weekly_discipulado_id");
                     const celulaInput = document.getElementById("iem_weekly_celula_id");
                     const weekInput = document.getElementById("iem_weekly_week_key");
                     const loadBtn = document.getElementById("iem_weekly_load");
                     const loadedBox = document.getElementById("iem_weekly_loaded");
                     const statusBox = document.getElementById("iem_weekly_status");
+                    const discipuladoStatusBox = document.getElementById("iem_weekly_discipulado_status");
                     const linesBody = document.getElementById("iem_weekly_lines");
                     const submitBtn = document.getElementById("iem_weekly_submit");
                     const accessValidated = <t t-out="'true' if access_validated else 'false'"/>;
-                    if (!accessStep || !formStep || !accessPasswordInput || !validateAccessBtn || !celulaInput || !weekInput || !loadBtn || !loadedBox || !linesBody) {
+                    if (!accessStep || !formStep || !accessPasswordInput || !validateAccessBtn || !predioInput || !redInput || !discipuladoInput || !celulaInput || !weekInput || !loadBtn || !loadedBox || !linesBody) {
                         return;
                     }
                     let reportInfo = {leader: "", discipulado: "", report_date: ""};
@@ -170,6 +211,100 @@
                         accessStep.classList.add("d-none");
                         formStep.classList.remove("d-none");
                         showMessage("success", "Clave validada.");
+                        applyStructureFilters();
+                    }
+
+                    function syncSelectOptions(select, dataName, parentValue) {
+                        Array.from(select.options).forEach((option) => {
+                            if (!option.value) {
+                                option.hidden = false;
+                                return;
+                            }
+                            option.hidden = Boolean(parentValue) &amp;&amp; option.dataset[dataName] !== parentValue;
+                        });
+                        if (select.selectedOptions.length &amp;&amp; select.selectedOptions[0].hidden) {
+                            select.value = "";
+                        }
+                    }
+
+                    function clearLoadedAttendance() {
+                        loadedBox.classList.add("d-none");
+                        linesBody.innerHTML = "";
+                    }
+
+                    function applyStructureFilters() {
+                        syncSelectOptions(redInput, "predioId", predioInput.value);
+                        syncSelectOptions(discipuladoInput, "redId", redInput.value);
+                        syncSelectOptions(celulaInput, "discipuladoId", discipuladoInput.value);
+                    }
+
+                    function renderDiscipuladoStatus(payload) {
+                        if (!discipuladoStatusBox) {
+                            return;
+                        }
+                        const completed = payload.completed || [];
+                        const missing = payload.missing || [];
+                        const completedText = completed.length ? completed.join(", ") : "Ninguna";
+                        const missingText = missing.length ? missing.join(", ") : "Ninguna";
+                        discipuladoStatusBox.classList.remove("d-none");
+                        discipuladoStatusBox.innerHTML = "";
+                        const title = document.createElement("div");
+                        title.className = "fw-semibold mb-3";
+                        title.textContent = payload.week_label || "";
+                        const listWrap = document.createElement("div");
+                        listWrap.className = "mb-3";
+                        const okLine = document.createElement("div");
+                        okLine.className = "mb-1";
+                        okLine.innerHTML = '<span class="fw-semibold text-success">Envió reporte:</span> ' + completedText;
+                        const missingLine = document.createElement("div");
+                        missingLine.innerHTML = '<span class="fw-semibold text-danger">Falta enviar:</span> ' + missingText;
+                        listWrap.appendChild(okLine);
+                        listWrap.appendChild(missingLine);
+                        const totals = [
+                            ["Total asistentes a la célula", payload.total_attended_celula || 0],
+                            ["Total asistentes al Culto", payload.total_attended_culto || 0],
+                            ["Total asistentes al Discipulado", payload.total_attended_discipulado || 0],
+                            ["Total Diezmistas", payload.total_tithed || 0],
+                        ];
+                        const totalWrap = document.createElement("div");
+                        totalWrap.className = "row g-2";
+                        totals.forEach((item) => {
+                            const col = document.createElement("div");
+                            col.className = "col-12 col-md-6";
+                            const box = document.createElement("div");
+                            box.className = "border rounded bg-white p-2 h-100";
+                            const label = document.createElement("div");
+                            label.className = "small text-muted";
+                            label.textContent = item[0];
+                            const value = document.createElement("div");
+                            value.className = "fs-5 fw-semibold";
+                            value.textContent = item[1];
+                            box.appendChild(label);
+                            box.appendChild(value);
+                            col.appendChild(box);
+                            totalWrap.appendChild(col);
+                        });
+                        discipuladoStatusBox.appendChild(title);
+                        discipuladoStatusBox.appendChild(listWrap);
+                        discipuladoStatusBox.appendChild(totalWrap);
+                    }
+
+                    async function refreshDiscipuladoStatus() {
+                        if (!discipuladoStatusBox) {
+                            return;
+                        }
+                        discipuladoStatusBox.classList.add("d-none");
+                        discipuladoStatusBox.innerHTML = "";
+                        if (!discipuladoInput.value || !weekInput.value) {
+                            return;
+                        }
+                        const payload = await postAndReadJson("/church/asistencia/registro/discipulado_status", {
+                            discipulado_id: discipuladoInput.value,
+                            week_key: weekInput.value,
+                        });
+                        if (payload.ok) {
+                            renderDiscipuladoStatus(payload);
+                        }
                     }
 
                     function makeCheckbox(name, checked) {
@@ -247,7 +382,7 @@
                             "",
                             "👤 Líder: " + (reportInfo.leader || "_________"),
                             "📅 Fecha: " + (reportInfo.report_date || "____"),
-                            "🐉Discipulado:" + (reportInfo.discipulado || "_________"),
+                            "✝️ Discipulado:" + (reportInfo.discipulado || "_________"),
                             "",
                         ];
                         rows.forEach((row, index) => {
@@ -318,6 +453,41 @@
                             event.preventDefault();
                             validateAccessBtn.click();
                         }
+                    });
+
+                    predioInput.addEventListener("change", function () {
+                        redInput.value = "";
+                        discipuladoInput.value = "";
+                        celulaInput.value = "";
+                        applyStructureFilters();
+                        clearLoadedAttendance();
+                        if (discipuladoStatusBox) {
+                            discipuladoStatusBox.classList.add("d-none");
+                        }
+                    });
+
+                    redInput.addEventListener("change", function () {
+                        discipuladoInput.value = "";
+                        celulaInput.value = "";
+                        applyStructureFilters();
+                        clearLoadedAttendance();
+                        if (discipuladoStatusBox) {
+                            discipuladoStatusBox.classList.add("d-none");
+                        }
+                    });
+
+                    discipuladoInput.addEventListener("change", function () {
+                        celulaInput.value = "";
+                        applyStructureFilters();
+                        clearLoadedAttendance();
+                        refreshDiscipuladoStatus();
+                    });
+
+                    celulaInput.addEventListener("change", clearLoadedAttendance);
+
+                    weekInput.addEventListener("change", function () {
+                        clearLoadedAttendance();
+                        refreshDiscipuladoStatus();
                     });
 
                     loadBtn.addEventListener("click", async function () {
