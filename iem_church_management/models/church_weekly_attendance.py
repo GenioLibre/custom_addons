@@ -38,6 +38,11 @@ class IemChurchWeeklyAttendance(models.Model):
         readonly=True,
     )
     line_ids = fields.One2many("iem.church.weekly.attendance.line", "attendance_id", string="Miembros")
+    total_members = fields.Integer(string="Miembros", compute="_compute_attendance_totals")
+    total_attended_celula = fields.Integer(string="Asistencia a célula", compute="_compute_attendance_totals")
+    total_attended_culto = fields.Integer(string="Asistencia al culto", compute="_compute_attendance_totals")
+    total_attended_discipulado = fields.Integer(string="Asistencia al discipulado", compute="_compute_attendance_totals")
+    total_tithed = fields.Integer(string="Diezmistas", compute="_compute_attendance_totals")
 
     _sql_constraints = [
         (
@@ -54,6 +59,21 @@ class IemChurchWeeklyAttendance(models.Model):
                 rec.name = "%s - %s" % (rec.celula_id.display_name, rec._format_week_label())
             else:
                 rec.name = _("Asistencia semanal")
+
+    @api.depends(
+        "line_ids",
+        "line_ids.attended_celula",
+        "line_ids.attended_culto",
+        "line_ids.attended_discipulado",
+        "line_ids.tithed",
+    )
+    def _compute_attendance_totals(self):
+        for rec in self:
+            rec.total_members = len(rec.line_ids)
+            rec.total_attended_celula = len(rec.line_ids.filtered("attended_celula"))
+            rec.total_attended_culto = len(rec.line_ids.filtered("attended_culto"))
+            rec.total_attended_discipulado = len(rec.line_ids.filtered("attended_discipulado"))
+            rec.total_tithed = len(rec.line_ids.filtered("tithed"))
 
     def _format_week_label(self):
         self.ensure_one()

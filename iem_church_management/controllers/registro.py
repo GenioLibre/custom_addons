@@ -1,6 +1,6 @@
 import base64
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from urllib.parse import quote
 
 import requests
@@ -214,7 +214,11 @@ class IemChurchWebsite(http.Controller):
         return request.render("iem_church_management.church_member_list_public_form", values)
 
     def _get_weekly_attendance_reference_data(self):
-        today = date.today()
+        user_now = fields.Datetime.context_timestamp(
+            request.env.user,
+            datetime.now(timezone.utc),
+        )
+        today = user_now.date()
         week_year, week_number, _weekday = today.isocalendar()
         attendance_model = request.env["iem.church.weekly.attendance"].sudo()
         current_week_vals = attendance_model.week_values_from_iso("%s-W%s" % (week_year, str(week_number).zfill(2)))
