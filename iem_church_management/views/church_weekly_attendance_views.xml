@@ -67,8 +67,10 @@
                 <field name="red_id" type="row" />
                 <field name="discipulado_id" type="row" />
                 <field name="celula_id" type="row" />
-                <field name="week_year" type="col" />
-                <field name="week_number" type="col" />
+                <field name="week_start" type="col" interval="year" />
+                <field name="week_start" type="col" interval="month" />
+                <field name="week_start" type="col" interval="week" />
+                <field name="total_members" type="measure" />
                 <field name="total_attended_celula" type="measure" />
                 <field name="total_attended_culto" type="measure" />
                 <field name="total_attended_discipulado" type="measure" />
