@@ -1,6 +1,6 @@
 import base64
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from urllib.parse import quote
 
 import requests
@@ -216,7 +216,7 @@ class IemChurchWebsite(http.Controller):
     def _get_weekly_attendance_reference_data(self):
         user_now = fields.Datetime.context_timestamp(
             request.env.user,
-            datetime.now(timezone.utc),
+            datetime.utcnow(),
         )
         today = user_now.date()
         week_year, week_number, _weekday = today.isocalendar()

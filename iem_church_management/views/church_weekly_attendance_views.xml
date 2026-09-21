@@ -58,6 +58,25 @@
         </field>
     </record>
 
+    <record id="view_iem_weekly_attendance_pivot" model="ir.ui.view">
+        <field name="name">iem.church.weekly.attendance.pivot</field>
+        <field name="model">iem.church.weekly.attendance</field>
+        <field name="arch" type="xml">
+            <pivot string="Tabla dinámica de asistencia" sample="1">
+                <field name="predio_id" type="row" />
+                <field name="red_id" type="row" />
+                <field name="discipulado_id" type="row" />
+                <field name="celula_id" type="row" />
+                <field name="week_year" type="col" />
+                <field name="week_number" type="col" />
+                <field name="total_attended_celula" type="measure" />
+                <field name="total_attended_culto" type="measure" />
+                <field name="total_attended_discipulado" type="measure" />
+                <field name="total_tithed" type="measure" />
+            </pivot>
+        </field>
+    </record>
+
     <record id="view_iem_weekly_attendance_form" model="ir.ui.view">
         <field name="name">iem.church.weekly.attendance.form</field>
         <field name="model">iem.church.weekly.attendance</field>
@@ -121,8 +140,8 @@
     <record id="action_iem_weekly_attendance" model="ir.actions.act_window">
         <field name="name">Asistencia semanal</field>
         <field name="res_model">iem.church.weekly.attendance</field>
-        <field name="view_mode">kanban,list,form</field>
-        <field name="view_id" ref="view_iem_weekly_attendance_kanban" />
+        <field name="view_mode">pivot,kanban,list,form</field>
+        <field name="view_id" ref="view_iem_weekly_attendance_pivot" />
         <field name="context">{'group_by': ['predio_id', 'red_id', 'discipulado_id', 'celula_id'], 'search_default_group_week': 1}</field>
         <field name="search_view_id" ref="view_iem_weekly_attendance_search" />
         <field name="groups_id" eval="[(6, 0, [
