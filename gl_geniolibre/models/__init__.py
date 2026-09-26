@@ -11,3 +11,5 @@ from . import sale_order_line
 from . import gl_social_reports
 from . import gl_contenido_flujo
 from . import tiktok_publish_confirm_wizard
+
+from . import user_access

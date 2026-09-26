@@ -26,6 +26,7 @@
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',
+        'views/res_users_access.xml',
         'data/gl_confection_sequence.xml',
         
         'views/gl_res_config_settings_views.xml',
