@@ -1,12 +1,18 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.exceptions import AccessError
 
 
 class GlConfectionOrder(models.Model):
     _name = 'gl.confection.order'
     _description = 'Orden de Confección'
     _rec_name = 'name'
+
+    def unlink(self):
+        if not self.env.user.has_group('gl_tithor.group_confection_admin'):
+            raise AccessError('Solo los administradores de confección pueden borrar órdenes.')
+        return super().unlink()
 
     name = fields.Char(string='Referencia', required=True, copy=False, default='Nuevo')
     sale_order_id = fields.Many2one('sale.order', string='Orden de Venta', required=True)

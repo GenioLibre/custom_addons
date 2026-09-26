@@ -148,6 +148,7 @@
 
 
                     </block>
+                    <block title="Permisos de tareas"><div class="col-xs-12 row o_settings_container"><label class="col-lg-3" string="Usuarios" for="project_task_users"/><field name="project_task_users" widget="many2many_tags"/><label class="col-lg-3" string="Administradores" for="project_task_admin_users"/><field name="project_task_admin_users" widget="many2many_tags"/></div></block>
                 </app>
             </xpath>
         </field>

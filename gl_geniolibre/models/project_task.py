@@ -14,7 +14,7 @@ from io import BytesIO
 from odoo.tools import html2plaintext
 from odoo import models, fields, api
 from datetime import datetime
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, AccessError
 from .res_config_settings import get_linkedin_api_version
 
 import mimetypes
@@ -170,6 +170,14 @@ class ProjectTaskAttachmentLine(models.Model):
 
 class project_task(models.Model):
     _inherit = "project.task"
+
+    def unlink(self):
+        if not self.env.user.has_group('gl_geniolibre.group_project_task_admin'):
+            raise AccessError('Solo los administradores de tareas pueden borrar tareas.')
+        return super().unlink()
+    date_deadline = fields.Date(tracking=True)
+    date_assign = fields.Datetime(tracking=True)
+    date_last_stage_update = fields.Datetime(tracking=True)
     state = fields.Selection(tracking=True)  # track_visibility en versiones antiguas
     tag_ids = fields.Many2many(tracking=True)
     user_ids = fields.Many2many(tracking=True)
@@ -3072,7 +3080,7 @@ def normalize_image_for_meta(file_bytes, file_name="image.jpg"):
 
 def get_video_duration_ffprobe(base64_data):
     import subprocess, json, tempfile, base64
-    from odoo.exceptions import ValidationError
+    from odoo.exceptions import ValidationError, AccessError
 
     try:
         with tempfile.NamedTemporaryFile(delete=True, suffix=".mp4") as tmp:

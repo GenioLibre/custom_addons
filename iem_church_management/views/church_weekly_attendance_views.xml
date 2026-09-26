@@ -16,48 +16,6 @@
         </field>
     </record>
 
-    <record id="view_iem_weekly_attendance_kanban" model="ir.ui.view">
-        <field name="name">iem.church.weekly.attendance.kanban</field>
-        <field name="model">iem.church.weekly.attendance</field>
-        <field name="arch" type="xml">
-            <kanban default_group_by="predio_id" class="o_kanban_small_column">
-                <field name="name" />
-                <field name="week_year" />
-                <field name="week_number" />
-                <field name="week_start" />
-                <field name="week_end" />
-                <field name="predio_id" />
-                <field name="red_id" />
-                <field name="discipulado_id" />
-                <field name="celula_id" />
-                <field name="total_members" />
-                <field name="total_attended_celula" />
-                <field name="total_attended_culto" />
-                <field name="total_attended_discipulado" />
-                <field name="total_tithed" />
-                <templates>
-                    <t t-name="card">
-                        <div class="oe_kanban_global_click">
-                            <strong class="d-block fs-5"><field name="celula_id" /></strong>
-                            <div class="text-muted mb-2">
-                                Semana <field name="week_number" /> / <field name="week_year" />
-                            </div>
-                            <div class="small text-muted mb-2">
-                                <field name="week_start" /> al <field name="week_end" />
-                            </div>
-                            <div class="row g-1 small">
-                                <div class="col-6">Célula: <strong><field name="total_attended_celula" /></strong></div>
-                                <div class="col-6">Culto: <strong><field name="total_attended_culto" /></strong></div>
-                                <div class="col-6">Discipulado: <strong><field name="total_attended_discipulado" /></strong></div>
-                                <div class="col-6">Diezmo: <strong><field name="total_tithed" /></strong></div>
-                            </div>
-                        </div>
-                    </t>
-                </templates>
-            </kanban>
-        </field>
-    </record>
-
     <record id="view_iem_weekly_attendance_pivot" model="ir.ui.view">
         <field name="name">iem.church.weekly.attendance.pivot</field>
         <field name="model">iem.church.weekly.attendance</field>
@@ -130,7 +88,11 @@
                 <field name="celula_id" />
                 <field name="week_year" />
                 <field name="week_number" />
+                <filter string="Año actual" name="current_year" domain="[('week_year', '=', context_today().year)]" />
                 <group expand="0" string="Agrupar por">
+                    <filter string="Predio" name="group_predio" context="{'group_by': 'predio_id'}" />
+                    <filter string="Red" name="group_red" context="{'group_by': 'red_id'}" />
+                    <filter string="Discipulado" name="group_discipulado" context="{'group_by': 'discipulado_id'}" />
                     <filter string="Célula" name="group_celula" context="{'group_by': 'celula_id'}" />
                     <filter string="Semana" name="group_week" context="{'group_by': 'week_number'}" />
                 </group>
@@ -141,9 +103,9 @@
     <record id="action_iem_weekly_attendance" model="ir.actions.act_window">
         <field name="name">Asistencia semanal</field>
         <field name="res_model">iem.church.weekly.attendance</field>
-        <field name="view_mode">pivot,kanban,list,form</field>
+        <field name="view_mode">pivot,list,form</field>
         <field name="view_id" ref="view_iem_weekly_attendance_pivot" />
-        <field name="context">{}</field>
+        <field name="context">{'search_default_current_year': 1}</field>
         <field name="search_view_id" ref="view_iem_weekly_attendance_search" />
         <field name="groups_id" eval="[(6, 0, [
             ref('base.group_system'),

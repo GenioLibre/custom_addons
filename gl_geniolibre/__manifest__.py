@@ -24,6 +24,7 @@
 
     # always loaded
     'data': [
+        'security/security.xml',
         'security/ir.model.access.csv',
 
         'views/gl_res_config_settings_views.xml',

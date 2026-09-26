@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_camiseta_registro,access.camiseta.registro,model_camiseta_registro,base.group_user,1,1,1,1
-access_gl_confection_order,access.gl.confection.order,model_gl_confection_order,base.group_user,1,1,1,1
+access_gl_confection_order_user,access.gl.confection.order.user,model_gl_confection_order,gl_tithor.group_confection_user,1,1,1,0
+access_gl_confection_order_admin,access.gl.confection.order.admin,model_gl_confection_order,gl_tithor.group_confection_admin,1,1,1,1
