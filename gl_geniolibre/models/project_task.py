@@ -1234,6 +1234,8 @@ class project_task(models.Model):
         return True
 
     def unlink(self):
+        if not self.env.user.has_group('gl_geniolibre.group_project_task_admin'):
+            raise AccessError('No tienes permiso para eliminar tareas. Activa "Puede eliminar tareas" en la configuración.')
         for task in self:
             if task.tag_ids.filtered(lambda tag: tag.name.lower() == 'plantilla'):
                 raise ValidationError('No puedes eliminar tareas con la etiqueta "Plantilla".')

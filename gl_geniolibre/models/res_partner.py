@@ -43,6 +43,13 @@ class LinkedInOrganization(models.Model):
 
 class Partner(models.Model):
     _inherit = "res.partner"
+
+    def _register_hook(self):
+        result = super()._register_hook()
+        for field in self._fields.values():
+            if field.type in ('date', 'datetime'):
+                field.tracking = True
+        return result
     credenciales = fields.One2many('gl.credentials', 'credenciales_id')
     code_verifier = fields.Char(readonly=True)
     code_challenge = fields.Char(readonly=True)

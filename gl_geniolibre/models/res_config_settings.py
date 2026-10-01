@@ -91,17 +91,19 @@ class ResConfigSettings(models.TransientModel):
     linkedin_token_expiry = fields.Char(string="Token Expiry", config_parameter='linkedin.token_expiry')
     project_task_users = fields.Many2many('res.users', string='Usuarios de tareas', domain=[('share', '=', False)], relation='gl_project_task_user_rel')
     project_task_admin_users = fields.Many2many('res.users', string='Administradores de tareas', domain=[('share', '=', False)], relation='gl_project_task_admin_rel')
+    project_task_delete_users = fields.Many2many('res.users', string='Puede eliminar tareas', domain=[('share', '=', False)], relation='gl_project_task_delete_rel')
 
     @api.model
     def get_values(self):
         values = super().get_values()
-        values.update(project_task_users=[(6, 0, self.env.ref('gl_geniolibre.group_project_task_user').users.ids)], project_task_admin_users=[(6, 0, self.env.ref('gl_geniolibre.group_project_task_admin').users.ids)])
+        values.update(project_task_users=[(6, 0, self.env.ref('gl_geniolibre.group_project_task_user').users.ids)], project_task_admin_users=[(6, 0, self.env.ref('gl_geniolibre.group_project_task_admin').users.ids)], project_task_delete_users=[(6, 0, self.env.ref('gl_geniolibre.group_project_task_admin').users.ids)])
         return values
 
     def set_values(self):
         super().set_values()
         self.env.ref('gl_geniolibre.group_project_task_user').users = [(6, 0, self.project_task_users.ids)]
         self.env.ref('gl_geniolibre.group_project_task_admin').users = [(6, 0, self.project_task_admin_users.ids)]
+        self.env.ref('gl_geniolibre.group_project_task_admin').users = [(6, 0, self.project_task_delete_users.ids)]
 
     linkedin_api_version = fields.Char(
         string="LinkedIn API Version",
