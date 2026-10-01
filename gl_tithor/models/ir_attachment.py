@@ -19,6 +19,10 @@ class IrAttachment(models.Model):
             "gl_tithor.group_confection_admin",
         )
         if self.env.user.has_group(allowed_groups[0]) or self.env.user.has_group(allowed_groups[1]):
+            # Tithor users need to open the existing mockups in quotations and
+            # confection orders, including legacy files without res_model/res_id.
+            if mode == 'read':
+                return True
             allowed_ids = self._confection_attachment_ids()
             allowed = self.filtered(lambda attachment: attachment.id in allowed_ids)
             remaining = self - allowed
