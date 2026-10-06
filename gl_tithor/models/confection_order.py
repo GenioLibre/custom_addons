@@ -7,7 +7,7 @@ class GlConfectionOrder(models.Model):
     _name = 'gl.confection.order'
     _description = 'Orden de Confección'
     _rec_name = 'name'
-    _order = 'delivery_date asc, id asc'
+    _order = 'done asc, delivery_date asc, id asc'
 
     name = fields.Char(string='Referencia', required=True, copy=False, default='Nuevo')
     sale_order_id = fields.Many2one('sale.order', string='Orden de Venta', required=True)

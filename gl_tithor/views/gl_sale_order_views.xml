@@ -4,7 +4,7 @@
         <field name="name">gl.confection.order.list</field>
         <field name="model">gl.confection.order</field>
         <field name="arch" type="xml">
-            <list string="Confección">
+            <list string="Confección" default_order="done asc, delivery_date asc, id asc">
                 <field name="mockup_image" widget="image" options="{'size': [80, 80]}"/>
                 <field name="name"/>
                 <field name="sale_order_id"/>
