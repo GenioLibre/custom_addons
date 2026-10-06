@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': "TITHOR - Custom Development",
-    'version': '1.0.3',
+    'version': '1.0.4',
     'author': 'GenioLibre',
 
     'summary': """
