@@ -193,10 +193,22 @@ class GlConfectionOrder(models.Model):
             else:
                 record.delivery_days_left = f"Faltan {remaining_days} días"
 
-    @api.depends('design_file_ids', 'design_file_ids.datas', 'printing_file_ids', 'printing_file_ids.datas')
+    @api.depends(
+        'design_file_ids',
+        'design_file_ids.datas',
+        'printing_file_ids',
+        'printing_file_ids.datas',
+        'sale_order_id.camiseta_foto_ids',
+        'sale_order_id.camiseta_foto_ids.datas',
+    )
     def _compute_mockup_image(self):
         for record in self:
-            image = record.design_file_ids[:1] or record.printing_file_ids[:1]
+            images = (
+                record.design_file_ids
+                | record.printing_file_ids
+                | record.sale_order_id.camiseta_foto_ids
+            ).filtered(lambda attachment: (attachment.mimetype or '').startswith('image/'))
+            image = images.sorted('id')[:1]
             record.mockup_image = image.datas if image else False
 
 
