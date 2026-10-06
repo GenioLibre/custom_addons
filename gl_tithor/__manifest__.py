@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': "TITHOR - Custom Development",
-    'version': '1.0.1',
+    'version': '1.0.2',
     'author': 'GenioLibre',
 
     'summary': """
@@ -25,6 +25,7 @@
     # always loaded
     'data': [
         'security/ir.model.access.csv',
+        'data/security_cleanup.xml',
         'data/gl_confection_sequence.xml',
         
         'views/gl_res_config_settings_views.xml',
