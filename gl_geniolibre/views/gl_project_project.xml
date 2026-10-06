@@ -13,7 +13,7 @@
                     <group invisible="project_type != 'marketing'">
                         <p class="mb-1 mt-2">
                             <strong>Plan:
-                                <field name="partner_plan_descripcion"/>
+                                <field name="plan_descripcion"/>
                             </strong>
                         </p>
                         <p class="mb-0">
@@ -73,6 +73,16 @@
                             icon="fa-map"
                             class="btn-primary"
                             invisible="project_type != 'web'"/>
+                </xpath>
+                <xpath expr="//page[@name='description']" position="after">
+                    <page name="marketing_plan" string="Plan de Marketing" invisible="project_type != 'marketing'">
+                        <group>
+                            <field name="plan_descripcion"/>
+                            <field name="plan_post"/>
+                            <field name="plan_historia"/>
+                            <field name="plan_reel"/>
+                        </group>
+                    </page>
                 </xpath>
             </field>
         </record>

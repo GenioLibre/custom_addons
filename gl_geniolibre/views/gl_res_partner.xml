@@ -75,10 +75,6 @@
                 </xpath>
                 <xpath expr="//group[@name='banks']" position="before">
                     <group string="Planes de Marketing">
-                        <field name="plan_descripcion"/>
-                        <field name="plan_post"/>
-                        <field name="plan_historia"/>
-                        <field name="plan_reel"/>
                         <field name="monto"/>
                         <field name="publicidad"/>
                         <field name="moneda"/>

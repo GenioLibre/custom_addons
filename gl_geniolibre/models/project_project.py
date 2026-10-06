@@ -96,10 +96,10 @@ class FacebookAdCampaigns(models.Model):
 class project_project(models.Model):
     _inherit = "project.project"
     partner_id = fields.Many2one('res.partner')
-    partner_plan_descripcion = fields.Char(related="partner_id.plan_descripcion")
-    partner_plan_post = fields.Integer(string="Posts", related="partner_id.plan_post")
-    partner_plan_historia = fields.Integer(string="Historias", related="partner_id.plan_historia")
-    partner_plan_reel = fields.Integer(string="Reels", related="partner_id.plan_reel")
+    plan_descripcion = fields.Char(string="Plan", tracking=True)
+    plan_post = fields.Integer(string="Número de Posts", tracking=True)
+    plan_historia = fields.Integer(string="Número de Historias", tracking=True)
+    plan_reel = fields.Integer(string="Número de Reels", tracking=True)
 
     post_progress = fields.Char(string="Posts Publicados", compute="_compute_publication_counts", store=False)
     historia_progress = fields.Char(string="Historias Publicadas", compute="_compute_publication_counts", store=False)
@@ -129,8 +129,7 @@ class project_project(models.Model):
     partner_id_google_ads_account = fields.Char(related="partner_id.id_google_ads_account")
     google_ad_campaigns_ids = fields.One2many('google.ad.campaigns', 'project_id', string='Campañas de Google Ads')
 
-    @api.depends('task_ids.post_estado', 'task_ids.tipo', 'partner_plan_post', 'partner_plan_historia',
-                 'partner_plan_reel')
+    @api.depends('task_ids.post_estado', 'task_ids.tipo', 'plan_post', 'plan_historia', 'plan_reel')
     def _compute_publication_counts(self):  # optimizado
         for project in self:
             # Usar el ORM de Odoo para calcular cantidades directamente en la búsqueda
@@ -159,9 +158,9 @@ class project_project(models.Model):
                     reel_count = count
 
             # Actualizar campos de progreso utilizando los valores calculados
-            project.post_progress = f"{post_count} de {project.partner_plan_post or 0} posts"
-            project.historia_progress = f"{historia_count} de {project.partner_plan_historia or 0} historias"
-            project.reel_progress = f"{reel_count} de {project.partner_plan_reel or 0} reels"
+            project.post_progress = f"{post_count} de {project.plan_post or 0} posts"
+            project.historia_progress = f"{historia_count} de {project.plan_historia or 0} historias"
+            project.reel_progress = f"{reel_count} de {project.plan_reel or 0} reels"
 
     @api.model_create_multi
     def create(self, vals_list):  # optimizado
