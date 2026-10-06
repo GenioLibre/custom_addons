@@ -6,6 +6,6 @@ class IrAttachment(models.Model):
 
     @api.model
     def check(self, mode, values=None):
-        if self.env.user._is_internal():
+        if not self.env.user._is_public():
             return True
         return super().check(mode, values=values)

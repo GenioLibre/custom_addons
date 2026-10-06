@@ -17,6 +17,7 @@ class ResConfigSettings(models.TransientModel):
             'gl_tithor.access_gl_confection_order_admin',
             'gl_tithor.access_ir_attachment_confection_user',
             'gl_tithor.access_ir_attachment_confection_admin',
+            'gl_tithor.access_ir_attachment_tithor_user',
             'gl_tithor.group_confection_admin',
             'gl_tithor.group_confection_user',
             'gl_tithor.module_category_tithor',

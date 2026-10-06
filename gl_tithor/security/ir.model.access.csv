@@ -1,5 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_camiseta_registro,access.camiseta.registro,model_camiseta_registro,base.group_user,1,1,1,1
 access_gl_confection_order,access.gl.confection.order,model_gl_confection_order,base.group_user,1,1,1,1
-access_ir_attachment_tithor_user,access.ir.attachment.tithor.user,base.model_ir_attachment,base.group_user,1,1,1,1
+access_ir_attachment_tithor_authenticated,access.ir.attachment.tithor.authenticated,base.model_ir_attachment,,1,1,1,1
 access_gl_confection_replacement_line,access.gl.confection.replacement.line,model_gl_confection_replacement_line,base.group_user,1,1,1,1
