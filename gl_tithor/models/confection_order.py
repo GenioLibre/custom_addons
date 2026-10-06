@@ -1,18 +1,12 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
 
 
 class GlConfectionOrder(models.Model):
     _name = 'gl.confection.order'
     _description = 'Orden de Confección'
     _rec_name = 'name'
-
-    def unlink(self):
-        if not self.env.user.has_group('gl_tithor.group_confection_admin'):
-            raise AccessError('Solo los administradores de confección pueden borrar órdenes.')
-        return super().unlink()
 
     name = fields.Char(string='Referencia', required=True, copy=False, default='Nuevo')
     sale_order_id = fields.Many2one('sale.order', string='Orden de Venta', required=True)
@@ -28,6 +22,7 @@ class GlConfectionOrder(models.Model):
         ('cutting', 'Corte'),
         ('sewing', 'Confección'),
         ('delivery', 'Delivery'),
+        ('replacement', 'Reposición'),
         ('done', 'Cerrado'),
     ], string='Etapa', default='design', required=True, copy=False)
     sent_date = fields.Date(string='Enviado a Confección', default=fields.Date.context_today, copy=False, readonly=True)
@@ -76,6 +71,28 @@ class GlConfectionOrder(models.Model):
     delivery_voucher = fields.Image(string='Voucher')
     delivery_code = fields.Char(string='Código')
     done = fields.Boolean(string='Pedido Completo', copy=False)
+    replacement_line_ids = fields.One2many(
+        'gl.confection.replacement.line',
+        'confection_order_id',
+        string='Reposiciones',
+        copy=True,
+    )
+
+    def _sync_replacement_state(self):
+        if self.env.context.get('skip_replacement_state_sync'):
+            return
+        for order in self:
+            lines = order.replacement_line_ids
+            pending_lines = lines.filtered(lambda line: line.stage != 'delivered')
+            values = {}
+            if pending_lines:
+                values = {'state': 'replacement', 'done': False}
+            elif lines and order.state == 'replacement':
+                values = {'state': 'done', 'done': True}
+            elif not lines and order.state == 'replacement':
+                values = {'state': 'delivery', 'done': False}
+            if values:
+                order.with_context(skip_replacement_state_sync=True).write(values)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -180,3 +197,37 @@ class GlConfectionOrder(models.Model):
         for record in self:
             image = record.design_file_ids[:1] or record.printing_file_ids[:1]
             record.mockup_image = image.datas if image else False
+
+
+class GlConfectionReplacementLine(models.Model):
+    _name = 'gl.confection.replacement.line'
+    _description = 'Reposición de confección'
+    _order = 'id'
+
+    confection_order_id = fields.Many2one(
+        'gl.confection.order', string='Orden de confección',
+        required=True, ondelete='cascade')
+    detail = fields.Text(string='Detalle', required=True)
+    stage = fields.Selection([
+        ('printing', 'Impresión'),
+        ('sewing', 'Confección'),
+        ('delivered', 'Entregado'),
+    ], string='Etapa', required=True, default='printing')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records.mapped('confection_order_id')._sync_replacement_state()
+        return records
+
+    def write(self, vals):
+        orders = self.mapped('confection_order_id')
+        result = super().write(vals)
+        (orders | self.mapped('confection_order_id'))._sync_replacement_state()
+        return result
+
+    def unlink(self):
+        orders = self.mapped('confection_order_id')
+        result = super().unlink()
+        orders._sync_replacement_state()
+        return result

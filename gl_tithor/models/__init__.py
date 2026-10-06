@@ -3,5 +3,4 @@ from . import sale_order
 from . import confection_order
 from . import res_config_settings
 
-from . import user_access
 from . import ir_attachment
