@@ -165,68 +165,9 @@ class project_project(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):  # optimizado
-        """
-        Validar duplicados de 'partner_id' y 'project_type' para evitar la creación de proyectos repetidos.
-        """
-        for vals in vals_list:
-            partner_id = vals.get('partner_id')
-            project_type = vals.get('project_type')
-
-            # Comprobamos si ya existe un proyecto para este cliente y tipo,
-            # pero solo si el tipo es "marketing"
-            if partner_id and project_type == "marketing":
-                existing_project = self.sudo().search([
-                    ('partner_id', '=', partner_id),
-                    ('project_type', '=', project_type)
-                ], limit=1)
-
-                if existing_project:
-                    partner_name = self.env['res.partner'].browse(partner_id).name
-                    project_type_label = dict(
-                        self.fields_get()['project_type']['selection']).get(project_type, project_type)
-                    raise ValidationError(
-                        f"Ya existe un proyecto para el cliente '{partner_name}' con el tipo '{project_type_label}'.")
-
-        # Creamos los registros utilizando la lógica estándar
         return super(project_project, self).create(vals_list)
 
     def write(self, vals):  # optimizado
-        """
-        Validar que no existan duplicados de tipo de proyecto y cliente al actualizar registros.
-        """
-        # Obtener nuevos valores asignados o valores actuales del registro
-        partner_id = vals.get('partner_id')
-        project_type = vals.get('project_type')
-
-        # Si no hay cambios relevantes, continúa
-        if not partner_id and not project_type:
-            return super(project_project, self).write(vals)
-
-        for record in self:
-            # Asignar valores "actuales" en caso de no estar en 'vals'
-            # if not self.google_ad_campaigns_ids:
-            #     if record.date_start and record.date:
-            #         if (record.date - record.date_start).days > 30:
-            #             raise ValidationError("El rango entre fechas no puede ser mayor a 30 días.")
-
-            updated_partner_id = partner_id or record.partner_id.id
-            updated_project_type = project_type or record.project_type
-
-            # Buscar proyectos existentes que coincidan con las condiciones
-            duplicate_project = self.sudo().search([
-                ('id', '!=', record.id),  # Evitar comparar con el mismo registro
-                ('partner_id', '=', updated_partner_id),
-                ('project_type', '=', updated_project_type)
-            ], limit=1)
-
-            if duplicate_project:
-                partner_name = self.env['res.partner'].browse(updated_partner_id).name
-                project_type_label = dict(
-                    self.fields_get()['project_type']['selection']).get(updated_project_type, updated_project_type)
-                raise ValidationError(
-                    f"Otro proyecto del cliente '{partner_name}' con el tipo '{project_type_label}' ya existe.")
-
-        # Aplicar la escritura de los valores
         return super(project_project, self).write(vals)
 
     def fetch_campaigns(self):
