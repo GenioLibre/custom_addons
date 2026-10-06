@@ -109,7 +109,7 @@ class SaleOrder(models.Model):
     )
     camiseta_foto_ids = fields.Many2many(
         'ir.attachment',
-        string="Mockup Camiseta",
+        string="Agregar Mockup",
         domain="[('mimetype', 'ilike', 'image/')]",
     )
     archivo_excel = fields.Binary("Archivo Excel", attachment=True)
