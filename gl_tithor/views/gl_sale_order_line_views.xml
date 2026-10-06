@@ -16,18 +16,26 @@
 
             </xpath>
             <xpath expr="//page[@name='order_lines']" position="after">
-                <page string="Detalles de Camisetas" name="detalles_camisetas">
+                <page string="Detalles del Pedido" name="detalles_camisetas">
                     <group>
-                        <field name="camiseta_registro_ids"/>
                         <field name="archivo_excel" filename="archivo_nombre"/>
                         <button string="Importar Excel" type="object" name="importar_excel" class="btn-secondary"/>
+                        <button string="Eliminar contenido importado"
+                                type="object"
+                                name="action_clear_imported_excel"
+                                class="btn-danger"
+                                confirm="¿Desea eliminar el archivo importado y todo su contenido?"
+                                invisible="not excel_headers"/>
                     </group>
+                    <field name="excel_headers" invisible="1"/>
+                    <field name="excel_imported_filename" readonly="1" invisible="not excel_imported_filename"/>
+                    <field name="excel_preview_html" widget="html" readonly="1" nolabel="1"/>
 
                 </page>
-                <page string="Mockup Camiseta" name="foto_camiseta">
+                <page string="Mockup" name="foto_camiseta">
                     <group>
                         <div style="max-width: 512px; max-height: 100%;">
-                            <field name="camiseta_foto_ids" string="Mockup Camiseta"
+                            <field name="camiseta_foto_ids" string="Agregar Mockup"
                                    widget="many2many_binary"
                                    context="{'default_res_model': 'sale.order', 'default_res_id': id}"
                                    domain="[('res_model', '=', 'sale.order'), ('res_id', '=', id)]"
@@ -43,13 +51,17 @@
         <field name="model">camiseta.registro</field>
         <field name="arch" type="xml">
             <list string="Detalle de Camisetas">
+                <field name="diseno"/>
                 <field name="nombre_en_camiseta"/>
                 <field name="numero"/>
                 <field name="tipo"/>
                 <field name="talla_camiseta"/>
-                <field name="talla_short"/>
+                <field name="modelo"/>
                 <field name="corte"/>
                 <field name="manga"/>
+                <field name="cuello"/>
+                <field name="tipo_short"/>
+                <field name="talla_short"/>
                 <field name="notas"/>
             </list>
         </field>

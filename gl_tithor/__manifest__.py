@@ -39,6 +39,7 @@
     'assets': {
         'web.assets_backend': [
             'gl_tithor/static/src/js/gl_many2many_attachment_preview.js',
+            'gl_tithor/static/src/js/gl_delayed_reload.js',
             'gl_tithor/static/src/xml/gl_many2many_attachment_preview_template.xml',
         ],
     },
