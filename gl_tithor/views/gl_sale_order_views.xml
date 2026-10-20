@@ -70,6 +70,7 @@
                             <group>
                                 <field name="design_file_ids"
                                        widget="many2many_binary"
+                                       context="{'default_res_model': 'gl.confection.order', 'default_res_id': id}"
                                        readonly="done"
                                        options="{'accepted_file_extensions': '.jpeg,.jpg,.png'}"/>
                             </group>
@@ -81,6 +82,7 @@
                             <group>
                                 <field name="printing_file_ids"
                                        widget="many2many_binary"
+                                       context="{'default_res_model': 'gl.confection.order', 'default_res_id': id}"
                                        readonly="done"
                                        options="{'accepted_file_extensions': '.jpeg,.jpg,.png'}"/>
                                 <field name="printing_supplier_id" readonly="done"/>

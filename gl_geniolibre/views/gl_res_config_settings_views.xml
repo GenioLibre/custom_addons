@@ -20,6 +20,14 @@
                             <field name="user_access_token" title="APP Key"/>
                             <label class="col-lg-3 mt-3" string="Meta System User Token" for="meta_system_user_access_token"/>
                             <field name="meta_system_user_access_token" password="True" title="Meta System User Token"/>
+                            <label class="col-lg-3 mt-3" string="Meta Business ID" for="meta_business_id"/>
+                            <field name="meta_business_id" title="Meta Business ID"/>
+                            <label class="col-lg-3 mt-3" string="Meta System User ID" for="meta_system_user_id"/>
+                            <field name="meta_system_user_id" title="Meta System User ID"/>
+                            <label class="col-lg-3 mt-3" string="Token fuente para renovar" for="meta_system_user_source_token"/>
+                            <field name="meta_system_user_source_token" password="True" title="Token fuente para renovar"/>
+                            <label class="col-lg-3 mt-3" string="Permisos System User" for="meta_system_user_scopes"/>
+                            <field name="meta_system_user_scopes" title="Permisos System User"/>
                             <label class="col-lg-3 mt-3" string="Meta Token Expira" for="meta_system_user_token_expires_at"/>
                             <field name="meta_system_user_token_expires_at" title="Meta Token Expira"/>
                             <label class="col-lg-3 mt-3" string="Meta Token Estado" for="meta_system_user_token_status"/>
@@ -33,6 +41,11 @@
                             <label class="col-lg-3 mt-3" string="API Version" for="facebook_api_version"/>
                             <field name="facebook_api_version"/>
                             <div class="content-group">
+                                <div class="mt8">
+                                    <button string="Generar/Renovar Token System User" icon="fa-refresh" type="object"
+                                            name="action_generate_meta_system_user_token"
+                                            class="btn-primary"/>
+                                </div>
                                 <div class="mt8">
                                     <button string="Connectar con Facebook" icon="fa-facebook" type="object"
                                             name="conectar_facebook"

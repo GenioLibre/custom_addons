@@ -2,6 +2,8 @@
 import urllib.parse
 import secrets
 import time
+import hashlib
+import hmac
 from datetime import datetime, timedelta
 
 import boto3
@@ -18,6 +20,10 @@ META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY = "gl_facebook.meta_system_user_token_expi
 META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY = "gl_facebook.meta_system_user_token_last_check"
 META_SYSTEM_USER_TOKEN_STATE_KEY = "gl_facebook.meta_system_user_token_state"
 META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY = "gl_facebook.meta_system_user_token_last_error"
+META_BUSINESS_ID_KEY = "gl_facebook.business_id"
+META_SYSTEM_USER_ID_KEY = "gl_facebook.system_user_id"
+META_SYSTEM_USER_SOURCE_TOKEN_KEY = "gl_facebook.system_user_source_token"
+META_SYSTEM_USER_SCOPES_KEY = "gl_facebook.system_user_scopes"
 LINKEDIN_API_VERSION_KEY = "linkedin.api_version"
 DEFAULT_LINKEDIN_API_VERSION = "202504"
 
@@ -38,6 +44,29 @@ class ResConfigSettings(models.TransientModel):
     meta_system_user_access_token = fields.Char(
         string="Meta System User Access Token",
         config_parameter=META_SYSTEM_USER_TOKEN_KEY,
+    )
+    meta_business_id = fields.Char(
+        string="Meta Business ID",
+        config_parameter=META_BUSINESS_ID_KEY,
+    )
+    meta_system_user_id = fields.Char(
+        string="Meta System User ID",
+        config_parameter=META_SYSTEM_USER_ID_KEY,
+        default="100071029837787",
+    )
+    meta_system_user_source_token = fields.Char(
+        string="Token fuente para renovar",
+        config_parameter=META_SYSTEM_USER_SOURCE_TOKEN_KEY,
+    )
+    meta_system_user_scopes = fields.Char(
+        string="Permisos del System User",
+        config_parameter=META_SYSTEM_USER_SCOPES_KEY,
+        default=(
+            "business_management,pages_show_list,pages_read_engagement,"
+            "pages_manage_posts,pages_read_user_content,instagram_basic,"
+            "instagram_content_publish,instagram_manage_insights,ads_read,"
+            "ads_management,read_insights"
+        ),
     )
     meta_system_user_token_expires_at = fields.Datetime(
         string="Meta System User Expira",
@@ -162,10 +191,89 @@ class ResConfigSettings(models.TransientModel):
             icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, "")
             return
 
-        if current_token != (previous_token or "").strip() and not current_expiry:
-            expires_at = datetime.utcnow() + timedelta(days=60)
-            icp.set_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY, fields.Datetime.to_string(expires_at))
-            self.meta_system_user_token_expires_at = expires_at
+        # La fecha real debe venir de Meta. No inventar una expiracion local.
+
+    def _get_meta_system_user_source_token(self):
+        icp = self.env["ir.config_parameter"].sudo()
+        return (
+            (self.meta_system_user_source_token or "").strip()
+            or (icp.get_param(META_SYSTEM_USER_TOKEN_KEY) or "").strip()
+        )
+
+    def action_generate_meta_system_user_token(self):
+        """Genera un nuevo token para el System User configurado."""
+        self.ensure_one()
+        icp = self.env["ir.config_parameter"].sudo()
+        app_id = (self.facebook_app_id or "").strip()
+        app_secret = (self.facebook_app_secret or "").strip()
+        system_user_id = (self.meta_system_user_id or "").strip()
+        source_token = self._get_meta_system_user_source_token()
+        scopes = (self.meta_system_user_scopes or "").strip()
+        api_version = (self.facebook_api_version or "v26.0").strip()
+
+        missing = []
+        if not app_id:
+            missing.append("Facebook App ID")
+        if not app_secret:
+            missing.append("Facebook App Secret")
+        if not system_user_id:
+            missing.append("System User ID")
+        if not source_token:
+            missing.append("Token fuente")
+        if not scopes:
+            missing.append("Permisos")
+        if missing:
+            raise ValidationError("Faltan datos para generar el token: %s" % ", ".join(missing))
+
+        appsecret_proof = hmac.new(
+            app_secret.encode("utf-8"),
+            source_token.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        url = f"https://graph.facebook.com/{api_version}/{system_user_id}/access_tokens"
+        payload = {
+            "business_app": app_id,
+            "scope": scopes,
+            "set_token_expires_in_60_days": "true",
+            "access_token": source_token,
+            "appsecret_proof": appsecret_proof,
+        }
+
+        try:
+            response = requests.post(url, data=payload, timeout=30)
+            data = response.json()
+        except (requests.exceptions.RequestException, ValueError) as err:
+            raise ValidationError("No se pudo conectar con Meta al generar el token: %s" % err)
+
+        if response.status_code >= 400 or not data.get("access_token"):
+            error = data.get("error", {}).get("message") or str(data)
+            raise ValidationError("Meta no generó el token: %s" % error)
+
+        new_token = data["access_token"].strip()
+        expires_in = data.get("expires_in")
+        expires_at = False
+        if expires_in:
+            expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
+
+        icp.set_param(META_SYSTEM_USER_TOKEN_KEY, new_token)
+        icp.set_param(META_SYSTEM_USER_TOKEN_STATE_KEY, "valid")
+        icp.set_param(META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY, fields.Datetime.to_string(datetime.utcnow()))
+        icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, "")
+        icp.set_param(
+            META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY,
+            fields.Datetime.to_string(expires_at) if expires_at else "",
+        )
+
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Meta System User",
+                "message": "Token generado correctamente.",
+                "type": "success",
+                "sticky": False,
+            },
+        }
 
     @api.model
     def _cron_meta_system_user_token_maintenance(self):
@@ -177,21 +285,24 @@ class ResConfigSettings(models.TransientModel):
             icp.set_param(META_SYSTEM_USER_TOKEN_STATE_KEY, "missing")
             icp.set_param(META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY, fields.Datetime.to_string(now))
             icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, "")
+            if (icp.get_param(META_SYSTEM_USER_SOURCE_TOKEN_KEY) or "").strip():
+                try:
+                    self.create({}).action_generate_meta_system_user_token()
+                except Exception as err:
+                    icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, str(err))
             return True
 
         expires_at_raw = icp.get_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY)
         expires_at = fields.Datetime.to_datetime(expires_at_raw) if expires_at_raw else False
 
-        if not expires_at:
-            expires_at = now + timedelta(days=60)
-            icp.set_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY, fields.Datetime.to_string(expires_at))
+        # Si Meta no informa expiracion, el token puede ser permanente.
 
         state = "valid"
         error_message = ""
 
-        if expires_at <= now:
+        if expires_at and expires_at <= now:
             state = "expired"
-        elif expires_at <= (now + timedelta(days=7)):
+        elif expires_at and expires_at <= (now + timedelta(days=7)):
             state = "expiring_soon"
 
         app_id = (icp.get_param("gl_facebook.app_id") or "").strip()
@@ -225,6 +336,10 @@ class ResConfigSettings(models.TransientModel):
                             state = "expiring_soon"
                         else:
                             state = "valid"
+                    elif token_data.get("expires_at") == 0:
+                        expires_at = False
+                        icp.set_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY, "")
+                        state = "valid"
                 else:
                     error_message = f"No se pudo validar el token con Meta: {debug_data}"
             except requests.exceptions.RequestException as err:
@@ -233,6 +348,13 @@ class ResConfigSettings(models.TransientModel):
         icp.set_param(META_SYSTEM_USER_TOKEN_STATE_KEY, state)
         icp.set_param(META_SYSTEM_USER_TOKEN_LAST_CHECK_KEY, fields.Datetime.to_string(now))
         icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, error_message)
+
+        if state in ("missing", "expired", "expiring_soon"):
+            try:
+                settings = self.create({})
+                settings.action_generate_meta_system_user_token()
+            except Exception as err:
+                icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, str(err))
         return True
 
     def _create_oauth_state(self, provider):

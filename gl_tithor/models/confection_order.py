@@ -79,6 +79,33 @@ class GlConfectionOrder(models.Model):
         copy=True,
     )
 
+    def _bind_confection_attachments(self):
+        for order in self:
+            attachments = (order.design_file_ids | order.printing_file_ids).sudo()
+            if attachments:
+                attachments.write({
+                    'res_model': 'gl.confection.order',
+                    'res_id': order.id,
+                })
+
+    @api.model
+    def _migrate_confection_attachment_links(self):
+        self.env.cr.execute("""
+            UPDATE ir_attachment attachment
+               SET res_model = 'gl.confection.order',
+                   res_id = relation.confection_id
+              FROM gl_confection_design_attachment_rel relation
+             WHERE attachment.id = relation.attachment_id
+        """)
+        self.env.cr.execute("""
+            UPDATE ir_attachment attachment
+               SET res_model = 'gl.confection.order',
+                   res_id = relation.confection_id
+              FROM gl_confection_printing_attachment_rel relation
+             WHERE attachment.id = relation.attachment_id
+        """)
+        return True
+
     def _sync_replacement_state(self):
         if self.env.context.get('skip_replacement_state_sync'):
             return
@@ -103,7 +130,14 @@ class GlConfectionOrder(models.Model):
         records = super().create(vals_list)
         for record in records.filtered(lambda r: r.sale_order_id and not r.design_file_ids):
             record.design_file_ids = [(6, 0, record.sale_order_id.camiseta_foto_ids.ids)]
+        records._bind_confection_attachments()
         return records
+
+    def write(self, vals):
+        result = super().write(vals)
+        if 'design_file_ids' in vals or 'printing_file_ids' in vals:
+            self._bind_confection_attachments()
+        return result
 
     @api.onchange('sale_order_id')
     def _onchange_sale_order_id(self):
@@ -196,11 +230,11 @@ class GlConfectionOrder(models.Model):
     @api.depends('design_file_ids', 'design_file_ids.datas', 'design_file_ids.mimetype')
     def _compute_mockup_image(self):
         for record in self:
-            images = record.design_file_ids.filtered(
+            images = record.sudo().design_file_ids.filtered(
                 lambda attachment: attachment.mimetype in ('image/jpeg', 'image/png')
             )
             image = images.sorted('id')[:1]
-            record.mockup_image = image.datas if image else False
+            record.mockup_image = image.sudo().datas if image else False
 
 
 class GlConfectionReplacementLine(models.Model):
