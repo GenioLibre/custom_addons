@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="web.PivotView.Buttons" t-inherit-mode="extension">
+        <xpath expr="//div[contains(@class, 'o_pivot_buttons')]" position="inside">
+            <button
+                class="btn btn-primary o_iem_weekly_attendance_export"
+                t-on-click="onWeeklyAttendanceExportClicked"
+                title="Exportar reporte de células"
+            >
+                <i class="fa fa-file-excel-o me-1"/> Exportar reporte
+            </button>
+        </xpath>
+    </t>
+</templates>

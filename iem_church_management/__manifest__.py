@@ -38,7 +38,9 @@
     "assets": {
         "web.assets_backend": [
             "iem_church_management/static/src/js/church_member_image_field.js",
+            "iem_church_management/static/src/js/church_weekly_attendance_pivot.js",
             "iem_church_management/static/src/xml/church_member_image_field.xml",
+            "iem_church_management/static/src/xml/church_weekly_attendance_pivot.xml",
             "iem_church_management/static/src/scss/church_member.scss",
         ],
     },
