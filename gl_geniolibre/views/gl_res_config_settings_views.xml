@@ -148,6 +148,10 @@
                         </div>
                     </block>
                     <block title="ChatGPT / OpenAI">
+                        <setting string="Conexión directa con IA"
+                                 help="Activar llamadas automáticas a OpenAI. Desactivado: copiar y pegar prompts y respuestas.">
+                            <field name="chatgpt_conexion_directa"/>
+                        </setting>
                         <div class="col-xs-12 row o_settings_container">
                             <label class="col-lg-3" string="API Key" for="chatgpt_api_key"/>
                             <field name="chatgpt_api_key" password="True" placeholder="sk-..." title="API Key"/>

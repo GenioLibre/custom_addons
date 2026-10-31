@@ -141,11 +141,14 @@
                                 string="Volver"
                                 class="btn-secondary"
                                 invisible="etapa == 'ideas'"/>
+                        <button name="action_generar_directo_ia" type="object"
+                                string="Generar con IA" class="btn-primary"
+                                invisible="etapa != 'ideas' or not conexion_directa_ia"/>
                         <button name="crear_ideas"
                                 type="object"
-                                string="Generar Propuestas de Contenido"
+                                string="Crear propuestas desde JSON"
                                 class="btn-primary"
-                                invisible="etapa != 'ideas'"/>
+                                invisible="etapa != 'ideas' or conexion_directa_ia"/>
                         <button name="etapa_perfeccionamiento"
                                 type="object"
                                 string="Pasar a Refinamiento"
@@ -173,6 +176,7 @@
                             <field name="partner_id"/>
                             <field name="project_id"/>
                             <field name="etapa" invisible="1"/>
+                            <field name="conexion_directa_ia" invisible="1"/>
                             <field name="redes_ids" widget="many2many_tags"/>
                             <field name="fecha_presentacion"/>
                         </group>
@@ -226,13 +230,13 @@
 
                         </page>
 
-                        <page string="Prompt para IA">
+                        <page string="Prompt para IA" invisible="conexion_directa_ia">
                             <group>
                                 <field name="promtp_ideas"/>
 
                             </group>
                         </page>
-                        <page string="Propuestas de IA">
+                        <page string="Propuestas de IA" invisible="conexion_directa_ia">
                             <group>
                                 <field name="promtp_respuesta"/>
 
@@ -253,26 +257,31 @@
                                         string="Ver Calendario"
                                         class="btn-secondary"
                                         icon="fa-calendar"/>
+                                <button name="action_refinar_directo_ia" type="object"
+                                        string="Refinar con IA" class="btn-primary"
+                                        invisible="not conexion_directa_ia"/>
                                 <button name="generate_prompt_reunion"
                                         type="object"
                                         string="Generar Prompt"
                                         class="btn-primary"
-                                        icon="fa-wrench"/>
+                                        icon="fa-wrench"
+                                        invisible="conexion_directa_ia"/>
                                 <button name="aceptar_refinamiento"
                                         type="object"
                                         string="Aplicar Cambios"
                                         class="btn-success"
-                                        icon="fa-check"/>
+                                        icon="fa-check"
+                                        invisible="conexion_directa_ia"/>
 
                             </group>
                         </page>
-                        <page string="Prompt de Refinamiento">
+                        <page string="Prompt de Refinamiento" invisible="conexion_directa_ia">
                             <group>
                                 <field name="promtp_refinamiento"/>
 
                             </group>
                         </page>
-                        <page string="Respuesta IA de Refinamiento">
+                        <page string="Respuesta IA de Refinamiento" invisible="conexion_directa_ia">
                             <group>
                                 <field name="promtp_respuesta_refinamiento"/>
 
