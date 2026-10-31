@@ -110,6 +110,7 @@ class GeneradorContenidoFlujo(models.Model):
     user_ids = fields.Many2many("res.users", string="Responsables")
 
     metricas = fields.Text("Métricas (JSON)")
+    conexion_directa_ia = fields.Boolean(compute="_compute_conexion_directa_ia")
 
     _CONTENT_TYPE_ALIASES = {
         "post": "post",
@@ -122,6 +123,45 @@ class GeneradorContenidoFlujo(models.Model):
         "carrusel": "carrusel",
         "carousel": "carrusel",
     }
+
+    def _conexion_directa_habilitada(self):
+        val = self.env["ir.config_parameter"].sudo().get_param("chatgpt.conexion_directa", "False")
+        return str(val).strip().lower() in ("true", "1", "yes", "on")
+
+    def _compute_conexion_directa_ia(self):
+        active = self._conexion_directa_habilitada()
+        for rec in self:
+            rec.conexion_directa_ia = active
+
+    def action_generar_directo_ia(self):
+        if not self._conexion_directa_habilitada():
+            raise ValidationError("Activa Conexión directa con IA en Ajustes.")
+        for rec in self:
+            if rec.etapa != "ideas" or rec.publicacion_ids:
+                raise ValidationError("Genera solo en un flujo de ideas sin propuestas existentes.")
+            rec.generate_prompt()
+            rec.promtp_respuesta = rec._call_openai_chat_completion(
+                prompt=rec.promtp_ideas,
+                system_prompt="Eres estratega de marketing. Responde SOLO con el arreglo JSON pedido, sin markdown.",
+                timeout=120,
+            )
+            rec.crear_ideas()
+        return {"type": "ir.actions.client", "tag": "reload"}
+
+    def action_refinar_directo_ia(self):
+        if not self._conexion_directa_habilitada():
+            raise ValidationError("Activa Conexión directa con IA en Ajustes.")
+        for rec in self:
+            if rec.etapa != "reunion":
+                raise ValidationError("El refinamiento se ejecuta en la etapa reunión.")
+            rec.generate_prompt_reunion()
+            rec.promtp_respuesta_refinamiento = rec._call_openai_chat_completion(
+                prompt=rec.promtp_refinamiento,
+                system_prompt="Eres editor de contenido. Devuelve solamente un arreglo JSON válido y conserva todos los IDs indicados.",
+                timeout=120,
+            )
+            rec.aceptar_refinamiento()
+        return {"type": "ir.actions.client", "tag": "reload"}
 
     def ver_calendario(self):
         """Abre las propuestas del flujo actual en vista calendario"""
@@ -494,6 +534,7 @@ class GeneradorContenidoFlujo(models.Model):
 
             publicaciones_actuales = {pub.id: pub for pub in record.publicacion_ids}
             publicaciones_reemplazo = []
+            ids_recibidos = set()
 
             for item_index, item in enumerate(data, start=1):
                 if not isinstance(item, dict):
@@ -506,6 +547,11 @@ class GeneradorContenidoFlujo(models.Model):
                 publicacion = publicaciones_actuales.get(pub_id)
                 if not publicacion:
                     raise ValidationError(f"No se encontró la publicación con ID {pub_id} dentro de este flujo.")
+                if publicacion.aprobado:
+                    raise ValidationError(f"No se puede modificar una publicación aprobada: {pub_id}.")
+                if pub_id in ids_recibidos:
+                    raise ValidationError(f"ID de refinamiento duplicado: {pub_id}.")
+                ids_recibidos.add(pub_id)
 
                 titulo = item.get("titulo", publicacion.titulo)
                 if titulo is not None and not isinstance(titulo, str):
@@ -541,16 +587,16 @@ class GeneradorContenidoFlujo(models.Model):
                             f"El campo '{text_field}' en el refinamiento #{item_index} debe ser texto."
                         )
 
-                publicaciones_reemplazo.append(valores_reemplazo)
+                publicaciones_reemplazo.append((publicacion, valores_reemplazo))
 
-            if len(publicaciones_reemplazo) != len(record.publicacion_ids):
+            pendientes_ids = set(record.publicacion_ids.filtered(lambda p: not p.aprobado).ids)
+            if ids_recibidos != pendientes_ids:
                 raise ValidationError(
-                    "La respuesta IA de refinamiento debe incluir exactamente todas las publicaciones actuales del flujo."
+                    "La respuesta IA debe incluir exactamente las publicaciones no aprobadas."
                 )
 
-            record.publicacion_ids.unlink()
-            for vals in publicaciones_reemplazo:
-                self.env["gl.contenido.propuesta"].create(vals)
+            for publicacion, vals in publicaciones_reemplazo:
+                publicacion.write(vals)
 
         return {
             "type": "ir.actions.client",

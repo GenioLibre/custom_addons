@@ -140,6 +140,11 @@ class ResConfigSettings(models.TransientModel):
         default=DEFAULT_LINKEDIN_API_VERSION,
     )
 
+    chatgpt_conexion_directa = fields.Boolean(
+        string="Conexión directa con IA",
+        config_parameter="chatgpt.conexion_directa",
+        default=False,
+    )
     chatgpt_api_key = fields.Char("ChatGPT API Key", config_parameter="chatgpt.api_key")
     chatgpt_base_url = fields.Char("ChatGPT Base URL", config_parameter="chatgpt.base_url", default="https://api.openai.com/v1")
     chatgpt_model = fields.Char("ChatGPT Modelo", config_parameter="chatgpt.model", default="gpt-4.1-mini")
