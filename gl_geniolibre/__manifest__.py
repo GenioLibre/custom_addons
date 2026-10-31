@@ -26,6 +26,7 @@
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',
+        'security/gl_marketing_intelligence_rules.xml',
         'views/res_users_access.xml',
 
         'views/gl_res_config_settings_views.xml',
@@ -40,6 +41,7 @@
         'views/gl_project_portal_calendar.xml',
         'views/gl_social_monthly_metrics.xml',
         'views/gl_contenido_flujo.xml',
+        'views/gl_marketing_intelligence.xml',
         'views/sale_order_line_tax_view.xml',
 
         'report/gl_print_task.xml',

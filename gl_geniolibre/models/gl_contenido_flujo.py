@@ -89,6 +89,11 @@ class GeneradorContenidoFlujo(models.Model):
         ("profesional", "Profesional"),
         ("aspiracional", "Aspiracional"),
     ], string="Tono de Comunicación", help="Define el estilo expresivo o personalidad con la que se comunica la marca en esta campaña.")
+    marketing_research_id = fields.Many2one(
+        "gl.marketing.intelligence", string="Investigación de Marketing",
+        domain="[('partner_id','=',partner_id),('state','=','approved')]",
+        help="Informe aprobado que alimenta las ideas y los copies.",
+    )
     competencia_urls = fields.Text(string="Competencia (URLs)", help="Lista de URLs o referencias de la competencia que pueden servir como inspiración o benchmark.")
     tendencias_urls = fields.Text(string="Tendencias (URLs)", help="Enlaces a videos, imágenes o publicaciones en tendencia relacionadas con la industria.")
     publico_objetivo = fields.Text(string="Público Objetivo", help="Describe el público meta de la campaña: edad, ubicación, intereses, nivel socioeconómico, etc.")
@@ -162,6 +167,33 @@ class GeneradorContenidoFlujo(models.Model):
             )
             rec.aceptar_refinamiento()
         return {"type": "ir.actions.client", "tag": "reload"}
+
+    @api.constrains("marketing_research_id", "partner_id", "project_id")
+    def _check_marketing_research(self):
+        for record in self:
+            research = record.marketing_research_id
+            if research and research.partner_id != record.partner_id:
+                raise ValidationError("La investigación no pertenece al cliente del flujo.")
+            if research and research.project_id and research.project_id != record.project_id:
+                raise ValidationError("La investigación pertenece a otro proyecto.")
+
+    def action_open_marketing_research(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Inteligencia de Marketing",
+            "res_model": "gl.marketing.intelligence",
+            "view_mode": "list,form",
+            "domain": [("partner_id", "=", self.partner_id.id)],
+            "context": {
+                "default_partner_id": self.partner_id.id,
+                "default_project_id": self.project_id.id or False,
+                "default_industry": self.industria or "",
+                "default_audience": self.publico_objetivo or "",
+                "default_date_start": self.date_start,
+                "default_date_end": self.date,
+            },
+        }
 
     def ver_calendario(self):
         """Abre las propuestas del flujo actual en vista calendario"""
@@ -1020,6 +1052,11 @@ class GeneradorContenidoFlujo(models.Model):
                         f"apoyado en métricas previas y con foco en la industria del cliente ({record.industria})."),
                 },
             }
+
+            if record.marketing_research_id:
+                data["investigacion_marketing"] = record.marketing_research_id.get_strategy_context(
+                    record.partner_id, record.project_id
+                )
 
             json_base = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 

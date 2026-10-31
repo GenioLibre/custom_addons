@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="rule_gl_marketing_intelligence_company" model="ir.rule">
+    <field name="name">Investigaciones: compañías autorizadas</field>
+    <field name="model_id" ref="model_gl_marketing_intelligence"/>
+    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="rule_gl_marketing_reference_company" model="ir.rule">
+    <field name="name">Referencias: compañías autorizadas</field>
+    <field name="model_id" ref="model_gl_marketing_reference"/>
+    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+</odoo>

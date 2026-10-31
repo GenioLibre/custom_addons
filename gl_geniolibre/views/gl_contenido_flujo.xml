@@ -202,6 +202,11 @@
                                 <group>
                                     <field name="notas"/>
                                     <field name="industria"/>
+                                    <field name="marketing_research_id"
+                                           domain="[('partner_id','=',partner_id),('state','=','approved')]"/>
+                                    <button name="action_open_marketing_research" type="object"
+                                            string="Inteligencia de Marketing" class="btn-secondary"
+                                            icon="fa-search"/>
                                     <field name="orientacion_comunicacion"/>
                                     <field name="tono_comunicacion"/>
                                     <field name="usar"/>

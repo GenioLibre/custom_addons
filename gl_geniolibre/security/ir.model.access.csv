@@ -22,3 +22,5 @@ access_marketing_meta_adset,access.marketing.meta.adset,model_marketing_meta_ads
 access_marketing_meta_ad,access.marketing.meta.ad,model_marketing_meta_ad,base.group_user,1,1,1,1
 access_project_marketing_dashboard,access.project.marketing.dashboard,model_project_marketing_dashboard,base.group_user,1,0,0,0
 access_project_marketing_import_wizard,access.project.marketing.import.wizard,model_project_marketing_import_wizard,base.group_user,1,1,1,1
+access_gl_marketing_intelligence,access.gl.marketing.intelligence,gl_geniolibre.model_gl_marketing_intelligence,base.group_user,1,1,1,1
+access_gl_marketing_reference,access.gl.marketing.reference,gl_geniolibre.model_gl_marketing_reference,base.group_user,1,1,1,1

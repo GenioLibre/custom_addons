@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_gl_marketing_intelligence_search" model="ir.ui.view">
+    <field name="name">gl.marketing.intelligence.search</field>
+    <field name="model">gl.marketing.intelligence</field>
+    <field name="arch" type="xml">
+      <search string="Inteligencia de Marketing">
+        <field name="name"/>
+        <field name="partner_id"/>
+        <field name="project_id"/>
+        <filter name="approved" string="Aprobadas" domain="[('state','=','approved')]"/>
+        <group expand="0" string="Agrupar">
+          <filter name="partner_group" string="Cliente" context="{'group_by':'partner_id'}"/>
+          <filter name="state_group" string="Estado" context="{'group_by':'state'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+  <record id="view_gl_marketing_intelligence_list" model="ir.ui.view">
+    <field name="name">gl.marketing.intelligence.list</field>
+    <field name="model">gl.marketing.intelligence</field>
+    <field name="arch" type="xml">
+      <list string="Investigaciones">
+        <field name="name"/>
+        <field name="partner_id"/>
+        <field name="project_id"/>
+        <field name="state"/>
+        <field name="analyzed_at"/>
+      </list>
+    </field>
+  </record>
+  <record id="view_gl_marketing_intelligence_form" model="ir.ui.view">
+    <field name="name">gl.marketing.intelligence.form</field>
+    <field name="model">gl.marketing.intelligence</field>
+    <field name="arch" type="xml">
+      <form string="Inteligencia de Marketing">
+        <header>
+          <button name="action_prepare_prompt" type="object" string="Preparar prompt"
+                  class="btn-primary" invisible="direct_ai or state == 'approved'"/>
+          <button name="action_analyze_ai" type="object" string="Analizar con IA"
+                  class="btn-primary" invisible="not direct_ai or state == 'approved'"/>
+          <button name="action_apply_report" type="object" string="Aplicar JSON"
+                  class="btn-secondary" invisible="direct_ai or state == 'approved'"/>
+          <button name="action_approve" type="object" string="Aprobar investigación"
+                  class="btn-primary" invisible="state != 'analyzed'"/>
+          <button name="action_reopen" type="object" string="Reabrir"
+                  invisible="state == 'draft'"/>
+          <field name="state" widget="statusbar" statusbar_visible="draft,analyzed,approved"/>
+        </header>
+        <sheet>
+          <field name="direct_ai" invisible="1"/>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="partner_id"/>
+              <field name="project_id" domain="[('partner_id','=',partner_id)]"/>
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+            <group>
+              <field name="industry"/>
+              <field name="audience"/>
+              <field name="goal"/>
+              <field name="date_start"/>
+              <field name="date_end"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="Competencia, videos y tendencias">
+              <field name="reference_ids">
+                <list editable="bottom">
+                  <field name="name"/>
+                  <field name="kind"/>
+                  <field name="platform"/>
+                  <field name="url" widget="url"/>
+                  <field name="observed_on"/>
+                  <field name="views_count"/>
+                  <field name="engagement_count"/>
+                  <field name="notes"/>
+                </list>
+                <form string="Fuente">
+                  <group>
+                    <field name="name"/>
+                    <field name="kind"/>
+                    <field name="platform"/>
+                    <field name="url" widget="url"/>
+                    <field name="observed_on"/>
+                    <field name="views_count"/>
+                    <field name="engagement_count"/>
+                    <field name="notes"/>
+                  </group>
+                </form>
+              </field>
+            </page>
+            <page string="Prompt manual" invisible="direct_ai">
+              <field name="prompt" nolabel="1"/>
+            </page>
+            <page string="Respuesta JSON manual" invisible="direct_ai">
+              <field name="response_json" nolabel="1"/>
+            </page>
+            <page string="Informe estratégico">
+              <field name="analyzed_at" readonly="1"/>
+              <field name="report" nolabel="1" readonly="1"/>
+            </page>
+          </notebook>
+        </sheet>
+        <chatter/>
+      </form>
+    </field>
+  </record>
+  <record id="action_gl_marketing_intelligence" model="ir.actions.act_window">
+    <field name="name">Inteligencia de Marketing</field>
+    <field name="res_model">gl.marketing.intelligence</field>
+    <field name="view_mode">list,form</field>
+    <field name="search_view_id" ref="view_gl_marketing_intelligence_search"/>
+  </record>
+  <menuitem id="menu_gl_marketing_intelligence" name="Inteligencia de Marketing"
+            parent="project.menu_main_pm" sequence="48"
+            action="action_gl_marketing_intelligence" groups="base.group_user"/>
+</odoo>
