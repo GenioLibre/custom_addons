@@ -35,6 +35,9 @@
     <field name="arch" type="xml">
       <form string="Inteligencia de Marketing">
         <header>
+          <button name="action_compare_references" type="object"
+                  string="Comparar referencias" class="btn-secondary"
+                  invisible="state != 'draft'"/>
           <button name="action_collect_research" type="object"
                   string="Investigar automáticamente" class="btn-primary"
                   invisible="state != 'draft'"/>
@@ -102,10 +105,26 @@
                   <field name="engagement_count"/>
                   <field name="notes"/>
                   <field name="source_origin" readonly="1"/>
+                  <field name="video_analysis_state" readonly="1"/>
+                  <field name="video_analysis_current" readonly="1"/>
                   <field name="synced_at" readonly="1"/>
                 </list>
                 <form string="Fuente">
-                  <group>
+                  <header>
+                    <button name="action_prepare_video_prompt" type="object"
+                            string="Preparar prompt" class="btn-primary"
+                            invisible="research_state != 'draft' or direct_ai"/>
+                    <button name="action_analyze_video_ai" type="object"
+                            string="Analizar referencia con IA" class="btn-primary"
+                            invisible="research_state != 'draft' or not direct_ai"/>
+                    <button name="action_apply_video_analysis" type="object"
+                            string="Aplicar análisis JSON" class="btn-secondary"
+                            invisible="research_state != 'draft' or direct_ai"/>
+                  </header>
+                  <sheet>
+                    <field name="research_state" invisible="1"/>
+                    <field name="direct_ai" invisible="1"/>
+                    <group>
                     <field name="name"/>
                     <field name="kind"/>
                     <field name="platform"/>
@@ -117,7 +136,33 @@
                     <field name="source_origin" readonly="1"/>
                     <field name="external_id" readonly="1"/>
                     <field name="synced_at" readonly="1"/>
-                  </group>
+                    </group>
+                    <notebook>
+                      <page string="Material del video">
+                        <group>
+                          <field name="transcript_origin"/>
+                          <field name="transcript_text"
+                                 placeholder="Pega aquí una transcripción proporcionada con autorización."/>
+                          <field name="visual_description"
+                                 placeholder="Describe solo lo que realmente observaste en el material."/>
+                        </group>
+                      </page>
+                      <page string="Análisis estructurado">
+                        <group>
+                          <field name="video_analysis_state" readonly="1"/>
+                          <field name="video_analysis_current" readonly="1"/>
+                          <field name="video_analyzed_at" readonly="1"/>
+                        </group>
+                        <field name="video_analysis_report" nolabel="1" readonly="1"/>
+                      </page>
+                      <page string="Prompt manual" invisible="direct_ai">
+                        <field name="video_prompt" nolabel="1" readonly="1"/>
+                      </page>
+                      <page string="Respuesta JSON manual" invisible="direct_ai">
+                        <field name="video_response_json" nolabel="1"/>
+                      </page>
+                    </notebook>
+                  </sheet>
                 </form>
               </field>
             </page>
@@ -126,6 +171,10 @@
             </page>
             <page string="Respuesta JSON manual" invisible="direct_ai">
               <field name="response_json" nolabel="1"/>
+            </page>
+            <page string="Comparación de referencias">
+              <field name="comparison_current" readonly="1"/>
+              <field name="comparison_report" nolabel="1" readonly="1"/>
             </page>
             <page string="Informe estratégico">
               <field name="analyzed_at" readonly="1"/>
