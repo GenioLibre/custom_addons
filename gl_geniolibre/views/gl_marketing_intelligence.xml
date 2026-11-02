@@ -41,12 +41,12 @@
           <button name="action_collect_research" type="object"
                   string="Investigar automáticamente" class="btn-primary"
                   invisible="state != 'draft'"/>
-          <button name="action_prepare_prompt" type="object" string="Preparar prompt"
-                  class="btn-primary" invisible="direct_ai or state == 'approved'"/>
+          <button name="action_prepare_prompt" type="object" string="Preparar prompt para copiar"
+                  class="btn-secondary" invisible="state == 'approved'"/>
           <button name="action_analyze_ai" type="object" string="Analizar con IA"
                   class="btn-primary" invisible="not direct_ai or state == 'approved'"/>
-          <button name="action_apply_report" type="object" string="Aplicar JSON"
-                  class="btn-secondary" invisible="direct_ai or state == 'approved'"/>
+          <button name="action_apply_report" type="object" string="Aplicar JSON pegado"
+                  class="btn-secondary" invisible="state == 'approved'"/>
           <button name="action_approve" type="object" string="Aprobar investigación"
                   class="btn-primary" invisible="state != 'analyzed'"/>
           <button name="action_reopen" type="object" string="Reabrir"
@@ -71,7 +71,13 @@
             </group>
           </group>
           <notebook>
-            <page string="Fuentes automáticas">
+            <page string="Redes y recopilación">
+              <group string="Redes sociales del cliente">
+                <field name="social_facebook"/>
+                <field name="social_instagram"/>
+                <field name="social_tiktok"/>
+                <field name="social_linkedin"/>
+              </group>
               <group>
                 <group>
                   <field name="discovery_sources"/>
@@ -84,13 +90,16 @@
                   <field name="trends_keywords"/>
                   <field name="auto_collect"/>
                   <field name="last_collected_at" readonly="1"/>
+                  <field name="imported_social_at" readonly="1"/>
                   <field name="collection_summary" readonly="1" colspan="2"/>
                 </group>
               </group>
               <div class="alert alert-info" role="alert">
-                YouTube busca videos de menos de cuatro minutos; no confirma que sean Shorts o virales.
-                Google Trends RSS lista búsquedas en alza filtradas por palabras clave.
-                Para la actualización semanal es necesario habilitar también el cron global.
+                Fuente principal: reportes sociales previamente guardados en Odoo para Facebook,
+                Instagram, TikTok y LinkedIn. No consulta automáticamente datos de competencia.
+                Enlaces de competidores y sus observaciones se agregan en la siguiente pestaña.
+                YouTube y Google Trends siguen disponibles como fuentes complementarias.
+                La actualización semanal se activa por separado desde Acciones planificadas.
               </div>
             </page>
             <page string="Competencia, videos y tendencias">
@@ -112,14 +121,14 @@
                 <form string="Fuente">
                   <header>
                     <button name="action_prepare_video_prompt" type="object"
-                            string="Preparar prompt" class="btn-primary"
-                            invisible="research_state != 'draft' or direct_ai"/>
+                            string="Preparar prompt para copiar" class="btn-secondary"
+                            invisible="research_state != 'draft'"/>
                     <button name="action_analyze_video_ai" type="object"
                             string="Analizar referencia con IA" class="btn-primary"
                             invisible="research_state != 'draft' or not direct_ai"/>
                     <button name="action_apply_video_analysis" type="object"
                             string="Aplicar análisis JSON" class="btn-secondary"
-                            invisible="research_state != 'draft' or direct_ai"/>
+                            invisible="research_state != 'draft'"/>
                   </header>
                   <sheet>
                     <field name="research_state" invisible="1"/>
@@ -155,10 +164,10 @@
                         </group>
                         <field name="video_analysis_report" nolabel="1" readonly="1"/>
                       </page>
-                      <page string="Prompt manual" invisible="direct_ai">
+                      <page string="Prompt manual (copiar y pegar)">
                         <field name="video_prompt" nolabel="1" readonly="1"/>
                       </page>
-                      <page string="Respuesta JSON manual" invisible="direct_ai">
+                      <page string="Respuesta JSON manual (pegar)">
                         <field name="video_response_json" nolabel="1"/>
                       </page>
                     </notebook>
@@ -166,10 +175,10 @@
                 </form>
               </field>
             </page>
-            <page string="Prompt manual" invisible="direct_ai">
+            <page string="Prompt manual (copiar y pegar)">
               <field name="prompt" nolabel="1"/>
             </page>
-            <page string="Respuesta JSON manual" invisible="direct_ai">
+            <page string="Respuesta JSON manual (pegar)">
               <field name="response_json" nolabel="1"/>
             </page>
             <page string="Comparación de referencias">

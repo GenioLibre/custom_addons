@@ -13,6 +13,7 @@ from . import gl_contenido_flujo
 from . import gl_marketing_intelligence
 from . import gl_marketing_discovery
 from . import gl_marketing_video_analysis
+from . import gl_marketing_social
 from . import tiktok_publish_confirm_wizard
 
 from . import user_access

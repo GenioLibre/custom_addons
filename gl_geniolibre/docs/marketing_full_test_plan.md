@@ -68,3 +68,22 @@ Las pruebas de `gl_geniolibre/tests` se etiquetan para ejecutarse después de in
 ## No activar sin probar
 
 No habilitar tareas programadas ni configurar producción hasta completar el recorrido en una base de pruebas y revisar los logs de Odoo.
+
+## Redes principales y modo manual
+
+- El nuevo modo **Métricas propias registradas en Odoo** es el predeterminado para nuevas investigaciones. Lee exclusivamente `gl.social.reports.data_json` del mismo cliente y extrae métricas numéricas reconocibles de Facebook, Instagram, TikTok o LinkedIn. No vuelve a consultar las APIs ni obtiene automáticamente contenido de competidores.
+- El investigador elige con casillas qué redes tiene activadas cada cliente. Esas redes se incluyen en el prompt y en la huella de aprobación; un cambio de red invalida la estrategia previamente aprobada.
+- Para cuentas de competidores se siguen introduciendo enlaces públicos, observaciones reales, videos o transcripciones aportadas.
+- Los modos **Prompt para copiar y pegar** y **Respuesta JSON manual** permanecen visibles y ejecutables incluso con la conexión directa activada, tanto para investigar como para analizar referencias, generar propuestas y refinar.
+- YouTube y Google Trends se conservan como fuentes secundarias opcionales para investigaciones existentes; no se borran configuraciones anteriores.
+- La importación se limita a 24 reportes recientes por cliente, a las redes seleccionadas y a hasta 30 métricas numéricas por sección. Si los reportes no contienen secciones por red reconocibles, no se inventarán datos y el resultado será cero.
+
+### Prueba de las 4 redes y prompts
+
+1. En `Proyectos → Inteligencia de Marketing`, crear una investigación de prueba; revisar que Facebook, Instagram, TikTok y LinkedIn aparecen como casillas.
+2. Seleccionar `Métricas propias registradas en Odoo` e investigar. Si el cliente tiene `gl.social.reports` con JSON por red, aparecerán referencias de tipo `Métrica propia`. Repetir para verificar deduplicación.
+3. Añadir manualmente enlaces de competidores y observaciones de las cuatro plataformas.
+4. Con IA **activada**, verificar la presencia del botón **Preparar prompt para copiar**, las pestañas Prompt y Respuesta JSON, y el botón **Analizar con IA**; probar ambos caminos.
+5. En cada referencia, comprobar que se mantienen **Preparar prompt**, **Aplicar análisis JSON** y **Analizar referencia con IA**.
+6. Aprobar investigación, generar el prompt de la parrilla, y probar que el Creador de Contenido conserva botones y pestañas manuales aun con conexión directa.
+7. Cambiar redes activas de una investigación aprobada: al usarla para generar contenido debe solicitar nueva revisión/aprobación.
