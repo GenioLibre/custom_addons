@@ -145,6 +145,10 @@ class ResConfigSettings(models.TransientModel):
         config_parameter="chatgpt.conexion_directa",
         default=False,
     )
+    youtube_data_api_key = fields.Char(
+        "YouTube Data API Key", config_parameter="gl_marketing.youtube_api_key",
+        help="Clave de YouTube Data API v3. Solo se utiliza para obtener videos y métricas públicas.",
+    )
     chatgpt_api_key = fields.Char("ChatGPT API Key", config_parameter="chatgpt.api_key")
     chatgpt_base_url = fields.Char("ChatGPT Base URL", config_parameter="chatgpt.base_url", default="https://api.openai.com/v1")
     chatgpt_model = fields.Char("ChatGPT Modelo", config_parameter="chatgpt.model", default="gpt-4.1-mini")

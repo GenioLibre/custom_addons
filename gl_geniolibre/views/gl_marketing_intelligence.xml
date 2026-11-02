@@ -35,6 +35,9 @@
     <field name="arch" type="xml">
       <form string="Inteligencia de Marketing">
         <header>
+          <button name="action_collect_research" type="object"
+                  string="Investigar automáticamente" class="btn-primary"
+                  invisible="state != 'draft'"/>
           <button name="action_prepare_prompt" type="object" string="Preparar prompt"
                   class="btn-primary" invisible="direct_ai or state == 'approved'"/>
           <button name="action_analyze_ai" type="object" string="Analizar con IA"
@@ -65,6 +68,28 @@
             </group>
           </group>
           <notebook>
+            <page string="Fuentes automáticas">
+              <group>
+                <group>
+                  <field name="discovery_sources"/>
+                  <field name="discovery_query"/>
+                  <field name="youtube_channel_id"/>
+                  <field name="discovery_region"/>
+                  <field name="discovery_limit"/>
+                </group>
+                <group>
+                  <field name="trends_keywords"/>
+                  <field name="auto_collect"/>
+                  <field name="last_collected_at" readonly="1"/>
+                  <field name="collection_summary" readonly="1" colspan="2"/>
+                </group>
+              </group>
+              <div class="alert alert-info" role="alert">
+                YouTube busca videos de menos de cuatro minutos; no confirma que sean Shorts o virales.
+                Google Trends RSS lista búsquedas en alza filtradas por palabras clave.
+                Para la actualización semanal es necesario habilitar también el cron global.
+              </div>
+            </page>
             <page string="Competencia, videos y tendencias">
               <field name="reference_ids">
                 <list editable="bottom">
@@ -76,6 +101,8 @@
                   <field name="views_count"/>
                   <field name="engagement_count"/>
                   <field name="notes"/>
+                  <field name="source_origin" readonly="1"/>
+                  <field name="synced_at" readonly="1"/>
                 </list>
                 <form string="Fuente">
                   <group>
@@ -87,6 +114,9 @@
                     <field name="views_count"/>
                     <field name="engagement_count"/>
                     <field name="notes"/>
+                    <field name="source_origin" readonly="1"/>
+                    <field name="external_id" readonly="1"/>
+                    <field name="synced_at" readonly="1"/>
                   </group>
                 </form>
               </field>

@@ -11,6 +11,7 @@ from . import sale_order_line
 from . import gl_social_reports
 from . import gl_contenido_flujo
 from . import gl_marketing_intelligence
+from . import gl_marketing_discovery
 from . import tiktok_publish_confirm_wizard
 
 from . import user_access
