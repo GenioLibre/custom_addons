@@ -148,7 +148,7 @@
                                 type="object"
                                 string="Crear propuestas desde JSON"
                                 class="btn-primary"
-                                invisible="etapa != 'ideas' or conexion_directa_ia"/>
+                                invisible="etapa != 'ideas'"/>
                         <button name="etapa_perfeccionamiento"
                                 type="object"
                                 string="Pasar a Refinamiento"
@@ -235,13 +235,13 @@
 
                         </page>
 
-                        <page string="Prompt para IA" invisible="conexion_directa_ia">
+                        <page string="Prompt para IA">
                             <group>
                                 <field name="promtp_ideas"/>
 
                             </group>
                         </page>
-                        <page string="Propuestas de IA" invisible="conexion_directa_ia">
+                        <page string="Propuestas de IA">
                             <group>
                                 <field name="promtp_respuesta"/>
 
@@ -269,24 +269,22 @@
                                         type="object"
                                         string="Generar Prompt"
                                         class="btn-primary"
-                                        icon="fa-wrench"
-                                        invisible="conexion_directa_ia"/>
+                                        icon="fa-wrench"/>
                                 <button name="aceptar_refinamiento"
                                         type="object"
                                         string="Aplicar Cambios"
                                         class="btn-success"
-                                        icon="fa-check"
-                                        invisible="conexion_directa_ia"/>
+                                        icon="fa-check"/>
 
                             </group>
                         </page>
-                        <page string="Prompt de Refinamiento" invisible="conexion_directa_ia">
+                        <page string="Prompt de Refinamiento">
                             <group>
                                 <field name="promtp_refinamiento"/>
 
                             </group>
                         </page>
-                        <page string="Respuesta IA de Refinamiento" invisible="conexion_directa_ia">
+                        <page string="Respuesta IA de Refinamiento">
                             <group>
                                 <field name="promtp_respuesta_refinamiento"/>
 

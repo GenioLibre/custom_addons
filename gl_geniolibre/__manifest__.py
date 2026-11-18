@@ -50,6 +50,7 @@
         'report/sale_order_report_tax.xml',
 
         'cron/gl_cron_jobs.xml',
+        'cron/gl_marketing_discovery_cron.xml',
     ],
     "assets": {
         "web.assets_backend": [

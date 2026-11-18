@@ -147,6 +147,13 @@
                             </div>
                         </div>
                     </block>
+                    <block title="Inteligencia de Marketing">
+                        <setting string="YouTube Data API v3"
+                                 help="Habilita la búsqueda de videos cortos con métricas públicas. Google Trends RSS no requiere clave.">
+                            <label for="youtube_data_api_key" string="API Key"/>
+                            <field name="youtube_data_api_key" password="True" placeholder="Clave de Google Cloud"/>
+                        </setting>
+                    </block>
                     <block title="ChatGPT / OpenAI">
                         <setting string="Conexión directa con IA"
                                  help="Activar llamadas automáticas a OpenAI. Desactivado: copiar y pegar prompts y respuestas.">
