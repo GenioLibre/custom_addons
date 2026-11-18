@@ -25,6 +25,12 @@ class IemChurchMemberList(models.Model):
         default=False,
         tracking=True,
     )
+    vacancies = fields.Integer(
+        string="Vacantes",
+        default=0,
+        tracking=True,
+        help="Deja el valor en 0 para permitir una cantidad ilimitada de miembros.",
+    )
     creator_access_level = fields.Integer(
         string="Nivel del creador",
         compute="_compute_creator_access_level",
@@ -228,6 +234,12 @@ class IemChurchMemberList(models.Model):
                 raise ValidationError(_("La edad máxima no puede ser negativa."))
             if rec.age_from and rec.age_to and rec.age_from > rec.age_to:
                 raise ValidationError(_("La edad mínima no puede ser mayor a la edad máxima."))
+
+    @api.constrains("vacancies")
+    def _check_vacancies(self):
+        for rec in self:
+            if rec.vacancies < 0:
+                raise ValidationError(_("Las vacantes no pueden ser negativas."))
 
     @api.onchange("predio_id")
     def _onchange_predio_id_reset_structure(self):
@@ -671,6 +683,7 @@ class IemChurchMemberListLine(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         self._check_member_scope_for_vals_list(vals_list)
+        self._check_vacancies_for_vals_list(vals_list)
         records = super().create(vals_list)
         for rec in records:
             if rec.source == "manual":
@@ -679,6 +692,8 @@ class IemChurchMemberListLine(models.Model):
 
     def write(self, vals):
         self._check_member_scope_for_write(vals)
+        if "list_id" in vals:
+            self._check_vacancies_for_write(vals)
         res = super().write(vals)
         tracked_fields = {"extra_boolean", "extra_amount", "extra_text", "extra_image"}
         if tracked_fields & set(vals.keys()):
@@ -702,6 +717,33 @@ class IemChurchMemberListLine(models.Model):
                         % (rec.member_id.display_name, " | ".join(changes))
                     )
         return res
+
+    @api.model
+    def _check_vacancies_for_vals_list(self, vals_list):
+        incoming_by_list = {}
+        for vals in vals_list:
+            list_id = vals.get("list_id")
+            member_id = vals.get("member_id")
+            if list_id and member_id:
+                incoming_by_list.setdefault(list_id, set()).add(member_id)
+
+        for list_id, member_ids in incoming_by_list.items():
+            list_rec = self.env["iem.church.member.list"].browse(list_id).exists()
+            existing_member_ids = set(list_rec.member_line_ids.mapped("member_id").ids) if list_rec else set()
+            if (
+                list_rec
+                and list_rec.vacancies > 0
+                and list_rec.member_count + len(member_ids - existing_member_ids) > list_rec.vacancies
+            ):
+                raise UserError(_("Vacantes agotadas."))
+
+    def _check_vacancies_for_write(self, vals):
+        target_list = self.env["iem.church.member.list"].browse(vals.get("list_id")).exists()
+        if not target_list or target_list.vacancies <= 0:
+            return
+        moving_count = len(self.filtered(lambda line: line.list_id != target_list))
+        if target_list.member_count + moving_count > target_list.vacancies:
+            raise UserError(_("Vacantes agotadas."))
 
     def unlink(self):
         logs_by_list = {}

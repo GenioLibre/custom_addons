@@ -74,6 +74,9 @@
                                                 t-att-data-image-label="list_data['image_extra_label']"
                                                 t-att-data-currency-symbol="list_data['currency_symbol']"
                                                 t-att-data-details="list_data['details']"
+                                                t-att-data-vacancies="list_data['vacancies']"
+                                                t-att-data-vacancies-remaining="list_data['vacancies_remaining']"
+                                                t-att-data-vacancies-exhausted="1 if list_data['vacancies_exhausted'] else 0"
                                             >
                                                 <t t-esc="list_data['name']"/>
                                             </option>
@@ -234,7 +237,9 @@
                             return;
                         }
                         clientMessage.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
-                        clientMessage.classList.add(type === "success" ? "alert-success" : "alert-danger");
+                        clientMessage.classList.add(
+                            type === "success" ? "alert-success" : type === "info" ? "alert-info" : "alert-danger"
+                        );
                         clientMessage.textContent = text;
                     }
 
@@ -314,8 +319,25 @@
                     function applyListConfiguration() {
                         const option = selectedListOption();
                         const listId = option &amp;&amp; option.value ? option.value : "";
+                        const vacanciesExhausted = !!(option &amp;&amp; option.dataset.vacanciesExhausted === "1");
                         const infoTemplate = listId ? document.querySelector(`.js-list-info-template[data-list-id="${listId}"]`) : null;
                         listInfoBox.innerHTML = infoTemplate ? infoTemplate.innerHTML : "Selecciona una lista para ver su información.";
+
+                        const vacancies = Number(option &amp;&amp; option.dataset.vacancies ? option.dataset.vacancies : 0);
+                        const vacanciesRemaining = Number(option &amp;&amp; option.dataset.vacanciesRemaining ? option.dataset.vacanciesRemaining : 0);
+                        if (vacanciesExhausted) {
+                            showClientMessage("error", "Vacantes agotadas.");
+                            nextBtn.disabled = true;
+                            memberQueryInput.disabled = true;
+                            memberIdInput.value = "";
+                            hideMemberResults();
+                        } else {
+                            if (vacancies &gt; 0) {
+                                showClientMessage("info", `Quedan ${vacanciesRemaining} vacantes.`);
+                            }
+                            nextBtn.disabled = false;
+                            memberQueryInput.disabled = false;
+                        }
 
                         const showBoolean = !!(option &amp;&amp; option.dataset.showBoolean === "1");
                         const showAmount = !!(option &amp;&amp; option.dataset.showAmount === "1");
@@ -485,10 +507,10 @@
                     }
 
                     listSelect.addEventListener("change", function () {
-                        applyListConfiguration();
                         showClientMessage("", "");
                         setSelectedMember("", "", "0");
                         hideMemberResults();
+                        applyListConfiguration();
                     });
 
                     if (memberQueryInput) {
@@ -523,6 +545,10 @@
                         if (currentStep === 1) {
                             if (!listSelect.value) {
                                 showClientMessage("error", "Selecciona una lista.");
+                                return;
+                            }
+                            if (selectedListOption().dataset.vacanciesExhausted === "1") {
+                                showClientMessage("error", "Vacantes agotadas.");
                                 return;
                             }
                             if (!memberIdInput.value) {

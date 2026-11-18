@@ -149,6 +149,16 @@ class IemChurchWebsite(http.Controller):
         return {
             "id": member_list.id,
             "name": member_list.name,
+            "vacancies": member_list.vacancies,
+            "vacancies_exhausted": (
+                member_list.vacancies > 0
+                and member_list.member_count >= member_list.vacancies
+            ),
+            "vacancies_remaining": (
+                max(member_list.vacancies - member_list.member_count, 0)
+                if member_list.vacancies > 0
+                else 0
+            ),
             "details": member_list.details or "",
             "has_details": bool(member_list.details),
             "info_items": info_items,
@@ -687,6 +697,12 @@ class IemChurchWebsite(http.Controller):
             return self._render_public_member_list_form(
                 form=form_values,
                 error=_("La lista seleccionada no está habilitada para registro online."),
+            )
+
+        if member_list.vacancies > 0 and member_list.member_count >= member_list.vacancies:
+            return self._render_public_member_list_form(
+                form=form_values,
+                error=_("Vacantes agotadas."),
             )
 
         member = request.env["church.member"].sudo().browse(member_id).exists()

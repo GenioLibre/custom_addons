@@ -10,6 +10,7 @@
                 <field name="scope_red_id" optional="show" />
                 <field name="scope_discipulado_id" optional="show" />
                 <field name="creation_date" />
+                <field name="vacancies" />
                 <field name="member_count" />
                 <field name="filter_member_count" />
                 <field name="manual_member_count" />
@@ -49,6 +50,7 @@
                         <group>
                             <field name="visibility" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor,iem_church_management.group_iem_discipulador" />
                             <field name="website_registration_enabled" />
+                            <field name="vacancies" />
                             <field name="predio_id" groups="base.group_system,iem_church_management.group_iem_admin" options="{'no_create': True, 'no_create_edit': True}" />
                             <field name="predio_id" groups="iem_church_management.group_iem_pastor_gobierno,iem_church_management.group_iem_pastor,iem_church_management.group_iem_discipulador" readonly="1" options="{'no_create': True, 'no_create_edit': True}" />
                             <field name="red_id" groups="base.group_system,iem_church_management.group_iem_admin,iem_church_management.group_iem_pastor_gobierno" domain="[('predio_id', '=', predio_id)]" options="{'no_create': True, 'no_create_edit': True}" />
