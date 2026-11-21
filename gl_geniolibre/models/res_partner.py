@@ -14,6 +14,7 @@ from odoo.exceptions import ValidationError
 from .res_config_settings import get_linkedin_api_version
 
 API_VERSION = None
+HTTP_TIMEOUT = 30
 
 
 class GoogleAdsAccount(models.Model):
@@ -111,7 +112,7 @@ class Partner(models.Model):
                 'fields': 'name,account_id'
             }
 
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
             response.raise_for_status()
             accounts = response.json().get('data', [])
 
@@ -154,7 +155,7 @@ class Partner(models.Model):
             fetch_facebook_accounts()
 
             try:
-                response = requests.get(url, params=params)
+                response = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
                 response.raise_for_status()  # Raise an exception if the request returns an HTTP error
                 data = response.json()
                 self.write({
@@ -170,7 +171,13 @@ class Partner(models.Model):
 
 
             except requests.exceptions.RequestException as e:
-                raise ValidationError(f"Error al obtener Tokens de Facebook: {response.json()}")
+                detail = str(e)
+                if 'response' in locals() and response is not None:
+                    try:
+                        detail = response.json()
+                    except (ValueError, TypeError):
+                        detail = response.text[:500]
+                raise ValidationError(f"Error al obtener datos de Facebook: {detail}") from e
 
     def tiktok_get_auth_code(self):
         self.ensure_one()
@@ -245,7 +252,7 @@ class Partner(models.Model):
                 "grant_type": "refresh_token",
                 "refresh_token": self.tiktok_refresh_token
             }
-            response = requests.post(url, headers=headers, data=data)
+            response = requests.post(url, headers=headers, data=data, timeout=HTTP_TIMEOUT)
             response_data = response.json()
             if response.status_code == 200:
                 data = response.json()

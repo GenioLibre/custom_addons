@@ -1,5 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_gl_credentials,access.gl.credentials,model_gl_credentials,base.group_user,1,1,1,1
+access_gl_credentials_user,access.gl.credentials.user,model_gl_credentials,base.group_user,1,0,0,0
+access_gl_credentials_admin,access.gl.credentials.admin,model_gl_credentials,gl_geniolibre.group_project_task_admin,1,1,1,1
 access_red_social,access.red.social,model_red_social,base.group_user,1,1,1,1
 access_red_social_reporte,access.red.social.reporte,model_red_social_reporte,base.group_user,1,1,1,1
 access_gl_social_reports,access.gl.social.reports,model_gl_social_reports,base.group_user,1,1,1,1

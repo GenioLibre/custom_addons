@@ -10,6 +10,7 @@ import requests
 
 from odoo import api, fields, models, tools
 from odoo.exceptions import ValidationError
+from ..services.social_http import sanitize_error_message
 
 _logger = logging.getLogger(__name__)
 META_SYSTEM_USER_TOKEN_KEY = "gl_facebook.meta_system_user_access_token"
@@ -680,7 +681,7 @@ class MarketingMetaAd(models.Model):
                     "access_token": token,
                     "status": configured_status,
                 },
-                timeout=20,
+                timeout=30,
             )
             data = response.json()
             if response.status_code != 200:
@@ -1369,7 +1370,7 @@ class ProjectMarketing(models.Model):
             else:
                 AdAccount.create(vals)
 
-        stale_accounts = AdAccount.search([("account_id", "not in", api_ids)]) if api_ids else AdAccount.search([])
+        stale_accounts = AdAccount.search([("account_id", "not in", api_ids)]) if api_ids else AdAccount.browse()
         for stale in stale_accounts:
             is_referenced = bool(
                 self.env["res.partner"].sudo().search_count([("facebook_ad_account", "=", stale.id)], limit=1)
@@ -1505,13 +1506,21 @@ class ProjectMarketing(models.Model):
         for record in self.filtered(lambda r: r.imported_from_meta and r.platform == "meta" and r.ad_account_id and r.campaign_id):
             try:
                 record.action_sync_campaigns()
-            except Exception as exc:
-                _logger.warning("No se pudo sincronizar la campaña Meta al abrir %s: %s", record.id, exc)
+            except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as exc:
+                _logger.warning(
+                    "No se pudo sincronizar la campaña Meta al abrir %s: %s",
+                    record.id,
+                    sanitize_error_message(exc),
+                )
             if record.adset_id:
                 try:
                     record.action_sync_adsets()
-                except Exception as exc:
-                    _logger.warning("No se pudo sincronizar el adset Meta al abrir %s: %s", record.id, exc)
+                except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as exc:
+                    _logger.warning(
+                        "No se pudo sincronizar el adset Meta al abrir %s: %s",
+                        record.id,
+                        sanitize_error_message(exc),
+                    )
 
     def action_sync_adsets(self):
         self.ensure_one()

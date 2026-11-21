@@ -1,6 +1,6 @@
 from odoo import http
 from odoo.http import request
-from datetime import datetime
+from datetime import datetime, timedelta, time as datetime_time
 from werkzeug.exceptions import Forbidden
 import logging
 
@@ -47,14 +47,22 @@ class PortalProjectCalendar(http.Controller):
         if start:
             try:
                 start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
-                domain.append(('fecha_publicacion', '>=', start_date.date()))
+                domain.append((
+                    'fecha_publicacion',
+                    '>=',
+                    datetime.combine(start_date.date(), datetime_time.min),
+                ))
             except ValueError as e:
                 _logger.warning("Fecha start inválida en calendario portal (project_id=%s): %s", project_id, e)
 
         if end:
             try:
                 end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
-                domain.append(('fecha_publicacion', '<=', end_date.date()))
+                domain.append((
+                    'fecha_publicacion',
+                    '<',
+                    datetime.combine(end_date.date() + timedelta(days=1), datetime_time.min),
+                ))
             except ValueError as e:
                 _logger.warning("Fecha end inválida en calendario portal (project_id=%s): %s", project_id, e)
 
@@ -90,4 +98,4 @@ class PortalProjectCalendar(http.Controller):
             'completado': '#fd7e14',  # Anaranjado (Bootstrap orange)
             'cancelado': '#dc3545',  # Rojo
         }
-        return color_map.get(status, '#007bff')  # Azul por defecto
+        return color_map.get((status or '').strip().lower(), '#007bff')  # Azul por defecto

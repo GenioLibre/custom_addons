@@ -111,7 +111,7 @@ class gl_tiktok_oauth_controller(http.Controller):
             'fields': 'open_id,avatar_url,display_name'
         }
 
-        user_response = requests.get(user_url, headers=user_headers, params=user_params)
+        user_response = requests.get(user_url, headers=user_headers, params=user_params, timeout=20)
         user_result = user_response.json()
 
         if 'data' in user_result and 'user' in user_result['data']:

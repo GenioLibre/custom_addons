@@ -16,6 +16,14 @@ from odoo import models, fields, api
 from datetime import datetime
 from odoo.exceptions import ValidationError, AccessError
 from .res_config_settings import get_linkedin_api_version
+from ..services.social_http import (
+    INSTAGRAM_HTTP_TIMEOUT,
+    PUBLICATION_STATUS_SELECTION,
+    SOCIAL_HTTP_TIMEOUT,
+    request_with_retries as _request_with_retries,
+    response_error_message,
+    sanitize_error_message,
+)
 
 import mimetypes
 
@@ -24,6 +32,8 @@ _logger = logging.getLogger(__name__)
 API_VERSION = None
 CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB recomendado para vídeos
 META_SYSTEM_USER_TOKEN_KEY = "gl_facebook.meta_system_user_access_token"
+MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_VIDEO_UPLOAD_BYTES = 500 * 1024 * 1024
 TIKTOK_PRIVACY_SELECTION = [
     ('PUBLIC_TO_EVERYONE', 'Publico'),
     ('MUTUAL_FOLLOW_FRIENDS', 'Amigos mutuos'),
@@ -227,7 +237,11 @@ class project_task(models.Model):
     partner_tiktok_access_token = fields.Char(related="partner_id.tiktok_access_token")
     partner_linkedin_page_id = fields.Char(related="partner_id.id_linkedin_organization")
 
-    post_estado = fields.Char(string="Estado de la Publicación", default="Pendiente")
+    post_estado = fields.Selection(
+        PUBLICATION_STATUS_SELECTION,
+        string="Estado de la Publicación",
+        default="Pendiente",
+    )
     fb_post_id = fields.Char(string="Facebook Post ID")
     fb_post_url = fields.Char(string="Facebook URL")
     fb_video_id = fields.Char(string="Facebook Video ID")  # ------ Este se elimina
@@ -334,10 +348,10 @@ class project_task(models.Model):
     tiktok_creator_status_info = fields.Text(string="Estado del Creador (TikTok)", readonly=True, )
     tiktok_video_duration = fields.Integer(string="Duración del video (segundos)")
 
-    fb_estado = fields.Char(string="Estado Facebook", default="Programado", tracking=True, copy=False)
-    ig_estado = fields.Char(string="Estado Instagram", default="Programado", tracking=True, copy=False)
-    tt_estado = fields.Char(string="Estado TikTok", default="Programado", tracking=True, copy=False)
-    li_estado = fields.Char(string="Estado LinkedIn", default="Programado", tracking=True, copy=False)
+    fb_estado = fields.Selection(PUBLICATION_STATUS_SELECTION, string="Estado Facebook", default="Programado", tracking=True, copy=False)
+    ig_estado = fields.Selection(PUBLICATION_STATUS_SELECTION, string="Estado Instagram", default="Programado", tracking=True, copy=False)
+    tt_estado = fields.Selection(PUBLICATION_STATUS_SELECTION, string="Estado TikTok", default="Programado", tracking=True, copy=False)
+    li_estado = fields.Selection(PUBLICATION_STATUS_SELECTION, string="Estado LinkedIn", default="Programado", tracking=True, copy=False)
     fb_error = fields.Text(string="Error Facebook", copy=False, tracking=True)
     ig_error = fields.Text(string="Error Instagram", copy=False, tracking=True)
     tt_error = fields.Text(string="Error TikTok", copy=False, tracking=True)
@@ -1183,6 +1197,7 @@ class project_task(models.Model):
 
     def _send_admin_flow_failure_email(self, network, error_message, stage=None):
         self.ensure_one()
+        error_message = sanitize_error_message(error_message)
 
         admin_user = self.env.ref("base.user_admin", raise_if_not_found=False)
         if not admin_user:
@@ -1366,7 +1381,14 @@ class project_task(models.Model):
 
                                 try:
                                     duration_seconds = get_video_duration_ffprobe(attachment.datas)
-                                    vals['tiktok_video_duration'] = duration_seconds
+                                    # Se calcula nuevamente por registro después
+                                    # de super().write(); no modificar vals compartido
+                                    # en una escritura múltiple.
+                                    _logger.debug(
+                                        "Duración TikTok validada para tarea %s: %s s",
+                                        record.id,
+                                        duration_seconds,
+                                    )
                                 except (ValidationError, ValueError, TypeError, OSError, subprocess.CalledProcessError, binascii.Error) as e:
                                     raise ValidationError(f"No se pudo analizar el video MP4: {e}")
 
@@ -1449,7 +1471,7 @@ class project_task(models.Model):
 
     def cancelar_post(self):
         self.ensure_one()  # Asegura que solo hay un registro seleccionado
-        self.post_estado = "Pendiente"
+        self.post_estado = "Cancelado"
 
     def revisar_post(self, from_cron=False):
         for rec in self:
@@ -1471,7 +1493,8 @@ class project_task(models.Model):
             if "LinkedIn" in active:
                 rec._run_linkedin_flow(from_cron)
 
-            # GLOBAL: si todas las redes activas están Publicado
+            # Estado global: reflejar errores y procesos parciales sin dejar la tarea
+            # indefinidamente en Procesando cuando una red ya falló.
             estados = []
             if "Facebook" in active:
                 estados.append((rec.fb_estado or "").strip().lower())
@@ -1482,8 +1505,12 @@ class project_task(models.Model):
             if "LinkedIn" in active:
                 estados.append((rec.li_estado or "").strip().lower())
 
-            if estados and all(e == "publicado" for e in estados):
+            if estados and any(e == "error" for e in estados):
+                rec.post_estado = "Error"
+            elif estados and all(e == "publicado" for e in estados):
                 rec.post_estado = "Publicado"
+            elif estados and any(e in {"procesando", "revisando"} for e in estados):
+                rec.post_estado = "Procesando"
 
         return True
 
@@ -1645,8 +1672,18 @@ class project_task(models.Model):
                         "fields": "status",
                     }
 
-                    resp = requests.get(status_url, params=status_params, timeout=20)
-                    resp.raise_for_status()
+                    try:
+                        resp = _request_with_retries(
+                            "GET",
+                            status_url,
+                            params=status_params,
+                            timeout=20,
+                        )
+                        resp.raise_for_status()
+                    except requests.exceptions.Timeout:
+                        self.fb_estado = "Revisando"
+                        self.fb_error = "Facebook no respondió al consultar el video. Se reintentará automáticamente."
+                        return True
                     sdata = resp.json()
 
                     st = sdata.get("status") or {}
@@ -1743,7 +1780,7 @@ class project_task(models.Model):
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             _logger.error("Error en revisar_post (%s): %s", self.id, e)
             self.fb_estado = "Error"
-            self.fb_error = str(e)
+            self.fb_error = sanitize_error_message(e)
             self._send_admin_flow_failure_email("Facebook", str(e), stage="revision del flow")
 
             if from_cron:
@@ -1789,10 +1826,19 @@ class project_task(models.Model):
                         "fields": "status_code",
                     }
                     try:
-                        resp = requests.get(status_url, params=status_params, timeout=20)
+                        resp = _request_with_retries(
+                            "GET",
+                            status_url,
+                            params=status_params,
+                            timeout=INSTAGRAM_HTTP_TIMEOUT,
+                        )
                         resp.raise_for_status()
                         sdata = resp.json()
                         break
+                    except requests.exceptions.Timeout:
+                        self.ig_estado = "Revisando"
+                        self.ig_error = "Instagram no respondió al consultar el contenedor. Se reintentará automáticamente."
+                        return True
                     except requests.exceptions.HTTPError as e:
                         last_http_error = e
                         link_url = f"{base_url}/{self.inst_post_id}"
@@ -1800,7 +1846,12 @@ class project_task(models.Model):
                             "access_token": instagram_access_token,
                             "fields": "permalink",
                         }
-                        link_resp = requests.get(link_url, params=link_params, timeout=20)
+                        link_resp = _request_with_retries(
+                            "GET",
+                            link_url,
+                            params=link_params,
+                            timeout=INSTAGRAM_HTTP_TIMEOUT,
+                        )
                         if link_resp.ok:
                             link_data = link_resp.json()
                             if link_data.get("permalink"):
@@ -1823,6 +1874,7 @@ class project_task(models.Model):
                         return True
                     if last_http_error:
                         raise last_http_error
+                    raise ValidationError("Instagram no devolvió información del contenedor.")
 
                 status_code = sdata.get("status_code")
 
@@ -1857,7 +1909,52 @@ class project_task(models.Model):
                         "access_token": instagram_access_token,
                         "creation_id": self.inst_post_id,
                     }
-                    resp2 = requests.post(publish_url, params=publish_params, timeout=20)
+                    try:
+                        resp2 = requests.post(
+                            publish_url,
+                            params=publish_params,
+                            timeout=INSTAGRAM_HTTP_TIMEOUT,
+                        )
+                    except requests.exceptions.Timeout:
+                        # La petición pudo haber sido aceptada por Meta. Se
+                        # consulta el permalink una vez y nunca se repite el
+                        # POST automáticamente sin confirmación.
+                        confirmed_url = False
+                        for _, confirmation_token in instagram_tokens:
+                            try:
+                                confirmation = _request_with_retries(
+                                    "GET",
+                                    f"{base_url}/{self.inst_post_id}",
+                                    params={
+                                        "access_token": confirmation_token,
+                                        "fields": "permalink",
+                                    },
+                                    timeout=INSTAGRAM_HTTP_TIMEOUT,
+                                )
+                                if confirmation.ok:
+                                    confirmed_url = confirmation.json().get("permalink")
+                                    if confirmed_url:
+                                        break
+                            except requests.exceptions.RequestException:
+                                continue
+
+                        if confirmed_url:
+                            self.write({
+                                "inst_post_url": confirmed_url,
+                                "ig_estado": "Publicado",
+                                "ig_error": False,
+                            })
+                        else:
+                            self.write({
+                                "ig_estado": "Error",
+                                "post_estado": "Error",
+                                "ig_error": (
+                                    "Instagram no confirmó media_publish. No se reintentó "
+                                    "automáticamente para evitar una publicación duplicada. "
+                                    "Verificar Instagram antes de volver a publicar."
+                                ),
+                            })
+                        return True
                     if resp2.ok:
                         pdata = resp2.json()
                         break
@@ -1892,23 +1989,41 @@ class project_task(models.Model):
                         },
                     }
 
+                # Persistir el ID antes de consultar el permalink. La publicación
+                # ya fue aceptada y no debe repetirse si esta consulta falla.
+                self.write({
+                    "inst_post_id": ig_media_id,
+                    "ig_estado": "Publicado",
+                    "ig_error": False,
+                })
+
                 # 3) permalink (no siempre es inmediato, pero casi siempre sí)
                 link_url = f"{base_url}/{ig_media_id}"
                 ldata = {}
-                for token_source, instagram_access_token in instagram_tokens:
-                    link_params = {
-                        "access_token": instagram_access_token,
-                        "fields": "permalink",
-                    }
-                    resp3 = requests.get(link_url, params=link_params, timeout=20)
-                    if resp3.ok:
-                        ldata = resp3.json()
-                        break
+                try:
+                    for token_source, instagram_access_token in instagram_tokens:
+                        link_params = {
+                            "access_token": instagram_access_token,
+                            "fields": "permalink",
+                        }
+                        resp3 = _request_with_retries(
+                            "GET",
+                            link_url,
+                            params=link_params,
+                            timeout=INSTAGRAM_HTTP_TIMEOUT,
+                        )
+                        if resp3.ok:
+                            ldata = resp3.json()
+                            break
+                except requests.exceptions.RequestException as exc:
+                    _logger.warning(
+                        "Instagram publicó el media_id %s, pero no se pudo obtener el permalink: %s",
+                        ig_media_id,
+                        exc,
+                    )
 
-                self.inst_post_id = ig_media_id
-                self.inst_post_url = ldata.get("permalink") or False
-                self.ig_estado = "Publicado"
-                self.ig_error = False
+                if ldata.get("permalink"):
+                    self.write({"inst_post_url": ldata["permalink"]})
 
                 return True if from_cron else {
                     "type": "ir.actions.client",
@@ -1925,7 +2040,8 @@ class project_task(models.Model):
 
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.ig_estado = "Error"
-            self.ig_error = str(e)
+            self.ig_error = sanitize_error_message(e)
+            self.post_estado = "Error"
             self._send_admin_flow_failure_email("Instagram", self.ig_error, stage="revision del flow")
             if from_cron:
                 raise
@@ -1955,8 +2071,20 @@ class project_task(models.Model):
                     "Content-Type": "application/json",
                 }
                 payload = {"publish_id": self.tiktok_post_id}
-                resp = requests.post(status_url, headers=headers, json=payload, timeout=20)
-                resp.raise_for_status()
+                try:
+                    resp = _request_with_retries(
+                        "POST",
+                        status_url,
+                        headers=headers,
+                        json=payload,
+                        timeout=20,
+                        safe_to_retry=True,
+                    )
+                    resp.raise_for_status()
+                except requests.exceptions.Timeout:
+                    self.tt_estado = "Revisando"
+                    self.tt_error = "TikTok no respondió al consultar el estado. Se reintentará automáticamente."
+                    return True
                 data = resp.json()
 
                 status = data.get("data", {}).get("status")
@@ -2018,7 +2146,7 @@ class project_task(models.Model):
 
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.tt_estado = "Error"
-            self.tt_error = str(e)
+            self.tt_error = sanitize_error_message(e)
             self._send_admin_flow_failure_email("TikTok", self.tt_error, stage="revision del flow")
             if from_cron:
                 raise
@@ -2062,7 +2190,7 @@ class project_task(models.Model):
 
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.li_estado = "Error"
-            self.li_error = str(e)
+            self.li_error = sanitize_error_message(e)
             self._send_admin_flow_failure_email("LinkedIn", self.li_error, stage="revision del flow")
             if from_cron:
                 raise
@@ -2093,7 +2221,7 @@ class project_task(models.Model):
                     "published": "false",  # CLAVE: NO publicar aún (igual a tu lógica)
                     "access_token": self.partner_page_access_token,
                 }
-                resp = requests.post(upload_url, params=params)
+                resp = requests.post(upload_url, params=params, timeout=SOCIAL_HTTP_TIMEOUT)
                 data = resp.json()
                 if "id" not in data:
                     raise ValidationError(f"Error subiendo foto: {data}")
@@ -2121,7 +2249,7 @@ class project_task(models.Model):
                 "upload_phase": "start",
                 "access_token": self.partner_page_access_token,
             }
-            resp = requests.post(url, params=params)
+            resp = requests.post(url, params=params, timeout=SOCIAL_HTTP_TIMEOUT)
             data = resp.json()
 
             if "video_id" not in data or "upload_url" not in data:
@@ -2142,7 +2270,7 @@ class project_task(models.Model):
                 "Authorization": f"OAuth {self.partner_page_access_token}",
                 "file_url": media_urls[0],
             }
-            up = requests.post(upload_url, headers=headers)
+            up = requests.post(upload_url, headers=headers, timeout=SOCIAL_HTTP_TIMEOUT)
             up_data = up.json()
 
             if "success" not in up_data:
@@ -2155,7 +2283,7 @@ class project_task(models.Model):
                 "video_id": video_id,
             }
 
-            fin = requests.post(url, params=finish_params)
+            fin = requests.post(url, params=finish_params, timeout=SOCIAL_HTTP_TIMEOUT)
             fin_data = fin.json()
 
             # Si devuelve post_id, guárdalo
@@ -2187,7 +2315,7 @@ class project_task(models.Model):
                 "upload_phase": "start",
                 "access_token": self.partner_page_access_token,
             }
-            resp = requests.post(url, params=params)
+            resp = requests.post(url, params=params, timeout=SOCIAL_HTTP_TIMEOUT)
             data = resp.json()
 
             if "video_id" not in data or "upload_url" not in data:
@@ -2208,7 +2336,7 @@ class project_task(models.Model):
                 "Authorization": f"OAuth {self.partner_page_access_token}",
                 "file_url": media_urls[0],
             }
-            up = requests.post(upload_url, headers=headers)
+            up = requests.post(upload_url, headers=headers, timeout=SOCIAL_HTTP_TIMEOUT)
             up_data = up.json()
 
             if "success" not in up_data:
@@ -2262,7 +2390,11 @@ class project_task(models.Model):
                 last_container_error = None
                 for token_source, instagram_access_token in instagram_tokens:
                     params_with_token = dict(container_params, access_token=instagram_access_token)
-                    r = requests.post(container_url, params=params_with_token, timeout=20)
+                    r = requests.post(
+                        container_url,
+                        params=params_with_token,
+                        timeout=INSTAGRAM_HTTP_TIMEOUT,
+                    )
                     data = r.json()
                     if r.status_code == 200 and data.get("id"):
                         break
@@ -2284,7 +2416,11 @@ class project_task(models.Model):
                     last_item_error = None
                     for token_source, instagram_access_token in instagram_tokens:
                         params_with_token = dict(item_params, access_token=instagram_access_token)
-                        rr = requests.post(container_url, params=params_with_token, timeout=20)
+                        rr = requests.post(
+                            container_url,
+                            params=params_with_token,
+                            timeout=INSTAGRAM_HTTP_TIMEOUT,
+                        )
                         d = rr.json()
                         if rr.status_code == 200 and d.get("id"):
                             break
@@ -2304,7 +2440,11 @@ class project_task(models.Model):
                 last_carousel_error = None
                 for token_source, instagram_access_token in instagram_tokens:
                     params_with_token = dict(carousel_params, access_token=instagram_access_token)
-                    r = requests.post(container_url, params=params_with_token, timeout=20)
+                    r = requests.post(
+                        container_url,
+                        params=params_with_token,
+                        timeout=INSTAGRAM_HTTP_TIMEOUT,
+                    )
                     data = r.json()
                     if r.status_code == 200 and data.get("id"):
                         break
@@ -2323,10 +2463,22 @@ class project_task(models.Model):
 
             return True
 
+        except requests.exceptions.Timeout as e:
+            self.write({
+                "ig_estado": "Error",
+                "post_estado": "Error",
+                "ig_error": (
+                    "Instagram no confirmó la creación del contenedor. "
+                    "No se reintentó automáticamente porque podría haberse creado "
+                    "y repetirlo podría duplicar la publicación. Verificar Instagram."
+                ),
+            })
+            raise
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             self.write({
                 "ig_estado": "Error",
-                "ig_error": str(e),
+                "ig_error": sanitize_error_message(e),
+                "post_estado": "Error",
             })
             raise
 
@@ -2354,10 +2506,12 @@ class project_task(models.Model):
                 "video_url": media_urls[0],
             }
         }
-        tiktok_response = requests.post(url, headers=headers, json=data)
-        response_data = tiktok_response.json()
+        tiktok_response = requests.post(url, headers=headers, json=data, timeout=SOCIAL_HTTP_TIMEOUT)
         if tiktok_response.status_code != 200:
-            raise ValidationError(f"Error al Publicar el video en TIKTOK: {response_data}")
+            raise ValidationError(
+                f"Error al Publicar el video en TIKTOK: {response_error_message(tiktok_response)}"
+            )
+        response_data = tiktok_response.json()
         # You can then check the response
         return response_data["data"]["publish_id"]
     
@@ -2392,7 +2546,7 @@ class project_task(models.Model):
                     raise ValidationError("Los Reels solo admiten un (1) video")
     
                 # 1‑A  initializeUpload
-                head_resp = requests.head(media_urls[0])
+                head_resp = requests.head(media_urls[0], timeout=SOCIAL_HTTP_TIMEOUT)
                 head_resp.raise_for_status()
                 size_bytes = int(head_resp.headers.get("Content-Length", 0))
                 if size_bytes == 0:
@@ -2410,8 +2564,11 @@ class project_task(models.Model):
                     }
                 }
     
-                init_resp = session.post("https://api.linkedin.com/rest/videos?action=initializeUpload",
-                                         json=init_payload)
+                init_resp = session.post(
+                    "https://api.linkedin.com/rest/videos?action=initializeUpload",
+                    json=init_payload,
+                    timeout=SOCIAL_HTTP_TIMEOUT,
+                )
     
                 init_resp.raise_for_status()
                 init_json = init_resp.json()
@@ -2432,7 +2589,7 @@ class project_task(models.Model):
                     # Descargar el chunk exacto
                     chunk_resp = requests.get(media_urls[0], headers={
                         "Range": range_header
-                    }, stream=True)
+                    }, stream=True, timeout=SOCIAL_HTTP_TIMEOUT)
     
                     chunk_resp.raise_for_status()
                     chunk_data = chunk_resp.content  # Leer contenido completo
@@ -2468,8 +2625,11 @@ class project_task(models.Model):
                         "uploadedPartIds": uploaded_etags  # ❗ ETags, no partNumbers
                     }
                 }
-                finalize_resp = session.post("https://api.linkedin.com/rest/videos?action=finalizeUpload",
-                                             json=finalize_payload)
+                finalize_resp = session.post(
+                    "https://api.linkedin.com/rest/videos?action=finalizeUpload",
+                    json=finalize_payload,
+                    timeout=SOCIAL_HTTP_TIMEOUT,
+                )
                 finalize_resp.raise_for_status()
     
                 # Estado "procesando"
@@ -2500,11 +2660,11 @@ class project_task(models.Model):
                 media_urns = []
                 for url in media_urls:
                     # 2‑A  initializeUpload por imagen
-                    init_resp = session.post("https://api.linkedin.com/rest/images?action=initializeUpload", json={
-                        "initializeUploadRequest": {
-                            "owner": org_urn
-                        }
-                    })
+                    init_resp = session.post(
+                        "https://api.linkedin.com/rest/images?action=initializeUpload",
+                        json={"initializeUploadRequest": {"owner": org_urn}},
+                        timeout=SOCIAL_HTTP_TIMEOUT,
+                    )
                     init_resp.raise_for_status()
                     init_json = init_resp.json()
     
@@ -2513,10 +2673,10 @@ class project_task(models.Model):
                     mime, _ = mimetypes.guess_type(url)
     
                     # 2‑B  subir la imagen
-                    img_content = requests.get(url).content
+                    img_content = requests.get(url, timeout=SOCIAL_HTTP_TIMEOUT).content
                     requests.put(upload_url, headers={
                         "Content-Type": mime or "application/octet-stream",
-                    }, data=img_content).raise_for_status()
+                    }, data=img_content, timeout=SOCIAL_HTTP_TIMEOUT).raise_for_status()
                     media_urns.append(image_urn)
     
                 # 2‑C  crear post según 1 o varias imágenes
@@ -2552,7 +2712,11 @@ class project_task(models.Model):
                 raise ValidationError(f"Tipo de publicación no soportado: {self.tipo}")
     
             # =============================================== 3) Crear el post
-            post_resp = session.post("https://api.linkedin.com/rest/posts", json=post_data)
+            post_resp = session.post(
+                "https://api.linkedin.com/rest/posts",
+                json=post_data,
+                timeout=SOCIAL_HTTP_TIMEOUT,
+            )
     
             post_resp.raise_for_status()
     
@@ -2579,7 +2743,7 @@ class project_task(models.Model):
                     error_msg += f": {error_details['message']}"
                 elif 'error' in error_details:
                     error_msg += f": {error_details['error']}"
-            except:
+            except (ValueError, TypeError, AttributeError):
                 error_msg += f": {err.response.text[:200]}"
     
             raise ValidationError(error_msg) from err
@@ -2615,7 +2779,7 @@ class project_task(models.Model):
                 "temporary": True,
             }
             url = f"{BASE_URL}/{self.partner_facebook_page_id}/photos"
-            response_upload = requests.post(url, files=files, data=data)
+            response_upload = requests.post(url, files=files, data=data, timeout=SOCIAL_HTTP_TIMEOUT)
             if response_upload.status_code == 200:
                 return response_upload.json().get('id')
             else:
@@ -2738,7 +2902,7 @@ class project_task(models.Model):
                     success_messages.append("Facebook: Publicación en proceso")
                     published_on.append("Facebook")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
-                    self.write({"fb_estado": "Error", "fb_error": str(e)})
+                    self.write({"fb_estado": "Error", "fb_error": sanitize_error_message(e)})
                     self._send_admin_flow_failure_email("Facebook", str(e), stage="inicio de publicacion")
                     errors.append(f"Facebook: {str(e)}")
 
@@ -2751,7 +2915,7 @@ class project_task(models.Model):
                     success_messages.append("Instagram: Publicación en proceso")
                     published_on.append("Instagram")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
-                    self.write({"ig_estado": "Error", "ig_error": str(e)})
+                    self.write({"ig_estado": "Error", "ig_error": sanitize_error_message(e)})
                     self._send_admin_flow_failure_email("Instagram", str(e), stage="inicio de publicacion")
                     errors.append(f"Instagram: {str(e)}")
 
@@ -2773,7 +2937,7 @@ class project_task(models.Model):
                         self._send_admin_flow_failure_email("TikTok", "No se recibió respuesta del servidor", stage="inicio de publicacion")
                         errors.append("TikTok: No se recibió respuesta del servidor")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
-                    self.write({"tt_estado": "Error", "tt_error": str(e)})
+                    self.write({"tt_estado": "Error", "tt_error": sanitize_error_message(e)})
                     self._send_admin_flow_failure_email("TikTok", str(e), stage="inicio de publicacion")
                     errors.append(f"TikTok: {str(e)}")
 
@@ -2794,16 +2958,14 @@ class project_task(models.Model):
                         self._send_admin_flow_failure_email("LinkedIn", "No se recibió respuesta del servidor", stage="inicio de publicacion")
                         errors.append("LinkedIn: No se recibió respuesta del servidor")
                 except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
-                    self.write({"li_estado": "Error", "li_error": str(e)})
+                    self.write({"li_estado": "Error", "li_error": sanitize_error_message(e)})
                     self._send_admin_flow_failure_email("LinkedIn", str(e), stage="inicio de publicacion")
                     errors.append(f"LinkedIn: {str(e)}")
 
             # Resultado final
             if published_on:
 
-                self.write({
-                    'post_estado': 'Procesando'
-                })
+                self.write({'post_estado': 'Procesando'})
 
                 if errors:
                     # Publicación parcialmente exitosa
@@ -2844,9 +3006,7 @@ class project_task(models.Model):
                 error_detalle = "\n".join(errors) if errors else "Error no especificado"
                 _logger.error("Error en publicar_post: %s", error_detalle)
 
-                self.write({
-                    'post_estado': 'Procesando'
-                })
+                self.write({'post_estado': 'Error'})
                 selected = set(self.red_social_ids.mapped('name'))
                 update_vals = {}
                 if 'Facebook' in selected:
@@ -2863,7 +3023,7 @@ class project_task(models.Model):
 
         except (requests.exceptions.RequestException, ValidationError, ValueError, TypeError, KeyError) as e:
             _logger.error("Error en mi_funcion_critica: %s", e)
-            error_detalle = str(e)
+            error_detalle = sanitize_error_message(e)
             selected = set(self.red_social_ids.mapped('name'))
             update_vals = {}
             if 'Facebook' in selected:
@@ -2990,6 +3150,13 @@ def upload_files_to_s3(files, aws_api, aws_secret, aws_bucket, aws_public_domain
             # Decodificar y subir
             file_bytes = base64.b64decode(file_data)
 
+            max_bytes = MAX_VIDEO_UPLOAD_BYTES if file_ext == 'mp4' else MAX_IMAGE_UPLOAD_BYTES
+            if len(file_bytes) > max_bytes:
+                raise ValidationError(
+                    f"El archivo {file_name_raw} supera el límite permitido de "
+                    f"{max_bytes // (1024 * 1024)} MB."
+                )
+
             if file_ext in ['jpg', 'jpeg']:
                 file_bytes = normalize_image_for_meta(file_bytes, file_name_raw)
 
@@ -3075,7 +3242,7 @@ def normalize_image_for_meta(file_bytes, file_name="image.jpg"):
                 len(normalized),
             )
             return normalized
-    except Exception as e:
+    except (OSError, ValueError, TypeError, binascii.Error) as e:
         _logger.warning("No se pudo normalizar imagen %s para Meta: %s", file_name, e)
         return file_bytes
 
@@ -3085,8 +3252,14 @@ def get_video_duration_ffprobe(base64_data):
     from odoo.exceptions import ValidationError, AccessError
 
     try:
+        video_bytes = base64.b64decode(base64_data)
+        if len(video_bytes) > MAX_VIDEO_UPLOAD_BYTES:
+            raise ValidationError(
+                f"El video supera el límite permitido de "
+                f"{MAX_VIDEO_UPLOAD_BYTES // (1024 * 1024)} MB."
+            )
         with tempfile.NamedTemporaryFile(delete=True, suffix=".mp4") as tmp:
-            tmp.write(base64.b64decode(base64_data))
+            tmp.write(video_bytes)
             tmp.flush()
 
             cmd = [

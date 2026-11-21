@@ -134,7 +134,8 @@ class project_project(models.Model):
         for project in self:
             # Usar el ORM de Odoo para calcular cantidades directamente en la búsqueda
             tasks_data = self.env['project.task'].read_group(domain=[
-                ('project_id', '=', project.id)
+                ('project_id', '=', project.id),
+                ('post_estado', '=', 'Publicado'),
             ], fields=[
                 'tipo'
             ], groupby=[
@@ -237,7 +238,7 @@ class project_project(models.Model):
             'limit': 1000,
         }
 
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=30)
         if response.status_code != 200:
             error = response.json().get('error', {}).get('message', 'Error desconocido')
             raise ValidationError(f"Error al obtener campañas: {error}")
@@ -681,7 +682,7 @@ class project_project(models.Model):
                 'limit': 1,
             }
             try:
-                ads_response = requests.get(ads_url, params=ads_params).json()
+                ads_response = requests.get(ads_url, params=ads_params, timeout=30).json()
                 ads_data = ads_response.get('data', [])
                 if not ads_data:
                     return None
@@ -694,7 +695,7 @@ class project_project(models.Model):
                         'access_token': self.partner_page_access_token,
                         'fields': 'id,object_story_id,effective_object_story_id,thumbnail_url,image_url,object_story_spec,asset_feed_spec'
                     }
-                    creative_response = requests.get(creative_url, params=creative_params).json()
+                    creative_response = requests.get(creative_url, params=creative_params, timeout=30).json()
                     creative = {
                         **creative,
                         **creative_response,
@@ -791,7 +792,7 @@ class project_project(models.Model):
             }
 
             try:
-                response = requests.get(url, params=params)
+                response = requests.get(url, params=params, timeout=30)
                 response.raise_for_status()
                 data = response.json()
                 insights = data.get('insights', {}).get('data', [{}])[0]
@@ -1102,7 +1103,7 @@ class project_project(models.Model):
             user_fields = "video_count,profile_deep_link,username,display_name,avatar_url,follower_count,following_count,likes_count"
             user_resp = requests.get(user_url, headers=headers, params={
                 "fields": user_fields
-            })
+            }, timeout=30)
             if user_resp.status_code != 200:
                 raise ValueError(f"❌ Error HTTP {user_resp.status_code} en user/info: {user_resp.text}")
 
@@ -1136,7 +1137,7 @@ class project_project(models.Model):
                         "fields": "cover_image_url,id,title,create_time,share_url,video_description,like_count,comment_count,share_count,view_count"
                     }
 
-                    resp = requests.post(video_url, headers=headers, params=params, json=payload)
+                    resp = requests.post(video_url, headers=headers, params=params, json=payload, timeout=30)
                     if resp.status_code != 200:
                         raise ValueError(f"❌ Error HTTP {resp.status_code}: {resp.text}")
 

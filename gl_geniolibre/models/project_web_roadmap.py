@@ -3,7 +3,7 @@
 from xml.etree import ElementTree as ET
 
 from odoo import Command, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 
 class GlWebRoadmapGenerateWizard(models.TransientModel):
@@ -14,11 +14,13 @@ class GlWebRoadmapGenerateWizard(models.TransientModel):
     warning_message = fields.Text(
         string='Advertencia',
         readonly=True,
-        default='Se eliminarán todas las tareas y la hoja de ruta anterior antes de generar una nueva.'
+        default='Se eliminarán las tareas y etapas generadas por la hoja de ruta anterior antes de generar una nueva.'
     )
 
     def action_confirm_generate(self):
         self.ensure_one()
+        if not self.env.user.has_group('gl_geniolibre.group_project_task_admin'):
+            raise AccessError('Solo los administradores pueden regenerar hojas de ruta.')
         self.project_id.action_regenerate_web_roadmap()
         return {'type': 'ir.actions.act_window_close'}
 
@@ -131,6 +133,8 @@ class ProjectProject(models.Model):
         }
 
     def action_regenerate_web_roadmap(self):
+        if not self.env.user.has_group('gl_geniolibre.group_project_task_admin'):
+            raise AccessError('Solo los administradores pueden regenerar hojas de ruta.')
         for project in self:
             project._action_delete_web_roadmap_single()
             project._action_generate_web_roadmap_single()
@@ -186,6 +190,8 @@ class ProjectProject(models.Model):
         self.web_roadmap_generated = True
 
     def action_delete_web_roadmap(self):
+        if not self.env.user.has_group('gl_geniolibre.group_project_task_admin'):
+            raise AccessError('Solo los administradores pueden eliminar hojas de ruta.')
         for project in self:
             project._action_delete_web_roadmap_single()
         return True
@@ -197,6 +203,7 @@ class ProjectProject(models.Model):
 
         all_project_tasks = self.env['project.task'].sudo().search([
             ('project_id', '=', self.id),
+            ('gl_is_web_roadmap_generated', '=', True),
         ])
         stages = self.env['project.task.type'].sudo().search([
             ('gl_roadmap_project_id', '=', self.id),
@@ -205,5 +212,4 @@ class ProjectProject(models.Model):
 
         all_project_tasks.unlink()
         stages.unlink()
-        self.type_ids = [Command.clear()]
         self.web_roadmap_generated = False

@@ -54,6 +54,9 @@
                     <widget name="web_ribbon" bg_color="text-bg-danger" title="Error"
                             invisible="post_estado != 'Error'"/>
 
+                    <widget name="web_ribbon" bg_color="text-bg-secondary" title="Cancelado"
+                            invisible="post_estado != 'Cancelado'"/>
+
                     <div class="d-flex w-100">
                         <field name="priority" widget="priority_switch" class="me-3"/>
                         <field name="name" options="{'line_breaks': False}" widget="text"
@@ -178,7 +181,7 @@
                                     invisible="post_estado != 'Pendiente' or tipo =='otro' or state!= '03_approved'"/>
                             <button string="Cancelar" icon="fa-trash-o" type="object" name="cancelar_post"
                                     class="btn-danger mr4"
-                                    invisible="post_estado == 'Pendiente' or post_estado == 'Publicado' or post_estado == 'Procesando' or tipo =='otro'"/>
+                                    invisible="post_estado == 'Pendiente' or post_estado == 'Publicado' or post_estado == 'Procesando' or post_estado == 'Cancelado' or tipo =='otro'"/>
                             <button string="Revisar" icon="fa-check" type="object" name="revisar_post"
                                     class="btn-success mr4"
                                     invisible="post_estado == 'Pendiente' or post_estado == 'Programado'"/>
@@ -202,7 +205,7 @@
                     </div>
                 </xpath>
                 <xpath expr="//page[last()]" position="after">
-                    <page string="Debug" name="debug_page">
+                    <page string="Debug" name="debug_page" groups="gl_geniolibre.group_project_task_admin">
                         <group>
                             <group string="IDs">
                                 <field name="fb_post_id"/>
@@ -260,6 +263,7 @@
                            decoration-info="post_estado == 'Procesando'"
                            decoration-warning="post_estado == 'Programado'"
                            decoration-danger="post_estado == 'Error'"
+                           decoration-muted="post_estado == 'Cancelado'"
                            decoration-success="post_estado == 'Publicado'" invisible="tipo == 'otro'"/>
                     <field name="fecha_publicacion" string="Fecha de Publicación" invisible="tipo == 'otro'"/>
                     <field name="red_social_ids" string="Redes Sociales" widget="many2many_tags"

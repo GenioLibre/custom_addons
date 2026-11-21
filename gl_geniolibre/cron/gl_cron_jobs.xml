@@ -9,8 +9,17 @@
 # Get all scheduled posts
 records = model.search([
     ('post_estado', '=', 'Programado'),
-    ('fecha_publicacion', '<=', time.strftime('%Y-%m-%d %H:%M:%S'))
+    ('fecha_publicacion', '<=', datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
 ])
+
+# Reservar los registros dentro de la transacción para evitar que dos workers
+# publiquen la misma tarea simultáneamente.
+if records:
+    model.env.cr.execute(
+        "SELECT id FROM project_task WHERE id IN %s FOR UPDATE SKIP LOCKED",
+        [tuple(records.ids)],
+    )
+    records = model.browse([row[0] for row in model.env.cr.fetchall()]).exists()
 
 
 record_count = len(records)
@@ -27,7 +36,7 @@ error_count = 0
 
 for record in records:
     _logger.info(record.fecha_publicacion)
-    _logger.info(time.strftime('%Y-%m-%d %H:%M:%S'))
+    _logger.info(datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
     try:
         _logger.info(f"► Procesando Post ID {record.id}: {record.name or 'Sin nombre'}")
         result = record.with_context(from_cron=True).publicar_post()
@@ -72,15 +81,27 @@ else:
         <field name="name">GL Revisar publicaciones en proceso</field>
         <field name="model_id" ref="model_project_task"/>
         <field name="state">code</field>
-        <field name="code">
-            for record in model.search([('post_estado', '=', 'Procesando')]):
-                try:
-                    record.revisar_post(from_cron=True)
-                except Exception as e:
-                    error_message = f"Error al revisar el post: {str(e)}"
-                    _logger.error(f"Error al revisar el post {record.id}: {e}")
-                    record.message_post(body=error_message, message_type='comment')
-        </field>
+        <field name="code"><![CDATA[
+records = model.search([('post_estado', '=', 'Procesando')])
+if records:
+    model.env.cr.execute(
+        "SELECT id FROM project_task WHERE id IN %s FOR UPDATE SKIP LOCKED",
+        [tuple(records.ids)],
+    )
+    records = model.browse([row[0] for row in model.env.cr.fetchall()]).exists()
+
+for record in records:
+    try:
+        record.revisar_post(from_cron=True)
+    except Exception as e:
+        error_message = f"Error al revisar el post: {str(e)}"
+        _logger.error(f"Error al revisar el post {record.id}: {e}")
+        record.write({
+            'post_estado': 'Error',
+            'state': '01_in_progress',
+        })
+        record.message_post(body=error_message, message_type='comment')
+]]></field>
         <field name="interval_number">5</field>
         <field name="interval_type">minutes</field>
         <field name="active">True</field>
@@ -89,13 +110,13 @@ else:
         <field name="name">GL TikTok Renew Token Daily</field>
         <field name="model_id" ref="base.model_res_partner"/>
         <field name="state">code</field>
-        <field name="code">
-            for record in model.search([('tiktok_refresh_token', '!=', False)]):
-                try:
-                    record.tiktok_renew_token()
-                except Exception as e:
-                    _logger.error(f"Error al renovar el token {record.id}: {e}")
-        </field>
+        <field name="code"><![CDATA[
+for record in model.search([('tiktok_refresh_token', '!=', False)]):
+    try:
+        record.tiktok_renew_token()
+    except Exception as e:
+        _logger.error(f"Error al renovar el token {record.id}: {e}")
+]]></field>
         <field name="interval_number">1</field>
         <field name="interval_type">days</field>
         <field name="active">True</field>

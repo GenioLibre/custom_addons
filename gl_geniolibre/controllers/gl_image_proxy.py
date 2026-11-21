@@ -9,6 +9,9 @@ from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+ALLOWED_IMAGE_HOSTS = ("tiktokcdn.com", "tiktokcdn-us.com")
+MAX_PROXY_IMAGE_BYTES = 10 * 1024 * 1024
+FFMPEG_TIMEOUT_SECONDS = 10
 
 
 class GLImageProxyController(http.Controller):
@@ -20,14 +23,20 @@ class GLImageProxyController(http.Controller):
 
         parsed = urlparse(url)
         hostname = (parsed.hostname or "").lower()
-        if "tiktokcdn.com" not in hostname and "tiktokcdn-us.com" not in hostname:
+        if parsed.scheme != "https" or not any(
+            hostname == allowed_host or hostname.endswith(f".{allowed_host}")
+            for allowed_host in ALLOWED_IMAGE_HOSTS
+        ):
             _logger.warning("Se rechazó image proxy TikTok para host no permitido: %s", hostname)
             return request.not_found()
 
+        response = None
         try:
             response = requests.get(
                 url,
                 timeout=20,
+                stream=True,
+                allow_redirects=False,
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (X11; Linux x86_64) "
@@ -39,11 +48,34 @@ class GLImageProxyController(http.Controller):
                 },
             )
             response.raise_for_status()
+            content_type = (response.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if not content_type.startswith("image/"):
+                _logger.warning("Contenido no visual rechazado por proxy TikTok: %s", content_type)
+                return request.not_found()
+            content_length = response.headers.get("Content-Length")
+            if content_length and int(content_length) > MAX_PROXY_IMAGE_BYTES:
+                _logger.warning("Imagen TikTok demasiado grande para proxy: %s bytes", content_length)
+                return request.not_found()
+
+            chunks = []
+            total_size = 0
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                total_size += len(chunk)
+                if total_size > MAX_PROXY_IMAGE_BYTES:
+                    _logger.warning("Imagen TikTok excede el límite del proxy: %s bytes", total_size)
+                    return request.not_found()
+                chunks.append(chunk)
+            content = b"".join(chunks)
         except requests.exceptions.RequestException as exc:
             _logger.warning("No se pudo descargar imagen TikTok para proxy: %s", exc)
             return request.not_found()
+        except (TypeError, ValueError):
+            _logger.warning("Content-Length inválido en imagen TikTok para proxy")
+            return request.not_found()
+        finally:
+            if response is not None:
+                response.close()
 
-        content = response.content
         content_type = response.headers.get("Content-Type", "application/octet-stream")
 
         if "webp" in content_type.lower() or ".webp" in url.lower():
@@ -68,6 +100,7 @@ class GLImageProxyController(http.Controller):
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     check=True,
+                    timeout=FFMPEG_TIMEOUT_SECONDS,
                 )
                 jpeg_bytes = process.stdout
                 headers = [

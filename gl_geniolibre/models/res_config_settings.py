@@ -12,6 +12,7 @@ import requests
 from odoo.exceptions import ValidationError
 from odoo import fields, models, api
 from odoo.http import request
+from ..services.social_http import sanitize_error_message
 
 API_VERSION = None
 OAUTH_STATE_TTL = 600
@@ -297,8 +298,8 @@ class ResConfigSettings(models.TransientModel):
             if (icp.get_param(META_SYSTEM_USER_SOURCE_TOKEN_KEY) or "").strip():
                 try:
                     self.create({}).action_generate_meta_system_user_token()
-                except Exception as err:
-                    icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, str(err))
+                except (ValidationError, requests.exceptions.RequestException, ValueError, TypeError, KeyError) as err:
+                    icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, sanitize_error_message(err))
             return True
 
         expires_at_raw = icp.get_param(META_SYSTEM_USER_TOKEN_EXPIRES_AT_KEY)
@@ -362,8 +363,8 @@ class ResConfigSettings(models.TransientModel):
             try:
                 settings = self.create({})
                 settings.action_generate_meta_system_user_token()
-            except Exception as err:
-                icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, str(err))
+            except (ValidationError, requests.exceptions.RequestException, ValueError, TypeError, KeyError) as err:
+                icp.set_param(META_SYSTEM_USER_TOKEN_LAST_ERROR_KEY, sanitize_error_message(err))
         return True
 
     def _create_oauth_state(self, provider):
