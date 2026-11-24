@@ -17,3 +17,7 @@ from . import gl_marketing_social
 from . import tiktok_publish_confirm_wizard
 
 from . import user_access
+
+from . import account_move
+from . import subscription_contract_line
+from . import subscription_contracts

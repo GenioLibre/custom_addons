@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 {
     'name': "GenioLibre - Custom Development",
-    'version': '1.0.1',
-    'author': 'GenioLibre',
+    'version': '1.0.2',
+    'author': 'GenioLibre, Cybrosys Techno Solutions',
 
     'summary': """
         GenioLibre Custom""",
@@ -13,19 +13,21 @@
 
     'website': "GenioLibre.com",
     'application': True,
-    'license': 'LGPL-3',
+    'license': 'AGPL-3',
     # Categories can be used to filter modules in modules listing
     # Check https://github.com/odoo/odoo/blob/15.0/odoo/addons/base/data/ir_module_category_data.xml
     # for the full list
     'category': 'Customizations',
 
     # any module necessary for this one to work correctly
-    'depends': ['base', 'mail', 'portal', 'base_setup','web','website','sale','sale_management','project',],
+    'depends': ['base', 'mail', 'portal', 'base_setup','web','website','sale','sale_management','project','account',],
 
     # always loaded
     'data': [
         'security/security.xml',
+        'security/subscription_contracts_security.xml',
         'security/ir.model.access.csv',
+        'security/ir.model.access-contracts.csv',
         'security/gl_marketing_intelligence_rules.xml',
         'views/res_users_access.xml',
 
@@ -49,6 +51,12 @@
         'report/gl_print_recibo_venta.xml',
         'report/sale_order_report_tax.xml',
 
+        'cron/ir_cron_data.xml',
+        'report/subscription_contract_reports.xml',
+        'views/subscription_contracts_views.xml',
+        'views/account_move_views.xml',
+        'views/subscription_contracts_templates.xml',
+        'report/subscription_contract_templates.xml',
         'cron/gl_cron_jobs.xml',
         'cron/gl_marketing_discovery_cron.xml',
     ],

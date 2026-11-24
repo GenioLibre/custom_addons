@@ -1,0 +1,784 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* gl_geniolibre
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-14 19:38+0000\n"
+"PO-Revision-Date: 2025-04-14 19:38+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: gl_geniolibre
+#: model:ir.actions.report,print_report_name:gl_geniolibre.action_report_subscription_contracts
+msgid ""
+"'Subscription Contracts Report - %s' %\n"
+"            (object.name)\n"
+"        "
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__note
+msgid "Add any notes"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Cancel"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Cancel; your Subscription Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__company_id
+msgid "Company"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Company:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__invoices_active
+msgid "Compute invoices are active or not"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Confirm"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Confirm your Subscription Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__contract_reminder
+msgid "Contract Expiration Reminder (Days)"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Contract Lines"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__name
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Contract Name"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__contract_line_ids
+msgid "Contract lines"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__reference
+msgid "Contract reference"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.actions.act_window,name:gl_geniolibre.subscription_contracts_action
+#: model:ir.model.fields,field_description:gl_geniolibre.field_sale_order_line__contract_id
+#: model:ir.ui.menu,name:gl_geniolibre.subscription_contract_menu_action
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.actions.act_window,help:gl_geniolibre.subscription_contracts_action
+msgid "Create a new record!"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__create_uid
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__create_date
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__currency_id
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__currency_id
+msgid "Currency"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__current_reference
+msgid "Current Subscription Id"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__current_reference
+msgid "Current Subscription id"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__partner_id
+msgid "Customer"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Customer Name"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__partner_id
+msgid "Customer for this contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Customer:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Date of Next Invoice"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Date of Next Invoice:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__next_invoice_date
+msgid "Date of next invoice"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__recurring_period_interval__days
+msgid "Days"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__description
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Description"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__discount
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Discount (%)"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__discount
+msgid "Discount in %"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__display_name
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__date_end
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "End Date"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "End Date:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__state__expire_soon
+msgid "Expire Soon"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__state__expired
+msgid "Expired"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__contract_reminder
+msgid "Expiry reminder of subscription contract in days."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_sale_order_line__contract_id
+msgid "For adding Contracts in sale order line"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Generate Invoice"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__id
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__id
+msgid "ID"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__message_has_error
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__invoices_active
+msgid "Invoice active"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__invoice_count
+msgid "Invoice count"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Invoices"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model,name:gl_geniolibre.model_account_move
+msgid "Journal Entry"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__write_uid
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__write_date
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__lock
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Lock"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__lock
+msgid ""
+"Lock subscription contract so that further modifications are not possible."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Lock your Subscription Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__recurring_period_interval__months
+msgid "Months"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.portal_my_home_contracts
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "My Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__name
+msgid "Name of Contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__state__new
+msgid "New"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__next_invoice_date
+msgid "Next Invoice Date"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__invoice_count
+msgid "Number of invoices generated"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__state__ongoing
+msgid "Ongoing"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+msgid "Order Qty"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__sale_order_line_ids
+msgid "Order lines of Sale Orders which belongs to this contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Ordered Qty"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__qty_ordered
+msgid "Ordered Quantity"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Print"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Product"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__description
+msgid "Product description"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__product_id
+msgid "Products"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__product_id
+msgid "Products to be added in contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__contract_line_ids
+msgid "Products to be added in the contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__qty_ordered
+msgid "Quantity"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__rating_ids
+msgid "Ratings"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__recurring_invoice
+msgid "Recurring Invoice Interval (Days)"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__recurring_period
+msgid "Recurring Period"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__recurring_period_interval
+msgid "Recurring Period Interval"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Recurring Period:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__recurring_period_interval
+msgid "Recurring interval of subscription contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__recurring_invoice
+msgid "Recurring invoice interval in days"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__recurring_period
+msgid "Recurring period of subscription contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__reference
+msgid "Reference"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_account_bank_statement_line__contract_origin
+#: model:ir.model.fields,help:gl_geniolibre.field_account_move__contract_origin
+msgid "Reference of Subscription Contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Reference:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Report"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__sale_order_line_ids
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Sale Order Lines"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model,name:gl_geniolibre.model_sale_order_line
+msgid "Sales Order Line"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__state
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Stage"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Stage:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__date_start
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.tmp_contract_details
+msgid "Start Date"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Start Date:"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__state
+msgid "Status of subscription contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__sub_total
+msgid "Sub Total Amount"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_account_bank_statement_line__contract_origin
+#: model:ir.model.fields,field_description:gl_geniolibre.field_account_move__contract_origin
+msgid "Subscription Contract"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__subscription_contract_id
+msgid "Subscription Contract Reference"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.actions.report,name:gl_geniolibre.action_report_subscription_contracts
+msgid "Subscription Contract Report"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.actions.server,name:gl_geniolibre.ir_cron_scheduler_recurring_action_ir_actions_server
+msgid "Subscription Contract State Change"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model,name:gl_geniolibre.model_subscription_contracts
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__subscription_contract_id
+msgid "Subscription Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model,name:gl_geniolibre.model_subscription_contracts_line
+msgid "Subscription Contracts Line"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__date_end
+msgid "Subscription End Date"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__date_start
+msgid "Subscription contract start date"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Subtotal"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__tax_ids
+msgid "Taxes"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__tax_ids
+msgid "Taxes to be added"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Terms and Conditions"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__note
+msgid "Terms and conditions"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__amount_total
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__sub_total
+msgid "Total"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__amount_total
+msgid "Total amount"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__price_unit
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.contract_details
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.report_subscription_contracts
+msgid "Unit Price"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts_line__product_uom_id
+msgid "Unit of Measure"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__product_uom_id
+msgid "Unit of measure of product"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts_line__price_unit
+msgid "Unit price of product"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Unlock"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "Unlock your Subscription Contracts"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,field_description:gl_geniolibre.field_subscription_contracts__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields,help:gl_geniolibre.field_subscription_contracts__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__recurring_period_interval__weeks
+msgid "Weeks"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model:ir.model.fields.selection,name:gl_geniolibre.selection__subscription_contracts__recurring_period_interval__years
+msgid "Years"
+msgstr ""
+
+#. module: gl_geniolibre
+#: model_terms:ir.ui.view,arch_db:gl_geniolibre.subscription_contracts_view_form
+msgid "help=\"Generate Invoices for your Contracts\"/&gt;"
+msgstr ""

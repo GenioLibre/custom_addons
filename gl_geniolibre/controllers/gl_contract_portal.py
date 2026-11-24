@@ -41,7 +41,7 @@ class ContractsController(http.Controller):
         records = request.env['subscription.contracts'].sudo().search(domain)
 
         # Renderizar la plantilla con los registros
-        return request.render('sales_contract_and_recurring_invoices.tmp_contract_details', {
+        return request.render('gl_geniolibre.tmp_contract_details', {
             'records': records,
             'page_name': 'contracts'  # Útil para estilos/css si lo necesitas
         })
@@ -49,18 +49,23 @@ class ContractsController(http.Controller):
     @http.route(['/my/contracts/<int:contract_id>'], type='http', auth='user', website=True)
     def portal_contract_details(self, contract_id, **kwargs):
         # Browse the contract record (sudo to avoid access restrictions)
-        record = request.env['subscription.contracts'].sudo().browse(contract_id)
+        record = request.env['subscription.contracts'].sudo().browse(contract_id).exists()
+        if not record:
+            return request.not_found()
         # Ensure record belongs to the user unless admin
         if not request.env.user.has_group('base.group_system') and record.partner_id != request.env.user.partner_id:
             return request.redirect('/my')
-        return request.render('sales_contract_and_recurring_invoices.contract_details', {
+        return request.render('gl_geniolibre.contract_details', {
             'record': record
         })
 
     @http.route(['/my/contracts/<int:contract_id>/print'], type='http', auth='user', website=True)
     def portal_contract_print(self, contract_id, **kwargs):
+        record = request.env['subscription.contracts'].sudo().browse(contract_id).exists()
+        if not record or (not request.env.user.has_group('base.group_system') and record.partner_id != request.env.user.partner_id):
+            return request.not_found()
         # Print PDF report for the contract
-        report_ref = 'sales_contract_and_recurring_invoices.action_report_subscription_contracts'
+        report_ref = 'gl_geniolibre.action_report_subscription_contracts'
         report_action = request.env.ref(report_ref)
         pdf_content, _ = request.env['ir.actions.report'].sudo()._render_qweb_pdf(report_action.report_name, [
             contract_id

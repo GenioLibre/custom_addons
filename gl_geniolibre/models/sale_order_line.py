@@ -18,3 +18,5 @@ class SaleOrderLine(models.Model):
     def _compute_price_total_with_tax(self):
         for line in self:
             line.price_total_with_tax = line.price_subtotal + line.price_tax
+
+    contract_id = fields.Many2one('subscription.contracts', string='Contracts', help='For adding Contracts in sale order line')
